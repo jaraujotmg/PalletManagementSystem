@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=11">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pallet Management System - Edit Item</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Direct color values instead of CSS variables */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+        }
+        
+        .navbar {
+            background-color: #003366;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+        }
+        
+        .card {
+            border-radius: 8px;
+            -webkit-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: #e6eef5;
+            color: #003366;
+            font-weight: bold;
+        }
+        
+        .btn-primary {
+            background-color: #003366;
+            border-color: #003366;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5e87b0;
+            border-color: #5e87b0;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            color: #003366;
+        }
+        
+        .form-control:focus {
+            border-color: #5e87b0;
+            -webkit-box-shadow: 0 0 0 0.25rem rgba(94, 135, 176, 0.25);
+            box-shadow: 0 0 0 0.25rem rgba(94, 135, 176, 0.25);
+        }
+        
+        .form-select:focus {
+            border-color: #5e87b0;
+            -webkit-box-shadow: 0 0 0 0.25rem rgba(94, 135, 176, 0.25);
+            box-shadow: 0 0 0 0.25rem rgba(94, 135, 176, 0.25);
+        }
+        
+        .edit-header {
+            background-color: #e6eef5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .edit-header h4 {
+            color: #003366;
+            margin-bottom: 0;
+        }
+        
+        .badge-success {
+            background-color: #2e7d32;
+        }
+        
+        .badge-warning {
+            background-color: #f57c00;
+        }
+        
+        .is-invalid {
+            border-color: #c62828 !important;
+        }
+        
+        .invalid-feedback {
+            color: #c62828;
+            font-size: 0.875rem;
+        }
+        
+        .modal-header {
+            background-color: #003366;
+            color: white;
+        }
+        
+        .modal-footer {
+            background-color: #e6eef5;
+        }
+        
+        .floating-buttons {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .field-info {
+            color: #555;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        .touch-input {
+            height: 50px;
+            font-size: 1.1rem;
+        }
+        
+        .num-keypad {
+            display: -ms-grid;
+            display: grid;
+            -ms-grid-columns: 1fr 10px 1fr 10px 1fr;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 10px;
+            max-width: 300px;
+            margin-top: 10px;
+        }
+        
+        .num-key {
+            width: 100%;
+            height: 50px;
+            font-size: 1.2rem;
+            background-color: #f8f9fa;
+        }
+        
+        .non-editable-field {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+        
+        /* IE11 Flexbox fixes */
+        .d-flex {
+            display: -ms-flexbox;
+            display: flex;
+        }
+        
+        .align-items-center {
+            -ms-flex-align: center;
+            align-items: center;
+        }
+        
+        .mt-md-0 {
+            margin-top: 0;
+        }
+        
+        .text-md-end {
+            text-align: right;
+        }
+        
+        .justify-content-end {
+            -ms-flex-pack: end;
+            justify-content: flex-end;
+        }
+        
+        .badge-orange {
+            background-color: #f57c00;
+            color: white;
+        }
+        
+        /* IE11 Grid fallback for num-keypad */
+        @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+            .num-keypad {
+                display: block;
+                overflow: hidden;
+            }
+            
+            .num-key {
+                float: left;
+                width: 30%;
+                margin: 1.66%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-cubes mr-2"></i>Pallet Management System
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">
+                            <i class="fas fa-pallet mr-1"></i>Pallets
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="fas fa-cog mr-1"></i>Settings
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <div class="dropdown mr-3">
+                        <button class="btn btn-light dropdown-toggle" type="button" id="divisionDropdown" data-toggle="dropdown">
+                            <i class="fas fa-building mr-1"></i>Division: MA
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="#">MA - Manufacturing</a>
+                            <a class="dropdown-item" href="#">TC - Technical Center</a>
+                        </div>
+                    </div>
+                    <div class="dropdown mr-3">
+                        <button class="btn btn-light dropdown-toggle" type="button" id="platformDropdown" data-toggle="dropdown">
+                            <i class="fas fa-layer-group mr-1"></i>Platform: TEC1
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="#">TEC1</a>
+                            <a class="dropdown-item" href="#">TEC2</a>
+                            <a class="dropdown-item" href="#">TEC4I</a>
+                        </div>
+                    </div>
+                    <div class="text-light">
+                        <i class="fas fa-user mr-1"></i>John Doe
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="#"><i class="fas fa-home"></i> Home</a></li>
+                <li class="breadcrumb-item"><a href="#"><i class="fas fa-pallet"></i> Pallets</a></li>
+                <li class="breadcrumb-item"><a href="#">TEMP-001</a></li>
+                <li class="breadcrumb-item"><a href="#">Item #456789</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Edit</li>
+            </ol>
+        </nav>
+
+        <!-- Edit Header -->
+        <div class="edit-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4><i class="fas fa-edit mr-2"></i>Edit Item #456789</h4>
+                    <div class="mt-2">
+                        <span class="badge badge-secondary mr-2">Pallet: TEMP-001</span>
+                        <span class="badge badge-orange">Open</span>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-right mt-3 mt-md-0">
+                    <div class="custom-control custom-switch d-inline-block mr-3">
+                        <input type="checkbox" class="custom-control-input" id="touchModeSwitch">
+                        <label class="custom-control-label text-dark" for="touchModeSwitch">Touch Mode</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-weight mr-2"></i>Edit Physical Properties
+                <span class="badge badge-info float-right">Only these fields can be edited</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle mr-2"></i>Note: Only Weight, Width, Quality, and Batch can be edited. Other item properties are not editable.
+                </div>
+                
+                <form id="editItemForm">
+                    <div class="row">
+                        <!-- Item Information (Non-editable) -->
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">Item Information (Non-editable)</div>
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label class="form-label">Item Number</label>
+                                        <input type="text" class="form-control non-editable-field" value="456789" disabled>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Manufacturing Order</label>
+                                        <input type="text" class="form-control non-editable-field" value="MO-45680-1" disabled>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Client</label>
+                                        <input type="text" class="form-control non-editable-field" value="Standard Manufacturing Inc." disabled>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Reference</label>
+                                        <input type="text" class="form-control non-editable-field" value="REF-X45" disabled>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Editable Properties -->
+                        <div class="col-lg-8">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="weight" class="form-label required">Weight</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="weight" value="25.5" min="0" step="0.1" required>
+                                            <div class="input-group-append">
+                                                <span class="input-group-text">KG</span>
+                                            </div>
+                                        </div>
+                                        <div class="field-info">
+                                            <i class="fas fa-info-circle mr-1"></i>Enter the weight in kilograms (positive number)
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="width" class="form-label required">Width</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="width" value="120.0" min="0" step="0.1" required>
+                                            <div class="input-group-append">
+                                                <span class="input-group-text">CM</span>
+                                            </div>
+                                        </div>
+                                        <div class="field-info">
+                                            <i class="fas fa-info-circle mr-1"></i>Enter the width in centimeters (positive number)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="quality" class="form-label required">Quality</label>
+                                        <select class="form-control" id="quality" required>
+                                            <option value="Premium">Premium</option>
+                                            <option value="Standard" selected>Standard</option>
+                                            <option value="Economy">Economy</option>
+                                            <option value="Special">Special</option>
+                                        </select>
+                                        <div class="field-info">
+                                            <i class="fas fa-info-circle mr-1"></i>Select the quality grade for this item
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="batch" class="form-label required">Batch</label>
+                                        <input type="text" class="form-control" id="batch" value="B12345" required>
+                                        <div class="field-info">
+                                            <i class="fas fa-info-circle mr-1"></i>Enter the batch number/identifier
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Touch Mode Keyboard (initially hidden) -->
+                            <div id="touchKeyboard" class="mt-4" style="display: none;">
+                                <div class="card">
+                                    <div class="card-header">Numeric Keypad</div>
+                                    <div class="card-body">
+                                        <div class="num-keypad">
+                                            <button type="button" class="btn num-key" data-value="1">1</button>
+                                            <button type="button" class="btn num-key" data-value="2">2</button>
+                                            <button type="button" class="btn num-key" data-value="3">3</button>
+                                            <button type="button" class="btn num-key" data-value="4">4</button>
+                                            <button type="button" class="btn num-key" data-value="5">5</button>
+                                            <button type="button" class="btn num-key" data-value="6">6</button>
+                                            <button type="button" class="btn num-key" data-value="7">7</button>
+                                            <button type="button" class="btn num-key" data-value="8">8</button>
+                                            <button type="button" class="btn num-key" data-value="9">9</button>
+                                            <button type="button" class="btn num-key" data-value=".">.</button>
+                                            <button type="button" class="btn num-key" data-value="0">0</button>
+                                            <button type="button" class="btn num-key btn-danger" data-value="del">
+                                                <i class="fas fa-backspace"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-secondary mr-2" id="cancelButton">
+                            <i class="fas fa-times mr-1"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save mr-1"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unsaved Changes Modal -->
+    <div class="modal fade" id="unsavedChangesModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Unsaved Changes</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>You have unsaved changes. Are you sure you want to leave this page?</p>
+                    <p>Any unsaved changes will be lost.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Stay on Page</button>
+                    <button type="button" class="btn btn-danger" id="confirmLeave">Leave Page</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Required scripts for IE11 compatibility -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.1/umd/popper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.0/js/bootstrap.min.js"></script>
+    <script>
+        // Toggle touch mode - IE11 compatible
+        document.getElementById('touchModeSwitch').addEventListener('click', function() {
+            var inputs = document.querySelectorAll('input[type="number"], input[type="text"], select');
+            var touchKeyboard = document.getElementById('touchKeyboard');
+            
+            if (this.checked) {
+                // Enable touch mode
+                for (var i = 0; i < inputs.length; i++) {
+                    inputs[i].classList.add('touch-input');
+                }
+                touchKeyboard.style.display = 'block';
+            } else {
+                // Disable touch mode
+                for (var i = 0; i < inputs.length; i++) {
+                    inputs[i].classList.remove('touch-input');
+                }
+                touchKeyboard.style.display = 'none';
+            }
+        });
+        
+        // Track form changes
+        var formChanged = false;
+        var form = document.getElementById('editItemForm');
+        var inputs = form.querySelectorAll('input, select');
+        
+        for (var i = 0; i < inputs.length; i++) {
+            inputs[i].addEventListener('change', function() {
+                formChanged = true;
+            });
+        }
+        
+        // Cancel button handling
+        document.getElementById('cancelButton').addEventListener('click', function() {
+            if (formChanged) {
+                // Show confirmation modal using jQuery for IE11 compatibility
+                $('#unsavedChangesModal').modal('show');
+            } else {
+                // No changes, just go back
+                window.history.back();
+            }
+        });
+        
+        // Confirm leave button
+        document.getElementById('confirmLeave').addEventListener('click', function() {
+            window.history.back();
+        });
+        
+        // Form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validate form
+            var weight = document.getElementById('weight').value;
+            var width = document.getElementById('width').value;
+            var batch = document.getElementById('batch').value;
+            
+            var isValid = true;
+            
+            if (weight <= 0) {
+                document.getElementById('weight').classList.add('is-invalid');
+                isValid = false;
+            } else {
+                document.getElementById('weight').classList.remove('is-invalid');
+            }
+            
+            if (width <= 0) {
+                document.getElementById('width').classList.add('is-invalid');
+                isValid = false;
+            } else {
+                document.getElementById('width').classList.remove('is-invalid');
+            }
+            
+            if (batch.trim() === '') {
+                document.getElementById('batch').classList.add('is-invalid');
+                isValid = false;
+            } else {
+                document.getElementById('batch').classList.remove('is-invalid');
+            }
+            
+            if (isValid) {
+                // Form is valid, submit (in a real app, this would be an AJAX call)
+                alert('Changes saved successfully!');
+                window.history.back();
+            }
+        });
+        
+        // Touch keyboard functionality
+        var numKeys = document.querySelectorAll('.num-key');
+        var activeInput = null;
+        
+        // Set focus event for numeric inputs
+        var numericInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+        for (var i = 0; i < numericInputs.length; i++) {
+            numericInputs[i].addEventListener('focus', function() {
+                activeInput = this;
+            });
+        }
+        
+        // Handle numeric keypad clicks
+        for (var i = 0; i < numKeys.length; i++) {
+            numKeys[i].addEventListener('click', function() {
+                if (!activeInput) return;
+                
+                var value = this.getAttribute('data-value');
+                
+                if (value === 'del') {
+                    // Delete last character
+                    activeInput.value = activeInput.value.slice(0, -1);
+                } else {
+                    // Add character
+                    activeInput.value += value;
+                }
+                
+                // Trigger change event to track form changes
+                var event = document.createEvent('Event');
+                event.initEvent('change', true, true);
+                activeInput.dispatchEvent(event);
+            });
+        }
+    </script>
+</body>
+</html>

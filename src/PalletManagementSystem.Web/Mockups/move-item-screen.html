@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pallet Management System - Move Item</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #003366;
+            --secondary-color: #5e87b0;
+            --accent-color: #e6eef5;
+            --success-color: #2e7d32;
+            --warning-color: #f57c00;
+            --danger-color: #c62828;
+        }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+        }
+        
+        .navbar {
+            background-color: var(--primary-color);
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+        }
+        
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: var(--accent-color);
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .move-header {
+            background-color: var(--accent-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .move-header h4 {
+            color: var(--primary-color);
+            margin-bottom: 0;
+        }
+        
+        .source-dest-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .source-dest-box {
+            flex: 1;
+            border: 2px solid var(--accent-color);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .source-dest-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .source-dest-icon {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .arrow-container {
+            padding: 0 20px;
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+        
+        .pallet-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .pallet-card:hover {
+            border-color: var(--primary-color);
+            background-color: var(--accent-color);
+        }
+        
+        .pallet-card.selected {
+            border-color: var(--primary-color);
+            background-color: var(--accent-color);
+            box-shadow: 0 0 0 2px var(--primary-color);
+        }
+        
+        .pallet-card-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .pallet-card-subtitle {
+            color: #555;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        
+        .pallet-card-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        
+        .item-preview {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+        }
+        
+        .info-label {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+        
+        .filter-container {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        
+        .filter-container .form-control {
+            margin-right: 10px;
+        }
+        
+        .floating-buttons {
+            position: sticky;
+            bottom: 0;
+            background-color: white;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            border-top: 1px solid #eee;
+            margin: 0 -20px -20px -20px;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .search-container {
+            position: relative;
+        }
+        
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 0 0 4px 4px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .search-results.show {
+            display: block;
+        }
+        
+        .search-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        
+        .search-item:hover {
+            background-color: var(--accent-color);
+        }
+        
+        .modal-header {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .modal-footer {
+            background-color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-cubes me-2"></i>Pallet Management System
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">
+                            <i class="fas fa-pallet me-1"></i>Pallets
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="fas fa-cog me-1"></i>Settings
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <div class="dropdown me-3">
+                        <button class="btn btn-light dropdown-toggle" type="button" id="divisionDropdown" data-bs-toggle="dropdown">
+                            <i class="fas fa-building me-1"></i>Division: MA
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">MA - Manufacturing</a></li>
+                            <li><a class="dropdown-item" href="#">TC - Technical Center</a></li>
+                        </ul>
+                    </div>
+                    <div class="dropdown me-3">
+                        <button class="btn btn-light dropdown-toggle" type="button" id="platformDropdown" data-bs-toggle="dropdown">
+                            <i class="fas fa-layer-group me-1"></i>Platform: TEC1
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">TEC1</a></li>
+                            <li><a class="dropdown-item" href="#">TEC2</a></li>
+                            <li><a class="dropdown-item" href="#">TEC4I</a></li>
+                        </ul>
+                    </div>
+                    <div class="text-light">
+                        <i class="fas fa-user me-1"></i>John Doe
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="#"><i class="fas fa-home"></i> Home</a></li>
+                <li class="breadcrumb-item"><a href="#"><i class="fas fa-pallet"></i> Pallets</a></li>
+                <li class="breadcrumb-item"><a href="#">TEMP-001</a></li>
+                <li class="breadcrumb-item"><a href="#">Item #456789</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Move Item</li>
+            </ol>
+        </nav>
+
+        <!-- Move Header -->
+        <div class="move-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4><i class="fas fa-exchange-alt me-2"></i>Move Item #456789</h4>
+                    <div class="mt-2">
+                        <span class="badge bg-secondary me-2">Current Pallet: TEMP-001</span>
+                        <span class="badge" style="background-color: #f57c00;">Open</span>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Move Item Content -->
+        <div class="row">
+            <div class="col-lg-4">
+                <!-- Item Information -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-box me-2"></i>Item Details
+                    </div>
+                    <div class="card-body">
+                        <div class="item-preview">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <span class="info-label">Item Number:</span>
+                                        <div>#456789</div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <span class="info-label">Manufacturing Order:</span>
+                                        <div>MO-45680-1</div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <span class="info-label">Client:</span>
+                                        <div>Standard Manufacturing Inc.</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <span class="info-label">Reference:</span>
+                                        <div>REF-X45</div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <span class="info-label">Quantity:</span>
+                                        <div>10 PC</div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <span class="info-label">Weight:</span>
+                                        <div>25.5 KG</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Source and Destination Display -->
+                        <div class="source-dest-container mt-4">
+                            <div class="source-dest-box">
+                                <div class="source-dest-title">Source Pallet</div>
+                                <div class="source-dest-icon">
+                                    <i class="fas fa-pallet"></i>
+                                </div>
+                                <div class="fw-bold">TEMP-001</div>
+                                <div class="text-muted">MO-45680</div>
+                                <div class="badge" style="background-color: #f57c00;">Open</div>
+                            </div>
+                            <div class="arrow-container text-center">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                            <div class="source-dest-box">
+                                <div class="source-dest-title">Destination Pallet</div>
+                                <div class="source-dest-icon">
+                                    <i class="fas fa-pallet"></i>
+                                </div>
+                                <div id="destPalletDisplay">No pallet selected</div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle me-2"></i>Moving this item will change its pallet assignment but won't change any other item properties.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <!-- Destination Pallet Selection -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-exchange-alt me-2"></i>Select Destination Pallet
+                    </div>
+                    <div class="card-body">
+                        <!-- Filter and Search -->
+                        <div class="filter-container">
+                            <div class="search-container flex-grow-1">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" placeholder="Search by pallet number, order..." />
+                                </div>
+                                <div class="search-results">
+                                    <div class="search-item">
+                                        <i class="fas fa-pallet me-2"></i><strong>TEMP-002</strong> - MO: 45681
+                                    </div>
+                                    <div class="search-item">
+                                        <i class="fas fa-pallet me-2"></i><strong>TEMP-003</strong> - MO: 45682
+                                    </div>
+                                    <div class="search-item">
+                                        <i class="fas fa-pallet me-2"></i><strong>TEMP-004</strong> - MO: 45683
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="btn btn-outline-primary">
+                                    <i class="fas fa-filter me-1"></i>Filter
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Only open pallets are shown. Items cannot be moved to closed pallets.
+                        </div>
+
+                        <!-- Available Pallets -->
+                        <div class="available-pallets">
+                            <div class="pallet-card" onclick="selectPallet(this, 'TEMP-002')">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="pallet-card-title">TEMP-002</div>
+                                        <div class="pallet-card-subtitle">Manufacturing Order: MO-45681</div>
+                                    </div>
+                                    <span class="badge" style="background-color: #f57c00;">Open</span>
+                                </div>
+                                <div class="pallet-card-info">
+                                    <div>
+                                        <i class="fas fa-cube me-1"></i>Items: 2
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-weight me-1"></i>18 PC
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-clock me-1"></i>Mar 11, 2025
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pallet-card" onclick="selectPallet(this, 'TEMP-003')">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="pallet-card-title">TEMP-003</div>
+                                        <div class="pallet-card-subtitle">Manufacturing Order: MO-45682</div>
+                                    </div>
+                                    <span class="badge" style="background-color: #f57c00;">Open</span>
+                                </div>
+                                <div class="pallet-card-info">
+                                    <div>
+                                        <i class="fas fa-cube me-1"></i>Items: 3
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-weight me-1"></i>24 PC
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-clock me-1"></i>Mar 10, 2025
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pallet-card" onclick="selectPallet(this, 'TEMP-004')">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="pallet-card-title">TEMP-004</div>
+                                        <div class="pallet-card-subtitle">Manufacturing Order: MO-45683</div>
+                                    </div>
+                                    <span class="badge" style="background-color: #f57c00;">Open</span>
+                                </div>
+                                <div class="pallet-card-info">
+                                    <div>
+                                        <i class="fas fa-cube me-1"></i>Items: 1
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-weight me-1"></i>12 PC
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-clock me-1"></i>Mar 9, 2025
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="pallet-card" onclick="selectPallet(this, 'TEMP-005')">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="pallet-card-title">TEMP-005</div>
+                                        <div class="pallet-card-subtitle">Manufacturing Order: MO-45684</div>
+                                    </div>
+                                    <span class="badge" style="background-color: #f57c00;">Open</span>
+                                </div>
+                                <div class="pallet-card-info">
+                                    <div>
+                                        <i class="fas fa-cube me-1"></i>Items: 0
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-weight me-1"></i>0 PC
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-clock me-1"></i>Mar 9, 2025
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="floating-buttons">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <button type="button" class="btn btn-link text-decoration-none" data-bs-toggle="modal" data-bs-target="#newPalletModal">
+                                    <i class="fas fa-plus-circle me-1"></i>Create New Pallet
+                                </button>
+                                <div>
+                                    <button type="button" class="btn btn-secondary me-2">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="moveItemBtn" disabled>
+                                        <i class="fas fa-exchange-alt me-1"></i>Move Item
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Pallet Modal -->
+    <div class="modal fade" id="newPalletModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Create New Pallet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label for="manufacturingOrder" class="form-label">Manufacturing Order</label>
+                        <input type="text" class="form-control" id="manufacturingOrder" placeholder="Enter manufacturing order">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="unitOfMeasure" class="form-label">Unit of Measure</label>
+                        <select class="form-select" id="unitOfMeasure">
+                            <option value="PC">PC (Piece)</option>
+                            <option value="KG">KG (Kilogram)</option>
+                            <option value="BOX">BOX</option>
+                            <option value="ROLL">ROLL</option>
+                        </select>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="moveToNewPallet">
+                        <label class="form-check-label" for="moveToNewPallet">
+                            Move item #456789 to this new pallet immediately
+                        </label>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>The new pallet will be created with a temporary number. A permanent number will be assigned when the pallet is closed.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary">Create Pallet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal fade" id="confirmMoveModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exchange-alt me-2"></i>Confirm Move</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to move item <strong>#456789</strong> from pallet <strong>TEMP-001</strong> to pallet <strong id="confirmDestPallet">TEMP-002</strong>?</p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>This action cannot be undone!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary">Move Item</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Show search results on focus
+        document.querySelector('.search-container input').addEventListener('focus', function() {
+            document.querySelector('.search-results').classList.add('show');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-container')) {
+                document.querySelector('.search-results').classList.remove('show');
+            }
+        });
+        
+        // Handle search item selection
+        document.querySelectorAll('.search-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // Extract pallet number from the clicked item
+                const palletNumber = this.querySelector('strong').textContent;
+                
+                // Find the corresponding pallet card
+                const palletCards = document.querySelectorAll('.pallet-card');
+                palletCards.forEach(card => {
+                    if (card.querySelector('.pallet-card-title').textContent === palletNumber) {
+                        // Simulate clicking on the pallet card
+                        selectPallet(card, palletNumber);
+                        
+                        // Scroll to the selected pallet card
+                        card.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+                
+                // Hide search results
+                document.querySelector('.search-results').classList.remove('show');
+            });
+        });
+        
+        // Function to select a pallet
+        function selectPallet(card, palletNumber) {
+            // Remove selection from all pallet cards
+            document.querySelectorAll('.pallet-card').forEach(c => {
+                c.classList.remove('selected');
+            });
+            
+            // Add selection to clicked card
+            card.classList.add('selected');
+            
+            // Update destination pallet display
+            const palletTitle = card.querySelector('.pallet-card-title').textContent;
+            const palletSubtitle = card.querySelector('.pallet-card-subtitle').textContent;
+            
+            document.getElementById('destPalletDisplay').innerHTML = `
+                <div class="fw-bold">${palletTitle}</div>
+                <div class="text-muted">${palletSubtitle.split(': ')[1]}</div>
+                <div class="badge" style="background-color: #f57c00;">Open</div>
+            `;
+            
+            // Update confirmation modal
+            document.getElementById('confirmDestPallet').textContent = palletTitle;
+            
+            // Enable move button
+            document.getElementById('moveItemBtn').disabled = false;
+        }
+        
+        // Handle move item button click
+        document.getElementById('moveItemBtn').addEventListener('click', function() {
+            // Show confirmation modal
+            const confirmModal = new bootstrap.Modal(document.getElementById('confirmMoveModal'));
+            confirmModal.show();
+        });
+    </script>
+</body>
+</html>

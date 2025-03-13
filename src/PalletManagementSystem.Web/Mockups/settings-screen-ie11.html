@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=11">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pallet Management System - Settings</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Direct color values instead of CSS variables */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+        }
+        
+        .navbar {
+            background-color: #003366;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+        }
+        
+        .card {
+            border-radius: 8px;
+            -webkit-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: #e6eef5;
+            color: #003366;
+            font-weight: bold;
+        }
+        
+        .btn-primary {
+            background-color: #003366;
+            border-color: #003366;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5e87b0;
+            border-color: #5e87b0;
+        }
+        
+        .settings-section {
+            padding: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .settings-section:last-child {
+            border-bottom: none;
+        }
+        
+        .settings-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #003366;
+            margin-bottom: 1rem;
+        }
+        
+        .custom-control-input:checked ~ .custom-control-label::before {
+            background-color: #003366;
+            border-color: #003366;
+        }
+        
+        .settings-option {
+            margin-bottom: 0.75rem;
+        }
+        
+        .settings-header {
+            background-color: #e6eef5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .settings-header h4 {
+            color: #003366;
+            margin-bottom: 0;
+        }
+        
+        .form-control:focus, .custom-select:focus {
+            border-color: #5e87b0;
+            -webkit-box-shadow: 0 0 0 0.25rem rgba(94, 135, 176, 0.25);
+            box-shadow: 0 0 0 0.25rem rgba(94, 135, 176, 0.25);
+        }
+        
+        .settings-info {
+            background-color: #e6eef5;
+            border-left: 4px solid #003366;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .preview-box {
+            border: 1px dashed #ccc;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            background-color: #f8f9fa;
+        }
+        
+        .printer-card {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            background-color: #fff;
+        }
+        
+        .printer-card.active {
+            border-color: #003366;
+            background-color: #e6eef5;
+        }
+        
+        .touch-settings {
+            padding: 12px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        
+        /* IE11 Flexbox fixes */
+        .d-flex {
+            display: -ms-flexbox;
+            display: flex;
+        }
+        
+        .align-items-center {
+            -ms-flex-align: center;
+            align-items: center;
+        }
+        
+        .justify-content-between {
+            -ms-flex-pack: justify;
+            justify-content: space-between;
+        }
+        
+        .text-md-right {
+            text-align: right;
+        }
+        
+        .mt-md-0 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-cubes mr-2"></i>Pallet Management System
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="fas fa-pallet mr-1"></i>Pallets
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">
+                            <i class="fas fa-cog mr-1"></i>Settings
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <div class="dropdown mr-3">
+                        <button class="btn btn-light dropdown-toggle" type="button" id="divisionDropdown" data-toggle="dropdown">
+                            <i class="fas fa-building mr-1"></i>Division: MA
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="#">MA - Manufacturing</a>
+                            <a class="dropdown-item" href="#">TC - Technical Center</a>
+                        </div>
+                    </div>
+                    <div class="dropdown mr-3">
+                        <button class="btn btn-light dropdown-toggle" type="button" id="platformDropdown" data-toggle="dropdown">
+                            <i class="fas fa-layer-group mr-1"></i>Platform: TEC1
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="#">TEC1</a>
+                            <a class="dropdown-item" href="#">TEC2</a>
+                            <a class="dropdown-item" href="#">TEC4I</a>
+                        </div>
+                    </div>
+                    <div class="text-light">
+                        <i class="fas fa-user mr-1"></i>John Doe
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Settings Header -->
+        <div class="settings-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4><i class="fas fa-cog mr-2"></i>System Settings</h4>
+                </div>
+                <div class="col-md-4 text-md-right mt-3 mt-md-0">
+                    <button type="submit" class="btn btn-primary" form="settingsForm">
+                        <i class="fas fa-save mr-1"></i>Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Form -->
+        <form id="settingsForm">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-sliders-h mr-2"></i>Application Settings
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Division and Platform Settings -->
+                            <div class="settings-section">
+                                <div class="settings-title">
+                                    <i class="fas fa-building mr-2"></i>Division and Platform
+                                </div>
+                                <div class="settings-info mb-3">
+                                    <i class="fas fa-info-circle mr-2"></i>
+                                    Your division and platform settings determine which pallets you can see and work with.
+                                    Different divisions may have different available platforms.
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="divisionSelect" class="form-label">Division</label>
+                                        <select class="form-control" id="divisionSelect">
+                                            <option value="MA" selected>MA - Manufacturing</option>
+                                            <option value="TC">TC - Technical Center</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="platformSelect" class="form-label">Platform</label>
+                                        <select class="form-control" id="platformSelect">
+                                            <option value="TEC1" selected>TEC1</option>
+                                            <option value="TEC2">TEC2</option>
+                                            <option value="TEC4I">TEC4I</option>
+                                        </select>
+                                        <small class="form-text text-muted">Available platforms depend on selected division</small>
+                                    </div>
+                                </div>
+                                <div class="preview-box">
+                                    <div class="settings-title">Preview</div>
+                                    <p>With these settings, you will see:</p>
+                                    <ul>
+                                        <li>Pallets from <strong>Manufacturing</strong> division</li>
+                                        <li>Only pallets from platform <strong>TEC1</strong></li>
+                                        <li>Pallet numbers will use format <strong>P8XXXXX</strong></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Printer Settings -->
+                            <div class="settings-section">
+                                <div class="settings-title">
+                                    <i class="fas fa-print mr-2"></i>Printer Settings
+                                </div>
+                                <div class="settings-info mb-3">
+                                    <i class="fas fa-info-circle mr-2"></i>
+                                    Select your preferred printers for different document types. These settings will be used when printing labels and reports.
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Pallet List Printer</label>
+                                        <div class="printer-card active">
+                                            <div class="custom-control custom-radio">
+                                                <input class="custom-control-input" type="radio" name="palletPrinter" id="palletPrinter1" checked>
+                                                <label class="custom-control-label" for="palletPrinter1">
+                                                    <i class="fas fa-print mr-1"></i>HP LaserJet 4200 - Office
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="printer-card">
+                                            <div class="custom-control custom-radio">
+                                                <input class="custom-control-input" type="radio" name="palletPrinter" id="palletPrinter2">
+                                                <label class="custom-control-label" for="palletPrinter2">
+                                                    <i class="fas fa-print mr-1"></i>Xerox WorkCentre - Production
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Item Label Printer</label>
+                                        <div class="printer-card active">
+                                            <div class="custom-control custom-radio">
+                                                <input class="custom-control-input" type="radio" name="labelPrinter" id="labelPrinter1" checked>
+                                                <label class="custom-control-label" for="labelPrinter1">
+                                                    <i class="fas fa-tag mr-1"></i>Zebra ZT410 - Warehouse
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="printer-card">
+                                            <div class="custom-control custom-radio">
+                                                <input class="custom-control-input" type="radio" name="labelPrinter" id="labelPrinter2">
+                                                <label class="custom-control-label" for="labelPrinter2">
+                                                    <i class="fas fa-tag mr-1"></i>Zebra ZT230 - Shipping
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="custom-control custom-switch mb-3">
+                                    <input class="custom-control-input" type="checkbox" id="autoPrintSwitch" checked>
+                                    <label class="custom-control-label" for="autoPrintSwitch">Automatically print pallet list when closing a pallet</label>
+                                </div>
+                                <div class="custom-control custom-switch">
+                                    <input class="custom-control-input" type="checkbox" id="specialClientSwitch" checked>
+                                    <label class="custom-control-label" for="specialClientSwitch">Use special printer settings for Special Client HB</label>
+                                </div>
+                            </div>
+
+                            <!-- Display and Interface Settings -->
+                            <div class="settings-section">
+                                <div class="settings-title">
+                                    <i class="fas fa-desktop mr-2"></i>Display and Interface
+                                </div>
+                                <div class="settings-info mb-3">
+                                    <i class="fas fa-info-circle mr-2"></i>
+                                    Customize how the application looks and behaves to suit your preferences.
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Items per page</label>
+                                        <select class="form-control" id="pageSize">
+                                            <option value="10">10</option>
+                                            <option value="20" selected>20</option>
+                                            <option value="50">50</option>
+                                            <option value="100">100</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Default view</label>
+                                        <select class="form-control" id="defaultView">
+                                            <option value="all" selected>All pallets</option>
+                                            <option value="open">Open pallets only</option>
+                                            <option value="closed">Closed pallets only</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="custom-control custom-switch mb-3">
+                                    <input class="custom-control-input" type="checkbox" id="confirmationPromptSwitch" checked>
+                                    <label class="custom-control-label" for="confirmationPromptSwitch">Show confirmation prompts before major actions</label>
+                                </div>
+                                <div class="custom-control custom-switch">
+                                    <input class="custom-control-input" type="checkbox" id="enableTouchModeSwitch">
+                                    <label class="custom-control-label" for="enableTouchModeSwitch">Enable touch mode by default</label>
+                                </div>
+                                
+                                <div id="touchSettings" class="touch-settings" style="display: none;">
+                                    <div class="settings-title">Touch Mode Settings</div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="custom-control custom-switch mb-2">
+                                                <input class="custom-control-input" type="checkbox" id="touchKeyboardSwitch" checked>
+                                                <label class="custom-control-label" for="touchKeyboardSwitch">Show on-screen keyboard</label>
+                                            </div>
+                                            <div class="custom-control custom-switch">
+                                                <input class="custom-control-input" type="checkbox" id="largeButtonsSwitch" checked>
+                                                <label class="custom-control-label" for="largeButtonsSwitch">Use larger buttons and inputs</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Button size</label>
+                                            <select class="form-control" id="buttonSize">
+                                                <option value="normal">Normal</option>
+                                                <option value="large" selected>Large</option>
+                                                <option value="extra-large">Extra Large</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <!-- User Preferences -->
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-user-cog mr-2"></i>User Preferences
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                These settings are saved for your user account and will persist across sessions.
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label class="form-label">Session timeout</label>
+                                <select class="form-control" id="sessionTimeout">
+                                    <option value="15">15 minutes</option>
+                                    <option value="30" selected>30 minutes</option>
+                                    <option value="60">60 minutes</option>
+                                    <option value="120">2 hours</option>
+                                </select>
+                                <small class="form-text text-muted">Time of inactivity before automatic logout</small>
+                            </div>
+                            
+                            <div class="custom-control custom-switch mb-3">
+                                <input class="custom-control-input" type="checkbox" id="rememberDivisionSwitch" checked>
+                                <label class="custom-control-label" for="rememberDivisionSwitch">Remember my last division and platform</label>
+                            </div>
+                            
+                            <div class="custom-control custom-switch mb-3">
+                                <input class="custom-control-input" type="checkbox" id="autoRefreshSwitch">
+                                <label class="custom-control-label" for="autoRefreshSwitch">Auto-refresh pallet list</label>
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label class="form-label">Auto-refresh interval</label>
+                                <select class="form-control" id="refreshInterval" disabled>
+                                    <option value="30">30 seconds</option>
+                                    <option value="60" selected>1 minute</option>
+                                    <option value="300">5 minutes</option>
+                                    <option value="600">10 minutes</option>
+                                </select>
+                            </div>
+                            
+                            <div class="custom-control custom-switch">
+                                <input class="custom-control-input" type="checkbox" id="notificationsSwitch" checked>
+                                <label class="custom-control-label" for="notificationsSwitch">Show browser notifications</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Help and Information -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <i class="fas fa-question-circle mr-2"></i>Help and Information
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-outline-primary mb-2">
+                                    <i class="fas fa-book mr-2"></i>User Guide
+                                </button>
+                                <button type="button" class="btn btn-outline-primary mb-2">
+                                    <i class="fas fa-video mr-2"></i>Tutorial Videos
+                                </button>
+                                <button type="button" class="btn btn-outline-primary">
+                                    <i class="fas fa-headset mr-2"></i>Contact Support
+                                </button>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between">
+                                    <div><strong>Application Version:</strong></div>
+                                    <div>v2.5.1</div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <div><strong>Database Version:</strong></div>
+                                    <div>v2.5.0</div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <div><strong>Last Update:</strong></div>
+                                    <div>01/02/2025</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Required scripts for IE11 compatibility -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.1/umd/popper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.0/js/bootstrap.min.js"></script>
+    <script>
+        // Handle division change
+        document.getElementById('divisionSelect').addEventListener('change', function() {
+            var platformSelect = document.getElementById('platformSelect');
+            var selectedDivision = this.value;
+            
+            // Clear existing options
+            while (platformSelect.firstChild) {
+                platformSelect.removeChild(platformSelect.firstChild);
+            }
+            
+            if (selectedDivision === 'MA') {
+                // Add Manufacturing platforms
+                var platforms = ['TEC1', 'TEC2', 'TEC4I'];
+                for (var i = 0; i < platforms.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = platforms[i];
+                    option.textContent = platforms[i];
+                    platformSelect.appendChild(option);
+                }
+                
+                // Update preview
+                var divisionPreview = document.querySelector('.preview-box ul li:first-child');
+                divisionPreview.innerHTML = 'Pallets from <strong>Manufacturing</strong> division';
+                
+                var palletNumberPreview = document.querySelector('.preview-box ul li:last-child');
+                palletNumberPreview.innerHTML = 'Pallet numbers will use format <strong>P8XXXXX</strong>';
+            } else {
+                // Add Technical Center platforms
+                var platforms = ['TEC1', 'TEC3', 'TEC5'];
+                for (var i = 0; i < platforms.length; i++) {
+                    var option = document.createElement('option');
+                    option.value = platforms[i];
+                    option.textContent = platforms[i];
+                    platformSelect.appendChild(option);
+                }
+                
+                // Update preview
+                var divisionPreview = document.querySelector('.preview-box ul li:first-child');
+                divisionPreview.innerHTML = 'Pallets from <strong>Technical Center</strong> division';
+                
+                var palletNumberPreview = document.querySelector('.preview-box ul li:last-child');
+                palletNumberPreview.innerHTML = 'Pallet numbers will use format <strong>47XXXXX</strong>';
+            }
+            
+            // Select first platform by default
+            platformSelect.value = platformSelect.options[0].value;
+            
+            // Update platform in preview
+            var platformPreview = document.querySelector('.preview-box ul li:nth-child(2)');
+            platformPreview.innerHTML = 'Only pallets from platform <strong>' + platformSelect.value + '</strong>';
+        });
+        
+        // Handle platform change
+        document.getElementById('platformSelect').addEventListener('change', function() {
+            // Update platform in preview
+            var platformPreview = document.querySelector('.preview-box ul li:nth-child(2)');
+            platformPreview.innerHTML = 'Only pallets from platform <strong>' + this.value + '</strong>';
+        });
+        
+        // Toggle auto-refresh interval based on auto-refresh switch
+        document.getElementById('autoRefreshSwitch').addEventListener('change', function() {
+            document.getElementById('refreshInterval').disabled = !this.checked;
+        });
+        
+        // Toggle touch settings visibility
+        document.getElementById('enableTouchModeSwitch').addEventListener('change', function() {
+            document.getElementById('touchSettings').style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // Form submission
+        document.getElementById('settingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // In a real app, this would save settings via AJAX
+            alert('Settings saved successfully!');
+        });
+        
+        // Initialize printer card selection
+        var printerCards = document.querySelectorAll('.printer-card');
+        for (var i = 0; i < printerCards.length; i++) {
+            printerCards[i].addEventListener('click', function() {
+                // Find the radio input within this card
+                var radio = this.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.checked = true;
+                    
+                    // Update active state for all cards in this group
+                    var name = radio.getAttribute('name');
+                    var inputs = document.querySelectorAll('input[name="' + name + '"]');
+                    for (var j = 0; j < inputs.length; j++) {
+                        var card = inputs[j].closest('.printer-card');
+                        if (card) {
+                            if (inputs[j].checked) {
+                                card.classList.add('active');
+                            } else {
+                                card.classList.remove('active');
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

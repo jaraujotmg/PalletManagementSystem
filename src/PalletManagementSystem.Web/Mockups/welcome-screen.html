@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pallet Management System - Welcome</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #003366;
+            --secondary-color: #5e87b0;
+            --accent-color: #e6eef5;
+            --success-color: #2e7d32;
+            --warning-color: #f57c00;
+            --danger-color: #c62828;
+        }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--accent-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .welcome-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .welcome-title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .welcome-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card-header {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+            border-radius: 8px 8px 0 0 !important;
+            padding: 1rem;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .login-info {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .division-selector {
+            margin-top: 2rem;
+        }
+        
+        .division-btn {
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            padding: 1.5rem;
+            background-color: white;
+            border: 2px solid #eee;
+            transition: all 0.3s;
+        }
+        
+        .division-btn:hover {
+            border-color: var(--primary-color);
+            background-color: var(--accent-color);
+        }
+        
+        .division-btn-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+        }
+        
+        .division-btn-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .division-btn-subtitle {
+            font-size: 0.875rem;
+            color: #555;
+        }
+        
+        .footer {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 0;
+            margin-top: auto;
+        }
+        
+        .version-info {
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Welcome Header -->
+    <div class="welcome-header">
+        <div class="container">
+            <div class="welcome-title">
+                <i class="fas fa-cubes me-2"></i>Pallet Management System
+            </div>
+            <div class="welcome-subtitle">
+                Track, manage, and organize pallets across divisions and platforms
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mb-5">
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Division Selection -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-building me-2"></i>Select Your Division
+                    </div>
+                    <div class="card-body">
+                        <div class="login-info">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user-circle me-3" style="font-size: 2rem; color: var(--primary-color);"></i>
+                                <div>
+                                    <div><strong>Welcome, John Doe</strong></div>
+                                    <div class="text-muted">Windows Authentication Successful</div>
+                                    <div class="text-muted">Last login: March 12, 2025, 08:32 AM</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p>Please select the division and platform you want to work with:</p>
+                        
+                        <div class="division-selector">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <a href="#" class="division-btn rounded">
+                                        <div class="division-btn-icon">
+                                            <i class="fas fa-industry"></i>
+                                        </div>
+                                        <div class="division-btn-title">Manufacturing (MA)</div>
+                                        <div class="division-btn-subtitle">Production and Assembly</div>
+                                    </a>
+                                </div>
+                                <div class="col-md-6">
+                                    <a href="#" class="division-btn rounded">
+                                        <div class="division-btn-icon">
+                                            <i class="fas fa-flask"></i>
+                                        </div>
+                                        <div class="division-btn-title">Technical Center (TC)</div>
+                                        <div class="division-btn-subtitle">Research and Development</div>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="platform-selector mt-4" style="display: none;">
+                            <h5>Select Platform for Manufacturing Division:</h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <a href="#" class="division-btn rounded">
+                                        <div class="division-btn-icon">
+                                            <i class="fas fa-layer-group"></i>
+                                        </div>
+                                        <div class="division-btn-title">TEC1</div>
+                                        <div class="division-btn-subtitle">Main Production</div>
+                                    </a>
+                                </div>
+                                <div class="col-md-4">
+                                    <a href="#" class="division-btn rounded">
+                                        <div class="division-btn-icon">
+                                            <i class="fas fa-layer-group"></i>
+                                        </div>
+                                        <div class="division-btn-title">TEC2</div>
+                                        <div class="division-btn-subtitle">Secondary Line</div>
+                                    </a>
+                                </div>
+                                <div class="col-md-4">
+                                    <a href="#" class="division-btn rounded">
+                                        <div class="division-btn-icon">
+                                            <i class="fas fa-layer-group"></i>
+                                        </div>
+                                        <div class="division-btn-title">TEC4I</div>
+                                        <div class="division-btn-subtitle">Special Projects</div>
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-end mt-4">
+                                <button class="btn btn-secondary me-2">
+                                    <i class="fas fa-arrow-left me-1"></i>Back
+                                </button>
+                                <button class="btn btn-primary">
+                                    <i class="fas fa-check me-1"></i>Continue
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Action</th>
+                                        <th>Division</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Mar 11, 2025</td>
+                                        <td><span class="badge bg-success">Closed Pallet</span></td>
+                                        <td>MA</td>
+                                        <td>P812345 - MO-45678</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Mar 11, 2025</td>
+                                        <td><span class="badge bg-info">Edited Item</span></td>
+                                        <td>MA</td>
+                                        <td>Item #456788 in P812346</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Mar 10, 2025</td>
+                                        <td><span class="badge bg-primary">Created Pallet</span></td>
+                                        <td>TC</td>
+                                        <td>TEMP-001 - MO-45680</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Mar 10, 2025</td>
+                                        <td><span class="badge bg-warning">Moved Item</span></td>
+                                        <td>TC</td>
+                                        <td>Item #456787 to TEMP-002</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <!-- System Info Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle me-2"></i>System Information
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <div><strong>Application Version:</strong></div>
+                            <div>v2.5.1</div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <div><strong>Database Version:</strong></div>
+                            <div>v2.5.0</div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <div><strong>Last Update:</strong></div>
+                            <div>01/02/2025</div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <div><strong>Server:</strong></div>
+                            <div>PROD-APP01</div>
+                        </div>
+                        
+                        <div class="alert alert-success mt-3 mb-0">
+                            <i class="fas fa-check-circle me-2"></i>All services are operating normally
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-link me-2"></i>Quick Links
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-book me-2"></i>User Guide
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-video me-2"></i>Tutorial Videos
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-headset me-2"></i>Contact Support
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-bell me-2"></i>Announcements
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-cog me-2"></i>Settings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Announcements -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-bullhorn me-2"></i>Announcements
+                    </div>
+                    <div class="card-body">
+                        <div class="announcement-item mb-3 pb-3 border-bottom">
+                            <div class="d-flex justify-content-between mb-1">
+                                <div class="fw-bold">System Maintenance</div>
+                                <div class="text-muted small">Mar 15, 2025</div>
+                            </div>
+                            <p class="mb-0">Scheduled maintenance from 22:00-23:00. System might be temporarily unavailable.</p>
+                        </div>
+                        <div class="announcement-item">
+                            <div class="d-flex justify-content-between mb-1">
+                                <div class="fw-bold">New Features</div>
+                                <div class="text-muted small">Mar 01, 2025</div>
+                            </div>
+                            <p class="mb-0">Enhanced search capabilities and touch screen support added in latest update.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Pallet Management System</strong>
+                    <span class="version-info ms-2">v2.5.1</span>
+                </div>
+                <div>
+                    &copy; 2025 Manufacturing Company. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Show platform selector when a division is clicked
+        document.querySelectorAll('.division-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelector('.platform-selector').style.display = 'block';
+                
+                // Scroll to platform selector
+                document.querySelector('.platform-selector').scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+        
+        // Hide platform selector when "Back" is clicked
+        document.querySelector('.platform-selector .btn-secondary').addEventListener('click', function() {
+            document.querySelector('.platform-selector').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
