@@ -1,11 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PalletManagementSystem.Core.Interfaces;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Services;
 using PalletManagementSystem.Infrastructure.Data;
 using PalletManagementSystem.Infrastructure.Data.Repositories;
+using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Infrastructure.Services;
 using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
 using System;
@@ -49,6 +51,9 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             // Register application services
             services.AddScoped<IPalletService, PalletService>();
             services.AddScoped<IItemService, ItemService>();
+
+            // Use the default provider as a fallback:
+            services.AddScoped<IUserContextProvider, DefaultUserContextProvider>();
 
             return services;
         }

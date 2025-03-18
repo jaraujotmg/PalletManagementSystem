@@ -1,10 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces;
 using PalletManagementSystem.Core.Models.Enums;
 using System;
-using System.Linq;
-using System.Security.Claims;
-using System.Security.Principal;
 using System.Threading.Tasks;
 
 namespace PalletManagementSystem.Infrastructure.Identity
@@ -14,22 +11,22 @@ namespace PalletManagementSystem.Infrastructure.Identity
     /// </summary>
     public class UserContext
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IUserContextProvider _userContextProvider;
         private readonly WindowsAuthenticationService _windowsAuthService;
         private readonly ILogger<UserContext> _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UserContext"/> class
         /// </summary>
-        /// <param name="httpContextAccessor">The HTTP context accessor</param>
+        /// <param name="userContextProvider">The user context provider</param>
         /// <param name="windowsAuthService">The Windows authentication service</param>
         /// <param name="logger">The logger</param>
         public UserContext(
-            IHttpContextAccessor httpContextAccessor,
+            IUserContextProvider userContextProvider,
             WindowsAuthenticationService windowsAuthService,
             ILogger<UserContext> logger)
         {
-            _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+            _userContextProvider = userContextProvider ?? throw new ArgumentNullException(nameof(userContextProvider));
             _windowsAuthService = windowsAuthService ?? throw new ArgumentNullException(nameof(windowsAuthService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -40,33 +37,7 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// <returns>The username</returns>
         public string GetUsername()
         {
-            try
-            {
-                var identity = _httpContextAccessor.HttpContext?.User?.Identity;
-
-                if (identity == null || !identity.IsAuthenticated)
-                {
-                    return "Unknown";
-                }
-
-                // Extract username from Windows identity
-                if (identity is WindowsIdentity windowsIdentity)
-                {
-                    var username = windowsIdentity.Name.Split('\\').Length > 1
-                        ? windowsIdentity.Name.Split('\\')[1]
-                        : windowsIdentity.Name;
-
-                    return username;
-                }
-
-                // Fallback to identity name
-                return identity.Name;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting username");
-                return "Unknown";
-            }
+            return _userContextProvider.GetCurrentUsername();
         }
 
         /// <summary>
@@ -75,32 +46,7 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// <returns>The display name</returns>
         public async Task<string> GetDisplayNameAsync()
         {
-            try
-            {
-                var identity = _httpContextAccessor.HttpContext?.User?.Identity;
-
-                if (identity == null || !identity.IsAuthenticated)
-                {
-                    return "Unknown User";
-                }
-
-                // Try to get display name from Windows identity
-                if (identity is WindowsIdentity windowsIdentity)
-                {
-                    var userDetails = await _windowsAuthService.GetUserDetailsAsync(windowsIdentity);
-                    return !string.IsNullOrEmpty(userDetails.DisplayName)
-                        ? userDetails.DisplayName
-                        : windowsIdentity.Name;
-                }
-
-                // Fallback to identity name
-                return identity.Name;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting display name");
-                return "Unknown User";
-            }
+            return await _userContextProvider.GetDisplayNameAsync();
         }
 
         /// <summary>
@@ -109,38 +55,7 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// <returns>The email</returns>
         public async Task<string> GetEmailAsync()
         {
-            try
-            {
-                var identity = _httpContextAccessor.HttpContext?.User?.Identity;
-
-                if (identity == null || !identity.IsAuthenticated)
-                {
-                    return string.Empty;
-                }
-
-                // Try to get email from Windows identity
-                if (identity is WindowsIdentity windowsIdentity)
-                {
-                    var userDetails = await _windowsAuthService.GetUserDetailsAsync(windowsIdentity);
-                    return userDetails.Email;
-                }
-
-                // Try to get email from claims
-                var emailClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Email);
-                if (emailClaim != null)
-                {
-                    return emailClaim.Value;
-                }
-
-                // Fallback to username with example domain
-                var username = GetUsername();
-                return $"{username}@example.com";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting email");
-                return string.Empty;
-            }
+            return await _userContextProvider.GetEmailAsync();
         }
 
         /// <summary>
@@ -150,15 +65,7 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// <returns>True if the user is in the role, false otherwise</returns>
         public bool IsInRole(string role)
         {
-            try
-            {
-                return _httpContextAccessor.HttpContext?.User?.IsInRole(role) ?? false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error checking if user is in role {role}");
-                return false;
-            }
+            return _userContextProvider.IsInRole(role);
         }
 
         /// <summary>
@@ -167,36 +74,7 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// <returns>An array of role names</returns>
         public async Task<string[]> GetRolesAsync()
         {
-            try
-            {
-                var identity = _httpContextAccessor.HttpContext?.User?.Identity;
-
-                if (identity == null || !identity.IsAuthenticated)
-                {
-                    return Array.Empty<string>();
-                }
-
-                // Try to get roles from Windows identity
-                if (identity is WindowsIdentity windowsIdentity)
-                {
-                    return await _windowsAuthService.GetUserRolesAsync(windowsIdentity);
-                }
-
-                // Try to get roles from claims
-                var roleClaims = _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role);
-                if (roleClaims != null && roleClaims.Any())
-                {
-                    return roleClaims.Select(c => c.Value).ToArray();
-                }
-
-                // Fallback to Viewer role
-                return new[] { "Viewer" };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting roles");
-                return new[] { "Viewer" };
-            }
+            return await _userContextProvider.GetRolesAsync();
         }
 
         /// <summary>
@@ -245,12 +123,6 @@ namespace PalletManagementSystem.Infrastructure.Identity
             {
                 // In a real application, this would get the division from the session
                 // For this implementation, we'll use a default value
-                var divisionClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("Division");
-                if (divisionClaim != null && Enum.TryParse<Division>(divisionClaim.Value, out var division))
-                {
-                    return division;
-                }
-
                 return Division.MA; // Default to Manufacturing
             }
             catch (Exception ex)
@@ -270,12 +142,6 @@ namespace PalletManagementSystem.Infrastructure.Identity
             {
                 // In a real application, this would get the platform from the session
                 // For this implementation, we'll use a default value
-                var platformClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("Platform");
-                if (platformClaim != null && Enum.TryParse<Platform>(platformClaim.Value, out var platform))
-                {
-                    return platform;
-                }
-
                 return Platform.TEC1; // Default to TEC1
             }
             catch (Exception ex)
