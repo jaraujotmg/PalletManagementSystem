@@ -1,81 +1,87 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using PalletManagementSystem.Core.Models;
+using PalletManagementSystem.Core.Models.Enums;
+using PalletManagementSystem.Core.Models.ValueObjects;
 using System;
-using System.Collections.Generic;
 
-namespace PalletManagementSystem.Core.DTOs
+namespace PalletManagementSystem.Infrastructure.Data.Configurations
 {
     /// <summary>
-    /// Data transfer object for a pallet
+    /// Entity Framework configuration for the Pallet entity
     /// </summary>
-    public class PalletDto
+    public class PalletConfiguration : IEntityTypeConfiguration<Pallet>
     {
-        /// <summary>
-        /// Gets or sets the pallet ID
-        /// </summary>
-        public int Id { get; set; }
+        /// <inheritdoc/>
+        public void Configure(EntityTypeBuilder<Pallet> builder)
+        {
+            builder.ToTable("Pallets");
 
-        /// <summary>
-        /// Gets or sets the pallet number
-        /// </summary>
-        public string PalletNumber { get; set; }
+            builder.HasKey(p => p.Id);
 
-        /// <summary>
-        /// Gets or sets a value indicating whether this pallet has a temporary number
-        /// </summary>
-        public bool IsTemporary { get; set; }
+            // Configure properties
+            builder.Property(p => p.Id)
+                .ValueGeneratedOnAdd();
 
-        /// <summary>
-        /// Gets or sets the manufacturing order
-        /// </summary>
-        public string ManufacturingOrder { get; set; }
+            // Configure PalletNumber value object
+            builder.Property<string>("_palletNumberValue")
+                .HasColumnName("PalletNumber")
+                .HasMaxLength(20)
+                .IsRequired();
 
-        /// <summary>
-        /// Gets or sets the division
-        /// </summary>
-        public string Division { get; set; }
+            builder.Property<bool>("_isTemporaryPalletNumber")
+                .HasColumnName("IsTemporaryNumber");
 
-        /// <summary>
-        /// Gets or sets the platform
-        /// </summary>
-        public string Platform { get; set; }
+            builder.Property<Division>("_palletNumberDivision")
+                .HasColumnName("PalletNumberDivision")
+                .HasConversion<string>();
 
-        /// <summary>
-        /// Gets or sets the unit of measure
-        /// </summary>
-        public string UnitOfMeasure { get; set; }
+            // Configure other scalar properties
+            builder.Property(p => p.ManufacturingOrder)
+                .HasMaxLength(50)
+                .IsRequired();
 
-        /// <summary>
-        /// Gets or sets the quantity
-        /// </summary>
-        public decimal Quantity { get; set; }
+            builder.Property(p => p.Division)
+                .HasConversion<string>()
+                .IsRequired();
 
-        /// <summary>
-        /// Gets or sets the number of items on this pallet
-        /// </summary>
-        public int ItemCount { get; set; }
+            builder.Property(p => p.Platform)
+                .HasConversion<string>()
+                .IsRequired();
 
-        /// <summary>
-        /// Gets or sets a value indicating whether this pallet is closed
-        /// </summary>
-        public bool IsClosed { get; set; }
+            builder.Property(p => p.UnitOfMeasure)
+                .HasConversion<string>()
+                .IsRequired();
 
-        /// <summary>
-        /// Gets or sets the date when this pallet was created
-        /// </summary>
-        public DateTime CreatedDate { get; set; }
+            builder.Property(p => p.Quantity)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
 
-        /// <summary>
-        /// Gets or sets the date when this pallet was closed
-        /// </summary>
-        public DateTime? ClosedDate { get; set; }
+            builder.Property(p => p.IsClosed)
+                .IsRequired();
 
-        /// <summary>
-        /// Gets or sets the username of the creator
-        /// </summary>
-        public string CreatedBy { get; set; }
+            builder.Property(p => p.CreatedDate)
+                .IsRequired();
 
-        /// <summary>
-        /// Gets or sets the items on this pallet
-        /// </summary>
-        public ICollection<ItemDto> Items { get; set; }
+            builder.Property(p => p.ClosedDate)
+                .IsRequired(false);
+
+            builder.Property(p => p.CreatedBy)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            // Configure navigation property
+            builder.HasMany(p => p.Items)
+                .WithOne(i => i.Pallet)
+                .HasForeignKey(i => i.PalletId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Ignore the PalletNumber property as we're mapping its components to separate columns
+            builder.Ignore(p => p.PalletNumber);
+
+            // In the repository, we'll need to manually reconstruct the PalletNumber value object
+            // from the shadow properties when loading entities from the database
+        }
     }
 }

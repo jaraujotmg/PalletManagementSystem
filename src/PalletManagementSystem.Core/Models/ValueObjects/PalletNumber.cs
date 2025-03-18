@@ -60,12 +60,25 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
         /// <returns>A new permanent pallet number</returns>
         public static PalletNumber CreatePermanent(int sequenceNumber, Division division)
         {
-            string value = division switch
+            //string value = division switch
+            //{
+            //    Division.MA => $"P8{sequenceNumber:00000}",  // Manufacturing uses P8 prefix
+            //    Division.TC => $"47{sequenceNumber:00000}",  // Technical Center uses 47 prefix
+            //    _ => throw new ArgumentException($"Unsupported division: {division}", nameof(division))
+            //};
+
+            string value;
+            switch (division)
             {
-                Division.MA => $"P8{sequenceNumber:00000}",  // Manufacturing uses P8 prefix
-                Division.TC => $"47{sequenceNumber:00000}",  // Technical Center uses 47 prefix
-                _ => throw new ArgumentException($"Unsupported division: {division}", nameof(division))
-            };
+                case Division.MA:
+                    value = $"P8{sequenceNumber:00000}";  // Manufacturing uses P8 prefix
+                    break;
+                case Division.TC:
+                    value = $"47{sequenceNumber:00000}";  // Technical Center uses 47 prefix
+                    break;
+                default:
+                    throw new ArgumentException($"Unsupported division: {division}", nameof(division));
+            }
 
             return new PalletNumber(value, false, division);
         }

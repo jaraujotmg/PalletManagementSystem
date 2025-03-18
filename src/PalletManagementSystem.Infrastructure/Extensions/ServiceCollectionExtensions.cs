@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PalletManagementSystem.Core.Interfaces.Repositories;
@@ -7,8 +6,6 @@ using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Services;
 using PalletManagementSystem.Infrastructure.Data;
 using PalletManagementSystem.Infrastructure.Data.Repositories;
-using PalletManagementSystem.Infrastructure.Identity;
-using PalletManagementSystem.Infrastructure.Logging;
 using PalletManagementSystem.Infrastructure.Services;
 using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
 using System;
@@ -31,9 +28,6 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            // Add HttpContextAccessor
-            services.AddHttpContextAccessor();
-
             // Add DbContext
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
@@ -51,15 +45,6 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             services.AddHttpClient<SSRSClient>();
             services.AddScoped<IReportingService, ReportingService>();
             services.AddScoped<IPrinterService, PrinterService>();
-            services.AddScoped<ISearchService, SearchService>();
-            services.AddScoped<IUserPreferenceService, UserPreferenceService>();
-
-            // Register identity services
-            services.AddScoped<WindowsAuthenticationService>();
-            services.AddScoped<UserContext>();
-
-            // Register logging service
-            services.AddScoped<LoggingService>();
 
             // Register application services
             services.AddScoped<IPalletService, PalletService>();
@@ -68,3 +53,4 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             return services;
         }
     }
+}

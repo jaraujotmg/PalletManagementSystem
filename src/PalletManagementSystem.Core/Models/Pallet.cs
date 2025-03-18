@@ -213,12 +213,22 @@ namespace PalletManagementSystem.Core.Models
         /// <returns>True if valid, false otherwise</returns>
         private static bool IsValidPlatformForDivision(Platform platform, Division division)
         {
-            return division switch
+            //return division switch
+            //{
+            //    Division.MA => platform == Platform.TEC1 || platform == Platform.TEC2 || platform == Platform.TEC4I,
+            //    Division.TC => platform == Platform.TEC1 || platform == Platform.TEC3 || platform == Platform.TEC5,
+            //    _ => false
+            //};
+            switch (division)
             {
-                Division.MA => platform == Platform.TEC1 || platform == Platform.TEC2 || platform == Platform.TEC4I,
-                Division.TC => platform == Platform.TEC1 || platform == Platform.TEC3 || platform == Platform.TEC5,
-                _ => false
-            };
+                case Division.MA:
+                    return platform == Platform.TEC1 || platform == Platform.TEC2 || platform == Platform.TEC4I;
+                case Division.TC:
+                    return platform == Platform.TEC1 || platform == Platform.TEC3 || platform == Platform.TEC5;
+                default:
+                    return false;
+            }
+
         }
     }
 }

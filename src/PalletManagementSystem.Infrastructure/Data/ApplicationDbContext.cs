@@ -1,81 +1,43 @@
-using System;
-using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+using PalletManagementSystem.Core.Models;
+using PalletManagementSystem.Infrastructure.Data.Configurations;
 
-namespace PalletManagementSystem.Core.DTOs
+namespace PalletManagementSystem.Infrastructure.Data
 {
     /// <summary>
-    /// Data transfer object for a pallet
+    /// Application database context
     /// </summary>
-    public class PalletDto
+    public class ApplicationDbContext : DbContext
     {
         /// <summary>
-        /// Gets or sets the pallet ID
+        /// Gets or sets the pallets DbSet
         /// </summary>
-        public int Id { get; set; }
+        public DbSet<Pallet> Pallets { get; set; }
 
         /// <summary>
-        /// Gets or sets the pallet number
+        /// Gets or sets the items DbSet
         /// </summary>
-        public string PalletNumber { get; set; }
+        public DbSet<Item> Items { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether this pallet has a temporary number
+        /// Initializes a new instance of the <see cref="ApplicationDbContext"/> class
         /// </summary>
-        public bool IsTemporary { get; set; }
+        /// <param name="options">The options to be used by the context</param>
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
 
-        /// <summary>
-        /// Gets or sets the manufacturing order
-        /// </summary>
-        public string ManufacturingOrder { get; set; }
+        /// <inheritdoc/>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
 
-        /// <summary>
-        /// Gets or sets the division
-        /// </summary>
-        public string Division { get; set; }
+            // Apply configurations
+            modelBuilder.ApplyConfiguration(new PalletConfiguration());
+            modelBuilder.ApplyConfiguration(new ItemConfiguration());
 
-        /// <summary>
-        /// Gets or sets the platform
-        /// </summary>
-        public string Platform { get; set; }
-
-        /// <summary>
-        /// Gets or sets the unit of measure
-        /// </summary>
-        public string UnitOfMeasure { get; set; }
-
-        /// <summary>
-        /// Gets or sets the quantity
-        /// </summary>
-        public decimal Quantity { get; set; }
-
-        /// <summary>
-        /// Gets or sets the number of items on this pallet
-        /// </summary>
-        public int ItemCount { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether this pallet is closed
-        /// </summary>
-        public bool IsClosed { get; set; }
-
-        /// <summary>
-        /// Gets or sets the date when this pallet was created
-        /// </summary>
-        public DateTime CreatedDate { get; set; }
-
-        /// <summary>
-        /// Gets or sets the date when this pallet was closed
-        /// </summary>
-        public DateTime? ClosedDate { get; set; }
-
-        /// <summary>
-        /// Gets or sets the username of the creator
-        /// </summary>
-        public string CreatedBy { get; set; }
-
-        /// <summary>
-        /// Gets or sets the items on this pallet
-        /// </summary>
-        public ICollection<ItemDto> Items { get; set; }
+            // Add any additional configurations here
+        }
     }
 }
