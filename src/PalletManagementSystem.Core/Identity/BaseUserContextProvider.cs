@@ -11,13 +11,16 @@ namespace PalletManagementSystem.Core.Identity
     /// </summary>
     public abstract class BaseUserContextProvider : IUserContextProvider
     {
-        protected readonly ILogger _logger;
+        /// <summary>
+        /// The logger instance
+        /// </summary>
+        protected readonly ILogger<BaseUserContextProvider> _logger;
 
         /// <summary>
         /// Initializes a new instance of BaseUserContextProvider
         /// </summary>
         /// <param name="logger">The logger</param>
-        protected BaseUserContextProvider(ILogger logger)
+        protected BaseUserContextProvider(ILogger<BaseUserContextProvider> logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }

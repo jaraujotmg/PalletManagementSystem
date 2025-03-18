@@ -1,0 +1,1 @@
+﻿<%@ Application Codebehind="Global.asax.cs" Inherits="PalletManagementSystem.Web.MvcApplication" Language="C#" %>

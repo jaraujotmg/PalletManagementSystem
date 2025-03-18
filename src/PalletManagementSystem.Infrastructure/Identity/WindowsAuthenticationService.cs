@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.DirectoryServices.AccountManagement;
+using System.Linq;
 using System.Security.Principal;
 using System.Threading.Tasks;
 
@@ -41,9 +42,6 @@ namespace PalletManagementSystem.Infrastructure.Identity
                 var username = identity.Name.Split('\\').Length > 1
                     ? identity.Name.Split('\\')[1]
                     : identity.Name;
-
-                // In a real application, this would query Active Directory for more details
-                // For this implementation, we'll use a simulated approach
 
                 // Simulate an async operation
                 await Task.Delay(1);
@@ -107,8 +105,8 @@ namespace PalletManagementSystem.Infrastructure.Identity
                 await Task.Delay(1);
 
                 // Check if the identity is in the specified group
-                var isInGroup = identity.Groups != null && identity.Groups
-                    .Cast<SecurityIdentifier>()
+                var isInGroup = identity.Groups != null &&
+                    identity.Groups.OfType<SecurityIdentifier>()
                     .Any(sid =>
                     {
                         try
