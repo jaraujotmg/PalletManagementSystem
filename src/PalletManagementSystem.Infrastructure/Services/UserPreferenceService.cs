@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models.Enums;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace PalletManagementSystem.Infrastructure.Services
 {
@@ -14,6 +14,7 @@ namespace PalletManagementSystem.Infrastructure.Services
     public class UserPreferenceService : IUserPreferenceService
     {
         private readonly ILogger<UserPreferenceService> _logger;
+        private readonly IPlatformValidationService _platformValidationService;
 
         // In a real application, this would be stored in a database
         // For this implementation, we'll use an in-memory dictionary
@@ -23,10 +24,12 @@ namespace PalletManagementSystem.Infrastructure.Services
         /// <summary>
         /// Initializes a new instance of the <see cref="UserPreferenceService"/> class
         /// </summary>
-        /// <param name="logger">The logger</param>
-        public UserPreferenceService(ILogger<UserPreferenceService> logger)
+        public UserPreferenceService(
+            ILogger<UserPreferenceService> logger,
+            IPlatformValidationService platformValidationService)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _platformValidationService = platformValidationService ?? throw new ArgumentNullException(nameof(platformValidationService));
         }
 
         /// <inheritdoc/>
@@ -59,7 +62,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task SetPreferredDivisionAsync(string username, Division division)
+        public async Task<bool> SetPreferredDivisionAsync(string username, Division division)
         {
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -74,15 +77,28 @@ namespace PalletManagementSystem.Infrastructure.Services
                 // Update division
                 preferences.PreferredDivision = division.ToString();
 
+                // Ensure platform is valid for this division
+                bool isValidPlatform = await _platformValidationService.IsValidPlatformForDivisionAsync(
+                    Enum.Parse<Platform>(preferences.PreferredPlatform),
+                    division);
+
+                if (!isValidPlatform)
+                {
+                    // If current platform is not valid for the new division, use default platform
+                    Platform defaultPlatform = await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
+                    preferences.PreferredPlatform = defaultPlatform.ToString();
+                }
+
                 // Save preferences
                 await SaveUserPreferencesAsync(username, preferences);
 
                 _logger.LogInformation($"Set preferred division for user {username} to {division}");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error setting preferred division for user {username}");
-                throw;
+                return false;
             }
         }
 
@@ -103,38 +119,41 @@ namespace PalletManagementSystem.Infrastructure.Services
                 if (Enum.TryParse<Platform>(preferences.PreferredPlatform, out var platform))
                 {
                     // Check if the platform is valid for the division
-                    if (IsValidPlatformForDivision(platform, division))
+                    bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
+                    if (isValid)
                     {
                         return platform;
                     }
                 }
 
                 // Return default platform for division
-                return GetDefaultPlatformForDivision(division);
+                return await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error getting preferred platform for user {username}");
-                return GetDefaultPlatformForDivision(division);
+                return await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
             }
         }
 
         /// <inheritdoc/>
-        public async Task SetPreferredPlatformAsync(string username, Division division, Platform platform)
+        public async Task<bool> SetPreferredPlatformAsync(string username, Division division, Platform platform)
         {
             if (string.IsNullOrWhiteSpace(username))
             {
                 throw new ArgumentException("Username cannot be null or empty", nameof(username));
             }
 
-            // Validate platform for division
-            if (!IsValidPlatformForDivision(platform, division))
-            {
-                throw new ArgumentException($"Platform {platform} is not valid for division {division}", nameof(platform));
-            }
-
             try
             {
+                // Validate platform for division
+                bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
+                if (!isValid)
+                {
+                    _logger.LogWarning($"Platform {platform} is not valid for division {division}");
+                    return false;
+                }
+
                 // Get user preferences or create default
                 var preferences = await GetUserPreferencesAsync(username);
 
@@ -145,11 +164,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                 await SaveUserPreferencesAsync(username, preferences);
 
                 _logger.LogInformation($"Set preferred platform for user {username} to {platform}");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error setting preferred platform for user {username}");
-                throw;
+                return false;
             }
         }
 
@@ -176,7 +196,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task SetTouchModeEnabledAsync(string username, bool enabled)
+        public async Task<bool> SetTouchModeEnabledAsync(string username, bool enabled)
         {
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -195,11 +215,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                 await SaveUserPreferencesAsync(username, preferences);
 
                 _logger.LogInformation($"Set touch mode for user {username} to {enabled}");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error setting touch mode preference for user {username}");
-                throw;
+                return false;
             }
         }
 
@@ -226,7 +247,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task SetItemsPerPageAsync(string username, int itemsPerPage)
+        public async Task<bool> SetItemsPerPageAsync(string username, int itemsPerPage)
         {
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -250,11 +271,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                 await SaveUserPreferencesAsync(username, preferences);
 
                 _logger.LogInformation($"Set items per page for user {username} to {itemsPerPage}");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error setting items per page preference for user {username}");
-                throw;
+                return false;
             }
         }
 
@@ -281,7 +303,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task SetDefaultPalletViewAsync(string username, string defaultView)
+        public async Task<bool> SetDefaultPalletViewAsync(string username, string defaultView)
         {
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -295,6 +317,12 @@ namespace PalletManagementSystem.Infrastructure.Services
 
             try
             {
+                // Validate view type
+                if (defaultView != "all" && defaultView != "open" && defaultView != "closed")
+                {
+                    throw new ArgumentException("Invalid default view value. Must be 'all', 'open', or 'closed'", nameof(defaultView));
+                }
+
                 // Get user preferences or create default
                 var preferences = await GetUserPreferencesAsync(username);
 
@@ -305,11 +333,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                 await SaveUserPreferencesAsync(username, preferences);
 
                 _logger.LogInformation($"Set default pallet view for user {username} to {defaultView}");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error setting default pallet view preference for user {username}");
-                throw;
+                return false;
             }
         }
 
@@ -334,7 +363,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task SetAllPreferencesAsync(string username, UserPreferencesDto preferences)
+        public async Task<bool> SetAllPreferencesAsync(string username, UserPreferencesDto preferences)
         {
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -358,11 +387,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                 await SaveUserPreferencesAsync(username, preferences);
 
                 _logger.LogInformation($"Set all preferences for user {username}");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error setting all preferences for user {username}");
-                throw;
+                return false;
             }
         }
 
@@ -389,7 +419,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task SetSessionTimeoutAsync(string username, int timeoutMinutes)
+        public async Task<bool> SetSessionTimeoutAsync(string username, int timeoutMinutes)
         {
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -413,11 +443,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                 await SaveUserPreferencesAsync(username, preferences);
 
                 _logger.LogInformation($"Set session timeout for user {username} to {timeoutMinutes} minutes");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error setting session timeout preference for user {username}");
-                throw;
+                return false;
             }
         }
 
@@ -483,7 +514,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         /// </summary>
         /// <param name="preferences">The user preferences</param>
         /// <exception cref="ArgumentException">Thrown when preferences are invalid</exception>
-        private void ValidatePreferences(UserPreferencesDto preferences)
+        private async void ValidatePreferences(UserPreferencesDto preferences)
         {
             // Validate division
             if (!Enum.TryParse<Division>(preferences.PreferredDivision, out var division))
@@ -493,9 +524,10 @@ namespace PalletManagementSystem.Infrastructure.Services
 
             // Validate platform
             if (!Enum.TryParse<Platform>(preferences.PreferredPlatform, out var platform) ||
-                !IsValidPlatformForDivision(platform, division))
+                !await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division))
             {
-                preferences.PreferredPlatform = GetDefaultPlatformForDivision(division).ToString();
+                Platform defaultPlatform = await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
+                preferences.PreferredPlatform = defaultPlatform.ToString();
             }
 
             // Validate items per page
@@ -514,47 +546,6 @@ namespace PalletManagementSystem.Infrastructure.Services
             if (preferences.AutoRefreshIntervalSeconds <= 0)
             {
                 preferences.AutoRefreshIntervalSeconds = 60;
-            }
-        }
-
-        /// <summary>
-        /// Checks if a platform is valid for a division
-        /// </summary>
-        /// <param name="platform">The platform</param>
-        /// <param name="division">The division</param>
-        /// <returns>True if valid, false otherwise</returns>
-        private bool IsValidPlatformForDivision(Platform platform, Division division)
-        {
-            switch (division)
-            {
-                case Division.MA:
-                    return platform == Platform.TEC1 || platform == Platform.TEC2 || platform == Platform.TEC4I;
-
-                case Division.TC:
-                    return platform == Platform.TEC1 || platform == Platform.TEC3 || platform == Platform.TEC5;
-
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>
-        /// Gets the default platform for a division
-        /// </summary>
-        /// <param name="division">The division</param>
-        /// <returns>The default platform</returns>
-        private Platform GetDefaultPlatformForDivision(Division division)
-        {
-            switch (division)
-            {
-                case Division.MA:
-                    return Platform.TEC1;
-
-                case Division.TC:
-                    return Platform.TEC1;
-
-                default:
-                    return Platform.TEC1;
             }
         }
 

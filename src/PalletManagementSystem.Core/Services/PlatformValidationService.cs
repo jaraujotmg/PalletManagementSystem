@@ -1,19 +1,79 @@
-﻿using PalletManagementSystem.Core.Models.Enums;
+﻿using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Models.Enums;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-namespace PalletManagementSystem.Core.Models
+namespace PalletManagementSystem.Core.Services
 {
     /// <summary>
-    /// Service for validating platform and division combinations
+    /// Implementation of the platform validation service
     /// </summary>
-    public static class PlatformValidationService
+    public class PlatformValidationService : IPlatformValidationService
     {
+        private readonly ILogger<PlatformValidationService> _logger;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PlatformValidationService"/> class
+        /// </summary>
+        /// <param name="logger">The logger</param>
+        public PlatformValidationService(ILogger<PlatformValidationService> logger)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> IsValidPlatformForDivisionAsync(Platform platform, Division division)
+        {
+            try
+            {
+                // Return result as an async operation for consistency
+                return await Task.FromResult(IsValidPlatformForDivision(platform, division));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error validating platform {platform} for division {division}");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<Platform> GetDefaultPlatformForDivisionAsync(Division division)
+        {
+            try
+            {
+                // Return result as an async operation for consistency
+                return await Task.FromResult(GetDefaultPlatformForDivision(division));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting default platform for division {division}");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<Platform>> GetPlatformsForDivisionAsync(Division division)
+        {
+            try
+            {
+                // Return result as an async operation for consistency
+                return await Task.FromResult(GetPlatformsForDivision(division));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting platforms for division {division}");
+                throw;
+            }
+        }
+
+        #region Helper Methods
+
         /// <summary>
         /// Determines if a platform is valid for a division
         /// </summary>
-        /// <param name="platform">The platform to check</param>
-        /// <param name="division">The division</param>
-        /// <returns>True if valid, false otherwise</returns>
-        public static bool IsValidPlatformForDivision(Platform platform, Division division)
+        private bool IsValidPlatformForDivision(Platform platform, Division division)
         {
             switch (division)
             {
@@ -29,14 +89,11 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets the default platform for a division
         /// </summary>
-        /// <param name="division">The division</param>
-        /// <returns>The default platform for the specified division</returns>
-        public static Platform GetDefaultPlatformForDivision(Division division)
+        private Platform GetDefaultPlatformForDivision(Division division)
         {
             switch (division)
             {
                 case Division.MA:
-                    return Platform.TEC1;
                 case Division.TC:
                     return Platform.TEC1;
                 default:
@@ -47,9 +104,7 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets all platforms valid for a specific division
         /// </summary>
-        /// <param name="division">The division</param>
-        /// <returns>Array of valid platforms</returns>
-        public static Platform[] GetPlatformsForDivision(Division division)
+        private Platform[] GetPlatformsForDivision(Division division)
         {
             switch (division)
             {
@@ -61,5 +116,7 @@ namespace PalletManagementSystem.Core.Models
                     return new[] { Platform.TEC1 };
             }
         }
+
+        #endregion
     }
 }

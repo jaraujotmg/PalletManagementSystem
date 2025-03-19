@@ -1,11 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
-using PalletManagementSystem.Core.DTOs;
-using PalletManagementSystem.Core.Interfaces.Repositories;
-using PalletManagementSystem.Core.Interfaces.Services;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Interfaces.Services;
 
 namespace PalletManagementSystem.Infrastructure.Services
 {
@@ -21,9 +21,6 @@ namespace PalletManagementSystem.Infrastructure.Services
         /// <summary>
         /// Initializes a new instance of the <see cref="SearchService"/> class
         /// </summary>
-        /// <param name="palletRepository">The pallet repository</param>
-        /// <param name="itemRepository">The item repository</param>
-        /// <param name="logger">The logger</param>
         public SearchService(
             IPalletRepository palletRepository,
             IItemRepository itemRepository,
@@ -35,9 +32,9 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword)
+        public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0)
         {
-            if (string.IsNullOrWhiteSpace(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword))
             {
                 return Enumerable.Empty<SearchResultDto>();
             }
@@ -74,6 +71,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                     });
                 }
 
+                // Apply max results limit if specified
+                if (maxResults > 0 && results.Count > maxResults)
+                {
+                    results = results.Take(maxResults).ToList();
+                }
+
                 return results;
             }
             catch (Exception ex)
@@ -86,7 +89,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         /// <inheritdoc/>
         public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5)
         {
-            if (string.IsNullOrWhiteSpace(partialKeyword) || partialKeyword.Length < 2)
+            if (!await ValidateSearchKeywordAsync(partialKeyword) || partialKeyword.Length < 2)
             {
                 return Enumerable.Empty<SearchSuggestionDto>();
             }
@@ -96,10 +99,10 @@ namespace PalletManagementSystem.Infrastructure.Services
                 var suggestions = new List<SearchSuggestionDto>();
 
                 // Search for pallets
-                var pallets = (await _palletRepository.SearchAsync(partialKeyword))
-                    .Take(maxResults);
+                var pallets = (await _palletRepository.SearchAsync(partialKeyword));
+                int palletsToInclude = maxResults > 0 ? Math.Min(pallets.Count(), maxResults / 2) : pallets.Count();
 
-                foreach (var pallet in pallets)
+                foreach (var pallet in pallets.Take(palletsToInclude))
                 {
                     suggestions.Add(new SearchSuggestionDto
                     {
@@ -112,10 +115,10 @@ namespace PalletManagementSystem.Infrastructure.Services
                 }
 
                 // Search for items
-                var items = (await _itemRepository.SearchAsync(partialKeyword))
-                    .Take(maxResults);
+                var items = (await _itemRepository.SearchAsync(partialKeyword));
+                int itemsToInclude = maxResults > 0 ? Math.Min(items.Count(), maxResults - suggestions.Count) : items.Count();
 
-                foreach (var item in items)
+                foreach (var item in items.Take(itemsToInclude))
                 {
                     suggestions.Add(new SearchSuggestionDto
                     {
@@ -127,8 +130,8 @@ namespace PalletManagementSystem.Infrastructure.Services
                     });
                 }
 
-                // Add "View All" suggestion if there are results
-                if (suggestions.Any())
+                // Add "View All" suggestion if there are results and space
+                if (suggestions.Any() && (maxResults <= 0 || suggestions.Count < maxResults))
                 {
                     suggestions.Add(new SearchSuggestionDto
                     {
@@ -140,7 +143,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                     });
                 }
 
-                return suggestions.Take(maxResults);
+                return suggestions;
             }
             catch (Exception ex)
             {
@@ -150,9 +153,9 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword)
+        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0)
         {
-            if (string.IsNullOrWhiteSpace(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword))
             {
                 return Enumerable.Empty<PalletDto>();
             }
@@ -160,7 +163,7 @@ namespace PalletManagementSystem.Infrastructure.Services
             try
             {
                 var pallets = await _palletRepository.SearchAsync(keyword);
-                return pallets.Select(p => new PalletDto
+                var results = pallets.Select(p => new PalletDto
                 {
                     Id = p.Id,
                     PalletNumber = p.PalletNumber.Value,
@@ -176,6 +179,14 @@ namespace PalletManagementSystem.Infrastructure.Services
                     ClosedDate = p.ClosedDate,
                     CreatedBy = p.CreatedBy
                 });
+
+                // Apply max results limit if specified
+                if (maxResults > 0)
+                {
+                    results = results.Take(maxResults);
+                }
+
+                return results;
             }
             catch (Exception ex)
             {
@@ -185,9 +196,9 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword)
+        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0)
         {
-            if (string.IsNullOrWhiteSpace(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword))
             {
                 return Enumerable.Empty<ItemDto>();
             }
@@ -195,7 +206,7 @@ namespace PalletManagementSystem.Infrastructure.Services
             try
             {
                 var items = await _itemRepository.SearchAsync(keyword);
-                return items.Select(i => new ItemDto
+                var results = items.Select(i => new ItemDto
                 {
                     Id = i.Id,
                     ItemNumber = i.ItemNumber,
@@ -222,6 +233,14 @@ namespace PalletManagementSystem.Infrastructure.Services
                     CreatedDate = i.CreatedDate,
                     CreatedBy = i.CreatedBy
                 });
+
+                // Apply max results limit if specified
+                if (maxResults > 0)
+                {
+                    results = results.Take(maxResults);
+                }
+
+                return results;
             }
             catch (Exception ex)
             {
@@ -231,9 +250,9 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword)
+        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0)
         {
-            if (string.IsNullOrWhiteSpace(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword))
             {
                 return Enumerable.Empty<string>();
             }
@@ -241,9 +260,17 @@ namespace PalletManagementSystem.Infrastructure.Services
             try
             {
                 var pallets = await _palletRepository.SearchAsync(keyword);
-                return pallets
+                var results = pallets
                     .Select(p => p.ManufacturingOrder)
                     .Distinct();
+
+                // Apply max results limit if specified
+                if (maxResults > 0)
+                {
+                    results = results.Take(maxResults);
+                }
+
+                return results;
             }
             catch (Exception ex)
             {
@@ -253,9 +280,9 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword)
+        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0)
         {
-            if (string.IsNullOrWhiteSpace(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword))
             {
                 return Enumerable.Empty<ClientDto>();
             }
@@ -274,6 +301,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                     })
                     .OrderBy(c => c.ClientName);
 
+                // Apply max results limit if specified
+                if (maxResults > 0)
+                {
+                    clients = clients.Take(maxResults);
+                }
+
                 return clients;
             }
             catch (Exception ex)
@@ -281,6 +314,35 @@ namespace PalletManagementSystem.Infrastructure.Services
                 _logger.LogError(ex, $"Error searching clients for '{keyword}'");
                 throw;
             }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> ValidateSearchKeywordAsync(string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return false;
+            }
+
+            keyword = keyword.Trim();
+
+            // Ensure keyword is at least 2 characters long
+            if (keyword.Length < 2)
+            {
+                return false;
+            }
+
+            // Check for special characters that might cause SQL injection
+            // This is basic validation - real implementation should be more comprehensive
+            if (keyword.Contains(";") || keyword.Contains("--") || keyword.Contains("/*") ||
+                keyword.Contains("*/") || keyword.Contains("'"))
+            {
+                return false;
+            }
+
+            // For more complex validation, this could be expanded
+            // For now, we'll return success asynchronously
+            return await Task.FromResult(true);
         }
     }
 }
