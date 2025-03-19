@@ -1,119 +1,119 @@
-using System.Threading.Tasks;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Models.Enums;
+using System.Threading.Tasks;
 
 namespace PalletManagementSystem.Core.Interfaces.Services
 {
     /// <summary>
-    /// Service interface for user preference operations
+    /// Service for managing user preferences
     /// </summary>
     public interface IUserPreferenceService
     {
         /// <summary>
-        /// Gets the user's preferred division
+        /// Gets preferred division for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <returns>The preferred division</returns>
         Task<Division> GetPreferredDivisionAsync(string username);
 
         /// <summary>
-        /// Sets the user's preferred division
+        /// Sets preferred division for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <param name="division">The division</param>
-        /// <returns>A task representing the asynchronous operation</returns>
-        Task SetPreferredDivisionAsync(string username, Division division);
+        /// <returns>Task representing the async operation</returns>
+        Task<bool> SetPreferredDivisionAsync(string username, Division division);
 
         /// <summary>
-        /// Gets the user's preferred platform for a division
+        /// Gets preferred platform for a user within a division
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <param name="division">The division</param>
         /// <returns>The preferred platform</returns>
         Task<Platform> GetPreferredPlatformAsync(string username, Division division);
 
         /// <summary>
-        /// Sets the user's preferred platform for a division
+        /// Sets preferred platform for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <param name="division">The division</param>
         /// <param name="platform">The platform</param>
-        /// <returns>A task representing the asynchronous operation</returns>
-        Task SetPreferredPlatformAsync(string username, Division division, Platform platform);
+        /// <returns>Task representing the async operation</returns>
+        Task<bool> SetPreferredPlatformAsync(string username, Division division, Platform platform);
 
         /// <summary>
-        /// Gets the user's touch mode preference
+        /// Gets whether touch mode is enabled for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <returns>True if touch mode is enabled, false otherwise</returns>
         Task<bool> GetTouchModeEnabledAsync(string username);
 
         /// <summary>
-        /// Sets the user's touch mode preference
+        /// Sets whether touch mode is enabled for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
-        /// <param name="enabled">True to enable touch mode, false to disable</param>
-        /// <returns>A task representing the asynchronous operation</returns>
-        Task SetTouchModeEnabledAsync(string username, bool enabled);
+        /// <param name="username">The username</param>
+        /// <param name="enabled">Whether touch mode is enabled</param>
+        /// <returns>Task representing the async operation</returns>
+        Task<bool> SetTouchModeEnabledAsync(string username, bool enabled);
 
         /// <summary>
-        /// Gets the user's preference for items per page
+        /// Gets the number of items per page for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <returns>The number of items per page</returns>
         Task<int> GetItemsPerPageAsync(string username);
 
         /// <summary>
-        /// Sets the user's preference for items per page
+        /// Sets the number of items per page for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <param name="itemsPerPage">The number of items per page</param>
-        /// <returns>A task representing the asynchronous operation</returns>
-        Task SetItemsPerPageAsync(string username, int itemsPerPage);
+        /// <returns>Task representing the async operation</returns>
+        Task<bool> SetItemsPerPageAsync(string username, int itemsPerPage);
 
         /// <summary>
-        /// Gets the user's default pallet view preference
+        /// Gets the default pallet view for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <returns>The default pallet view</returns>
         Task<string> GetDefaultPalletViewAsync(string username);
 
         /// <summary>
-        /// Sets the user's default pallet view preference
+        /// Sets the default pallet view for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
-        /// <param name="defaultView">The default pallet view</param>
-        /// <returns>A task representing the asynchronous operation</returns>
-        Task SetDefaultPalletViewAsync(string username, string defaultView);
+        /// <param name="username">The username</param>
+        /// <param name="defaultView">The default view</param>
+        /// <returns>Task representing the async operation</returns>
+        Task<bool> SetDefaultPalletViewAsync(string username, string defaultView);
 
         /// <summary>
         /// Gets all preferences for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
-        /// <returns>The user preferences DTO</returns>
+        /// <param name="username">The username</param>
+        /// <returns>The user preferences</returns>
         Task<UserPreferencesDto> GetAllPreferencesAsync(string username);
 
         /// <summary>
         /// Sets all preferences for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
-        /// <param name="preferences">The user preferences DTO</param>
-        /// <returns>A task representing the asynchronous operation</returns>
-        Task SetAllPreferencesAsync(string username, UserPreferencesDto preferences);
+        /// <param name="username">The username</param>
+        /// <param name="preferences">The user preferences</param>
+        /// <returns>Task representing the async operation</returns>
+        Task<bool> SetAllPreferencesAsync(string username, UserPreferencesDto preferences);
 
         /// <summary>
-        /// Gets the session timeout value for a user
+        /// Gets the session timeout for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <returns>The session timeout in minutes</returns>
         Task<int> GetSessionTimeoutAsync(string username);
 
         /// <summary>
-        /// Sets the session timeout value for a user
+        /// Sets the session timeout for a user
         /// </summary>
-        /// <param name="username">The user's username</param>
+        /// <param name="username">The username</param>
         /// <param name="timeoutMinutes">The session timeout in minutes</param>
-        /// <returns>A task representing the asynchronous operation</returns>
-        Task SetSessionTimeoutAsync(string username, int timeoutMinutes);
+        /// <returns>Task representing the async operation</returns>
+        Task<bool> SetSessionTimeoutAsync(string username, int timeoutMinutes);
     }
 }

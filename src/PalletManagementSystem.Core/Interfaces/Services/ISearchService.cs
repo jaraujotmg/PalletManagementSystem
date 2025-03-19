@@ -1,55 +1,67 @@
+using PalletManagementSystem.Core.DTOs;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using PalletManagementSystem.Core.DTOs;
 
 namespace PalletManagementSystem.Core.Interfaces.Services
 {
     /// <summary>
-    /// Service interface for search operations
+    /// Service for searching entities in the system
     /// </summary>
     public interface ISearchService
     {
         /// <summary>
-        /// Searches for pallets and items by keyword
+        /// Performs a general search across all entities
         /// </summary>
         /// <param name="keyword">The search keyword</param>
-        /// <returns>A collection of search result DTOs</returns>
-        Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword);
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <returns>Collection of search results</returns>
+        Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0);
 
         /// <summary>
         /// Gets search suggestions as the user types
         /// </summary>
-        /// <param name="partialKeyword">The partial keyword</param>
-        /// <param name="maxResults">The maximum number of results to return</param>
-        /// <returns>A collection of search suggestion DTOs</returns>
+        /// <param name="partialKeyword">The partial search keyword</param>
+        /// <param name="maxResults">Maximum number of suggestions to return</param>
+        /// <returns>Collection of search suggestions</returns>
         Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5);
 
         /// <summary>
-        /// Searches for pallets by keyword
+        /// Searches for pallets matching the keyword
         /// </summary>
         /// <param name="keyword">The search keyword</param>
-        /// <returns>A collection of pallet DTOs</returns>
-        Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword);
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <returns>Collection of pallets matching the search</returns>
+        Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0);
 
         /// <summary>
-        /// Searches for items by keyword
+        /// Searches for items matching the keyword
         /// </summary>
         /// <param name="keyword">The search keyword</param>
-        /// <returns>A collection of item DTOs</returns>
-        Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword);
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <returns>Collection of items matching the search</returns>
+        Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0);
 
         /// <summary>
-        /// Searches for manufacturing orders by keyword
+        /// Searches for manufacturing orders matching the keyword
         /// </summary>
         /// <param name="keyword">The search keyword</param>
-        /// <returns>A collection of manufacturing order strings</returns>
-        Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword);
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <returns>Collection of manufacturing orders matching the search</returns>
+        Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0);
 
         /// <summary>
-        /// Searches for clients by keyword
+        /// Searches for clients matching the keyword
         /// </summary>
         /// <param name="keyword">The search keyword</param>
-        /// <returns>A collection of client DTOs</returns>
-        Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword);
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <returns>Collection of clients matching the search</returns>
+        Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0);
+
+        /// <summary>
+        /// Validates a search keyword
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <returns>True if the keyword is valid, false otherwise</returns>
+        Task<bool> ValidateSearchKeywordAsync(string keyword);
     }
 }
