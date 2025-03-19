@@ -142,11 +142,14 @@ namespace PalletManagementSystem.Core.Models
                 throw new ArgumentException("CreatedBy cannot be null or empty", nameof(createdBy));
             }
 
-            // Validate platform is valid for the division
-            if (!PlatformValidationService.IsValidPlatformForDivision(platform, division))
-            {
-                throw new ArgumentException($"Platform {platform} is not valid for division {division}", nameof(platform));
-            }
+            //// Validate platform is valid for the division
+            //if (!PlatformValidationService.IsValidPlatformForDivision(platform, division))
+            //{
+            //    throw new ArgumentException($"Platform {platform} is not valid for division {division}", nameof(platform));
+            //}
+
+            // Platform validation will be handled at the service level
+            // The domain model should not have dependencies on services
         }
 
         /// <summary>

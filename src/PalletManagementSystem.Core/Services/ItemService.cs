@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
@@ -16,32 +17,28 @@ namespace PalletManagementSystem.Core.Services
     /// </summary>
     public class ItemService : IItemService
     {
-        private readonly IItemRepository _itemRepository;
-        private readonly IPalletRepository _palletRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<ItemService> _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ItemService"/> class
         /// </summary>
-        /// <param name="itemRepository">The item repository</param>
-        /// <param name="palletRepository">The pallet repository</param>
+        /// <param name="unitOfWork">The unit of work</param>
         /// <param name="logger">The logger</param>
         public ItemService(
-            IItemRepository itemRepository,
-            IPalletRepository palletRepository,
+            IUnitOfWork unitOfWork,
             ILogger<ItemService> logger)
         {
-            _itemRepository = itemRepository ?? throw new ArgumentNullException(nameof(itemRepository));
-            _palletRepository = palletRepository ?? throw new ArgumentNullException(nameof(palletRepository));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <inheritdoc/>
-        public async Task<ItemDto> GetItemByIdAsync(int id)
+        public async Task<ItemDto> GetItemByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             try
             {
-                var item = await _itemRepository.GetByIdAsync(id);
+                var item = await _unitOfWork.ItemRepository.GetByIdAsync(id, cancellationToken);
                 return item != null ? MapToDto(item) : null;
             }
             catch (Exception ex)
@@ -52,7 +49,7 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<ItemDto> GetItemByNumberAsync(string itemNumber)
+        public async Task<ItemDto> GetItemByNumberAsync(string itemNumber, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(itemNumber))
             {
@@ -61,7 +58,7 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var item = await _itemRepository.GetByItemNumberAsync(itemNumber);
+                var item = await _unitOfWork.ItemRepository.GetByItemNumberAsync(itemNumber, cancellationToken);
                 return item != null ? MapToDto(item) : null;
             }
             catch (Exception ex)
@@ -72,11 +69,11 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ItemDto>> GetItemsByPalletIdAsync(int palletId)
+        public async Task<IEnumerable<ItemDto>> GetItemsByPalletIdAsync(int palletId, CancellationToken cancellationToken = default)
         {
             try
             {
-                var items = await _itemRepository.GetByPalletIdAsync(palletId);
+                var items = await _unitOfWork.ItemRepository.GetByPalletIdAsync(palletId, cancellationToken);
                 return items.Select(MapToDto);
             }
             catch (Exception ex)
@@ -87,7 +84,7 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ItemDto>> GetItemsByClientCodeAsync(string clientCode)
+        public async Task<IEnumerable<ItemDto>> GetItemsByClientCodeAsync(string clientCode, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(clientCode))
             {
@@ -96,7 +93,7 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var items = await _itemRepository.GetByClientCodeAsync(clientCode);
+                var items = await _unitOfWork.ItemRepository.GetByClientCodeAsync(clientCode, cancellationToken);
                 return items.Select(MapToDto);
             }
             catch (Exception ex)
@@ -107,7 +104,7 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<ItemDto> CreateItemAsync(ItemDto itemDto, int palletId, string username)
+        public async Task<ItemDto> CreateItemAsync(ItemDto itemDto, int palletId, string username, CancellationToken cancellationToken = default)
         {
             // Validate parameters
             if (itemDto == null)
@@ -122,8 +119,11 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
+                // Begin transaction
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
                 // Get the pallet
-                var pallet = await _palletRepository.GetByIdAsync(palletId);
+                var pallet = await _unitOfWork.PalletRepository.GetByIdAsync(palletId, cancellationToken);
                 if (pallet == null)
                 {
                     throw new DomainException($"Pallet with ID {palletId} not found");
@@ -161,30 +161,46 @@ namespace PalletManagementSystem.Core.Services
                 // Set the pallet
                 item.SetPallet(pallet);
 
-                // Save to repository
-                var createdItem = await _itemRepository.AddAsync(item);
+                // Add to repository
+                var createdItem = await _unitOfWork.ItemRepository.AddAsync(item, cancellationToken);
+
+                // Save changes
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Commit transaction
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 return MapToDto(createdItem);
             }
             catch (PalletClosedException pex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(pex, $"Attempted to add item to closed pallet {palletId}");
                 throw;
             }
             catch (DomainException dex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(dex, $"Domain error when creating item for pallet {palletId}");
                 throw;
             }
             catch (Exception ex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogError(ex, $"Error creating item for pallet {palletId}");
                 throw;
             }
         }
 
         /// <inheritdoc/>
-        public async Task<ItemDto> UpdateItemAsync(int itemId, decimal weight, decimal width, string quality, string batch)
+        public async Task<ItemDto> UpdateItemAsync(
+            int itemId, decimal weight, decimal width, string quality, string batch, CancellationToken cancellationToken = default)
         {
             // Validate parameters
             if (weight < 0)
@@ -209,7 +225,10 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var item = await _itemRepository.GetByIdWithPalletAsync(itemId);
+                // Begin transaction
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+                var item = await _unitOfWork.ItemRepository.GetByIdWithPalletAsync(itemId, cancellationToken);
                 if (item == null)
                 {
                     throw new DomainException($"Item with ID {itemId} not found");
@@ -229,79 +248,115 @@ namespace PalletManagementSystem.Core.Services
                     throw new ItemValidationException($"Invalid item data: {ex.Message}");
                 }
 
-                // Save to repository
-                await _itemRepository.UpdateAsync(item);
+                // Update in repository
+                await _unitOfWork.ItemRepository.UpdateAsync(item, cancellationToken);
+
+                // Save changes
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Commit transaction
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 return MapToDto(item);
             }
             catch (PalletClosedException pex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(pex, $"Attempted to update item on closed pallet, item ID {itemId}");
                 throw;
             }
             catch (ItemValidationException ivex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(ivex, $"Validation error when updating item {itemId}");
                 throw;
             }
             catch (DomainException dex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(dex, $"Domain error when updating item {itemId}");
                 throw;
             }
             catch (Exception ex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogError(ex, $"Error updating item {itemId}");
                 throw;
             }
         }
 
         /// <inheritdoc/>
-        public async Task<ItemDto> MoveItemToPalletAsync(int itemId, int targetPalletId)
+        public async Task<ItemDto> MoveItemToPalletAsync(int itemId, int targetPalletId, CancellationToken cancellationToken = default)
         {
             try
             {
+                // Begin transaction
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
                 // Validate if the move is allowed
-                bool canMove = await CanMoveItemToPalletAsync(itemId, targetPalletId);
+                bool canMove = await CanMoveItemToPalletAsync(itemId, targetPalletId, cancellationToken);
                 if (!canMove)
                 {
                     throw new DomainException($"Cannot move item {itemId} to pallet {targetPalletId}");
                 }
 
-                var item = await _itemRepository.GetByIdWithPalletAsync(itemId);
-                var targetPallet = await _palletRepository.GetByIdAsync(targetPalletId);
+                var item = await _unitOfWork.ItemRepository.GetByIdWithPalletAsync(itemId, cancellationToken);
+                var targetPallet = await _unitOfWork.PalletRepository.GetByIdAsync(targetPalletId, cancellationToken);
 
                 // Move item to the target pallet
                 item.SetPallet(targetPallet);
 
-                // Save to repository
-                await _itemRepository.UpdateAsync(item);
+                // Update in repository
+                await _unitOfWork.ItemRepository.UpdateAsync(item, cancellationToken);
+
+                // Save changes
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Commit transaction
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 return MapToDto(item);
             }
             catch (PalletClosedException pex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(pex, $"Attempted to move item {itemId} to/from closed pallet {targetPalletId}");
                 throw;
             }
             catch (DomainException dex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(dex, $"Domain error when moving item {itemId} to pallet {targetPalletId}");
                 throw;
             }
             catch (Exception ex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogError(ex, $"Error moving item {itemId} to pallet {targetPalletId}");
                 throw;
             }
         }
 
         /// <inheritdoc/>
-        public async Task<bool> CanMoveItemToPalletAsync(int itemId, int targetPalletId)
+        public async Task<bool> CanMoveItemToPalletAsync(int itemId, int targetPalletId, CancellationToken cancellationToken = default)
         {
             try
             {
-                var item = await _itemRepository.GetByIdWithPalletAsync(itemId);
+                var item = await _unitOfWork.ItemRepository.GetByIdWithPalletAsync(itemId, cancellationToken);
                 if (item == null)
                 {
                     return false;
@@ -314,7 +369,7 @@ namespace PalletManagementSystem.Core.Services
                 }
 
                 // Check if target pallet exists and is not closed
-                var targetPallet = await _palletRepository.GetByIdAsync(targetPalletId);
+                var targetPallet = await _unitOfWork.PalletRepository.GetByIdAsync(targetPalletId, cancellationToken);
                 if (targetPallet == null || targetPallet.IsClosed)
                 {
                     return false;
@@ -336,7 +391,7 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword)
+        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
@@ -345,7 +400,7 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var items = await _itemRepository.SearchAsync(keyword);
+                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
                 return items.Select(MapToDto);
             }
             catch (Exception ex)
@@ -356,11 +411,11 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<ItemDto> GetItemWithPalletAsync(int itemId)
+        public async Task<ItemDto> GetItemWithPalletAsync(int itemId, CancellationToken cancellationToken = default)
         {
             try
             {
-                var item = await _itemRepository.GetByIdWithPalletAsync(itemId);
+                var item = await _unitOfWork.ItemRepository.GetByIdWithPalletAsync(itemId, cancellationToken);
                 return item != null ? MapToDtoWithPallet(item) : null;
             }
             catch (Exception ex)
@@ -371,7 +426,7 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<ItemDto> GetItemWithPalletByNumberAsync(string itemNumber)
+        public async Task<ItemDto> GetItemWithPalletByNumberAsync(string itemNumber, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(itemNumber))
             {
@@ -380,7 +435,7 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var item = await _itemRepository.GetByItemNumberWithPalletAsync(itemNumber);
+                var item = await _unitOfWork.ItemRepository.GetByItemNumberWithPalletAsync(itemNumber, cancellationToken);
                 return item != null ? MapToDtoWithPallet(item) : null;
             }
             catch (Exception ex)
@@ -391,16 +446,64 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ItemDto>> GetAllItemsAsync()
+        public async Task<IEnumerable<ItemDto>> GetAllItemsAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                var items = await _itemRepository.GetAllAsync();
+                var items = await _unitOfWork.ItemRepository.GetAllAsync(cancellationToken);
                 return items.Select(MapToDto);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all items");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<PagedResultDto<ItemDto>> GetPagedItemsAsync(
+            int pageNumber,
+            int pageSize,
+            int? palletId = null,
+            string clientCode = null,
+            string manufacturingOrder = null,
+            string keyword = null,
+            bool includePallets = false,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var pagedResult = await _unitOfWork.ItemRepository.GetPagedItemsAsync(
+                    pageNumber,
+                    pageSize,
+                    palletId,
+                    clientCode,
+                    manufacturingOrder,
+                    keyword,
+                    includePallets,
+                    orderByCreatedDate: true,
+                    descending: true,
+                    cancellationToken);
+
+                // Map to DTOs
+                var itemDtos = includePallets
+                    ? pagedResult.Items.Select(MapToDtoWithPallet).ToList()
+                    : pagedResult.Items.Select(MapToDto).ToList();
+
+                // Create DTO for paged result
+                var pagedResultDto = new PagedResultDto<ItemDto>
+                {
+                    Items = itemDtos,
+                    TotalCount = pagedResult.TotalCount,
+                    PageNumber = pagedResult.PageNumber,
+                    PageSize = pagedResult.PageSize
+                };
+
+                return pagedResultDto;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving paged items");
                 throw;
             }
         }

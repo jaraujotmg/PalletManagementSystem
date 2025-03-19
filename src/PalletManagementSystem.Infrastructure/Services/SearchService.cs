@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
@@ -14,27 +15,24 @@ namespace PalletManagementSystem.Infrastructure.Services
     /// </summary>
     public class SearchService : ISearchService
     {
-        private readonly IPalletRepository _palletRepository;
-        private readonly IItemRepository _itemRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<SearchService> _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SearchService"/> class
         /// </summary>
         public SearchService(
-            IPalletRepository palletRepository,
-            IItemRepository itemRepository,
+            IUnitOfWork unitOfWork,
             ILogger<SearchService> logger)
         {
-            _palletRepository = palletRepository ?? throw new ArgumentNullException(nameof(palletRepository));
-            _itemRepository = itemRepository ?? throw new ArgumentNullException(nameof(itemRepository));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
-            if (!await ValidateSearchKeywordAsync(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
             {
                 return Enumerable.Empty<SearchResultDto>();
             }
@@ -44,7 +42,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                 var results = new List<SearchResultDto>();
 
                 // Search for pallets
-                var pallets = await _palletRepository.SearchAsync(keyword);
+                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
                 foreach (var pallet in pallets)
                 {
                     results.Add(new SearchResultDto
@@ -58,7 +56,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                 }
 
                 // Search for items
-                var items = await _itemRepository.SearchAsync(keyword);
+                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
                 foreach (var item in items)
                 {
                     results.Add(new SearchResultDto
@@ -87,9 +85,10 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5)
+        public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(
+            string partialKeyword, int maxResults = 5, CancellationToken cancellationToken = default)
         {
-            if (!await ValidateSearchKeywordAsync(partialKeyword) || partialKeyword.Length < 2)
+            if (!await ValidateSearchKeywordAsync(partialKeyword, cancellationToken) || partialKeyword.Length < 2)
             {
                 return Enumerable.Empty<SearchSuggestionDto>();
             }
@@ -99,7 +98,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                 var suggestions = new List<SearchSuggestionDto>();
 
                 // Search for pallets
-                var pallets = (await _palletRepository.SearchAsync(partialKeyword));
+                var pallets = (await _unitOfWork.PalletRepository.SearchAsync(partialKeyword, cancellationToken));
                 int palletsToInclude = maxResults > 0 ? Math.Min(pallets.Count(), maxResults / 2) : pallets.Count();
 
                 foreach (var pallet in pallets.Take(palletsToInclude))
@@ -115,7 +114,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                 }
 
                 // Search for items
-                var items = (await _itemRepository.SearchAsync(partialKeyword));
+                var items = (await _unitOfWork.ItemRepository.SearchAsync(partialKeyword, cancellationToken));
                 int itemsToInclude = maxResults > 0 ? Math.Min(items.Count(), maxResults - suggestions.Count) : items.Count();
 
                 foreach (var item in items.Take(itemsToInclude))
@@ -153,16 +152,17 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(
+            string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
-            if (!await ValidateSearchKeywordAsync(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
             {
                 return Enumerable.Empty<PalletDto>();
             }
 
             try
             {
-                var pallets = await _palletRepository.SearchAsync(keyword);
+                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
                 var results = pallets.Select(p => new PalletDto
                 {
                     Id = p.Id,
@@ -196,16 +196,17 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(
+            string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
-            if (!await ValidateSearchKeywordAsync(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
             {
                 return Enumerable.Empty<ItemDto>();
             }
 
             try
             {
-                var items = await _itemRepository.SearchAsync(keyword);
+                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
                 var results = items.Select(i => new ItemDto
                 {
                     Id = i.Id,
@@ -250,16 +251,17 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(
+            string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
-            if (!await ValidateSearchKeywordAsync(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
             {
                 return Enumerable.Empty<string>();
             }
 
             try
             {
-                var pallets = await _palletRepository.SearchAsync(keyword);
+                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
                 var results = pallets
                     .Select(p => p.ManufacturingOrder)
                     .Distinct();
@@ -280,16 +282,17 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(
+            string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
-            if (!await ValidateSearchKeywordAsync(keyword))
+            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
             {
                 return Enumerable.Empty<ClientDto>();
             }
 
             try
             {
-                var items = await _itemRepository.SearchAsync(keyword);
+                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
                 var clients = items
                     .GroupBy(i => new { i.ClientCode, i.ClientName })
                     .Select(g => new ClientDto
@@ -317,7 +320,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<bool> ValidateSearchKeywordAsync(string keyword)
+        public async Task<bool> ValidateSearchKeywordAsync(string keyword, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {

@@ -16,7 +16,7 @@ namespace PalletManagementSystem.Core.Extensions
         /// <typeparam name="T">The enum type</typeparam>
         /// <param name="value">The enum value</param>
         /// <returns>The description or the enum name if no description is found</returns>
-        public static string GetDescription<T>(this T value) where T : Enum
+        public static string GetDescription<T>(this T value) where T : struct, Enum
         {
             var field = value.GetType().GetField(value.ToString());
 
@@ -33,7 +33,7 @@ namespace PalletManagementSystem.Core.Extensions
         /// <typeparam name="T">The enum type</typeparam>
         /// <param name="description">The description to look for</param>
         /// <returns>The enum value or default if not found</returns>
-        public static T GetValueFromDescription<T>(string description) where T : Enum
+        public static T GetValueFromDescription<T>(string description) where T : struct, Enum
         {
             foreach (var field in typeof(T).GetFields())
             {
@@ -49,9 +49,9 @@ namespace PalletManagementSystem.Core.Extensions
             }
 
             // If no match is found, try to directly parse the enum
-            if (Enum.TryParse(typeof(T), description, out object result))
+            if (Enum.TryParse<T>(description, out T result))
             {
-                return (T)result;
+                return result;
             }
 
             throw new ArgumentException($"'{description}' is not a valid description or value for {typeof(T).Name}");
@@ -62,7 +62,7 @@ namespace PalletManagementSystem.Core.Extensions
         /// </summary>
         /// <typeparam name="T">The enum type</typeparam>
         /// <returns>Array of all enum values</returns>
-        public static T[] GetAllValues<T>() where T : Enum
+        public static T[] GetAllValues<T>() where T : struct, Enum
         {
             return Enum.GetValues(typeof(T)).Cast<T>().ToArray();
         }
@@ -72,7 +72,7 @@ namespace PalletManagementSystem.Core.Extensions
         /// </summary>
         /// <typeparam name="T">The enum type</typeparam>
         /// <returns>Array of all descriptions</returns>
-        public static string[] GetAllDescriptions<T>() where T : Enum
+        public static string[] GetAllDescriptions<T>() where T : struct, Enum
         {
             return GetAllValues<T>().Select(v => v.GetDescription()).ToArray();
         }

@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using PalletManagementSystem.Core.Interfaces;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Services;
@@ -10,13 +9,11 @@ using PalletManagementSystem.Infrastructure.Data.Repositories;
 using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Infrastructure.Services;
 using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
-using System;
-using System.Net.Http;
 
 namespace PalletManagementSystem.Infrastructure.Extensions
 {
     /// <summary>
-    /// Extension methods for <see cref="IServiceCollection"/>
+    /// Extensions for configuring services in the application
     /// </summary>
     public static class ServiceCollectionExtensions
     {
@@ -26,34 +23,44 @@ namespace PalletManagementSystem.Infrastructure.Extensions
         /// <param name="services">The service collection</param>
         /// <param name="configuration">The configuration</param>
         /// <returns>The service collection</returns>
-        public static IServiceCollection AddInfrastructureServices(
-            this IServiceCollection services,
-            IConfiguration configuration)
+        public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Add DbContext
+            // Database
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
                     configuration.GetConnectionString("DefaultConnection"),
-                    b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                    b => b.MigrationsAssembly("PalletManagementSystem.Infrastructure")));
 
-            // Register repositories
+            // Repositories
+            services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IPalletRepository, PalletRepository>();
             services.AddScoped<IItemRepository, ItemRepository>();
 
-            // Register domain services
-            services.AddScoped<PalletNumberGenerator>();
+            // Unit of Work (New)
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // Register infrastructure services
-            services.AddHttpClient<SSRSClient>();
-            services.AddScoped<IReportingService, ReportingService>();
+            // Infrastructure Services
             services.AddScoped<IPrinterService, PrinterService>();
+            services.AddScoped<ISearchService, SearchService>();
+            services.AddScoped<IUserPreferenceService, UserPreferenceService>();
+            services.AddScoped<IReportingService, ReportingService>();
+            services.AddScoped<ISSRSClient, SSRSClient>();
+            services.AddScoped<IUserContext, WindowsUserContext>();
 
-            // Register application services
+            return services;
+        }
+
+        /// <summary>
+        /// Adds core services to the service collection
+        /// </summary>
+        /// <param name="services">The service collection</param>
+        /// <returns>The service collection</returns>
+        public static IServiceCollection AddCoreServices(this IServiceCollection services)
+        {
+            // Domain Services
             services.AddScoped<IPalletService, PalletService>();
             services.AddScoped<IItemService, ItemService>();
-
-            // Use the default provider as a fallback:
-            services.AddScoped<IUserContextProvider, DefaultUserContextProvider>();
+            services.AddScoped<IPlatformValidationService, PlatformValidationService>();
 
             return services;
         }

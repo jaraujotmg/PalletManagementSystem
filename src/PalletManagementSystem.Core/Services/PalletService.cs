@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
@@ -18,7 +19,7 @@ namespace PalletManagementSystem.Core.Services
     /// </summary>
     public class PalletService : IPalletService
     {
-        private readonly IPalletRepository _palletRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IPrinterService _printerService;
         private readonly IPlatformValidationService _platformValidationService;
         private readonly ILogger<PalletService> _logger;
@@ -27,23 +28,23 @@ namespace PalletManagementSystem.Core.Services
         /// Initializes a new instance of the <see cref="PalletService"/> class
         /// </summary>
         public PalletService(
-            IPalletRepository palletRepository,
+            IUnitOfWork unitOfWork,
             IPrinterService printerService,
             IPlatformValidationService platformValidationService,
             ILogger<PalletService> logger)
         {
-            _palletRepository = palletRepository ?? throw new ArgumentNullException(nameof(palletRepository));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
             _platformValidationService = platformValidationService ?? throw new ArgumentNullException(nameof(platformValidationService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <inheritdoc/>
-        public async Task<PalletDto> GetPalletByIdAsync(int id)
+        public async Task<PalletDto> GetPalletByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             try
             {
-                var pallet = await _palletRepository.GetByIdAsync(id);
+                var pallet = await _unitOfWork.PalletRepository.GetByIdAsync(id, cancellationToken);
                 return pallet != null ? MapToDto(pallet) : null;
             }
             catch (Exception ex)
@@ -54,7 +55,7 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<PalletDto> GetPalletByNumberAsync(string palletNumber)
+        public async Task<PalletDto> GetPalletByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(palletNumber))
             {
@@ -63,7 +64,7 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var pallet = await _palletRepository.GetByPalletNumberAsync(palletNumber);
+                var pallet = await _unitOfWork.PalletRepository.GetByPalletNumberAsync(palletNumber, cancellationToken);
                 return pallet != null ? MapToDto(pallet) : null;
             }
             catch (Exception ex)
@@ -75,7 +76,7 @@ namespace PalletManagementSystem.Core.Services
 
         /// <inheritdoc/>
         public async Task<IEnumerable<PalletDto>> GetPalletsByDivisionAndPlatformAsync(
-            Division division, Platform platform, bool includeItems = false)
+            Division division, Platform platform, bool includeItems = false, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -87,10 +88,13 @@ namespace PalletManagementSystem.Core.Services
                 }
 
                 var pallets = includeItems
-                    ? await _palletRepository.GetByDivisionAndPlatformWithItemsAsync(division, platform)
-                    : await _palletRepository.GetByDivisionAndPlatformAsync(division, platform);
+                    ? await _unitOfWork.PalletRepository.GetByDivisionAndPlatformWithItemsAsync(division, platform, cancellationToken)
+                    : await _unitOfWork.PalletRepository.GetByDivisionAndPlatformAsync(division, platform, cancellationToken);
 
-                return pallets.Select(includeItems ? MapToDtoWithItems : MapToDto);
+                // Use explicit conversion to avoid type inference issues
+                return includeItems
+                    ? pallets.Select(p => MapToDtoWithItems(p))
+                    : pallets.Select(p => MapToDto(p));
             }
             catch (Exception ex)
             {
@@ -100,12 +104,16 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<PalletDto>> GetPalletsByStatusAsync(bool isClosed, bool includeItems = false)
+        public async Task<IEnumerable<PalletDto>> GetPalletsByStatusAsync(bool isClosed, bool includeItems = false, CancellationToken cancellationToken = default)
         {
             try
             {
-                var pallets = await _palletRepository.GetByStatusAsync(isClosed);
-                return pallets.Select(MapToDto);
+                var pallets = await _unitOfWork.PalletRepository.GetByStatusAsync(isClosed, cancellationToken);
+
+                // Use explicit conversion to avoid type inference issues
+                return includeItems
+                    ? pallets.Select(p => MapToDtoWithItems(p))
+                    : pallets.Select(p => MapToDto(p));
             }
             catch (Exception ex)
             {
@@ -116,12 +124,16 @@ namespace PalletManagementSystem.Core.Services
 
         /// <inheritdoc/>
         public async Task<IEnumerable<PalletDto>> GetPalletsByDivisionAndStatusAsync(
-            Division division, bool isClosed, bool includeItems = false)
+            Division division, bool isClosed, bool includeItems = false, CancellationToken cancellationToken = default)
         {
             try
             {
-                var pallets = await _palletRepository.GetByDivisionAndStatusAsync(division, isClosed);
-                return pallets.Select(MapToDto);
+                var pallets = await _unitOfWork.PalletRepository.GetByDivisionAndStatusAsync(division, isClosed, cancellationToken);
+
+                // Use explicit conversion to avoid type inference issues
+                return includeItems
+                    ? pallets.Select(p => MapToDtoWithItems(p))
+                    : pallets.Select(p => MapToDto(p));
             }
             catch (Exception ex)
             {
@@ -136,7 +148,8 @@ namespace PalletManagementSystem.Core.Services
             Division division,
             Platform platform,
             UnitOfMeasure unitOfMeasure,
-            string username)
+            string username,
+            CancellationToken cancellationToken = default)
         {
             // Validate parameters
             if (string.IsNullOrWhiteSpace(manufacturingOrder))
@@ -158,8 +171,11 @@ namespace PalletManagementSystem.Core.Services
                     throw new ArgumentException($"Platform {platform} is not valid for division {division}");
                 }
 
+                // Begin transaction
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
                 // Get next temporary sequence number
-                int sequenceNumber = await _palletRepository.GetNextTemporarySequenceNumberAsync();
+                int sequenceNumber = await _unitOfWork.PalletRepository.GetNextTemporarySequenceNumberAsync(cancellationToken);
 
                 // Create a temporary pallet number
                 var palletNumber = PalletNumber.CreateTemporary(sequenceNumber, division);
@@ -173,24 +189,37 @@ namespace PalletManagementSystem.Core.Services
                     unitOfMeasure,
                     username);
 
-                // Save to repository
-                var createdPallet = await _palletRepository.AddAsync(pallet);
+                // Add to repository
+                var createdPallet = await _unitOfWork.PalletRepository.AddAsync(pallet, cancellationToken);
+
+                // Save changes
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Commit transaction
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 return MapToDto(createdPallet);
             }
             catch (Exception ex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogError(ex, $"Error creating pallet for manufacturing order {manufacturingOrder}");
                 throw;
             }
         }
 
         /// <inheritdoc/>
-        public async Task<PalletDto> ClosePalletAsync(int palletId, bool autoPrint = true, string notes = null)
+        public async Task<PalletDto> ClosePalletAsync(
+            int palletId, bool autoPrint = true, string notes = null, CancellationToken cancellationToken = default)
         {
             try
             {
-                var pallet = await _palletRepository.GetByIdWithItemsAsync(palletId);
+                // Begin transaction
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+                var pallet = await _unitOfWork.PalletRepository.GetByIdWithItemsAsync(palletId, cancellationToken);
                 if (pallet == null)
                 {
                     throw new DomainException($"Pallet with ID {palletId} not found");
@@ -206,7 +235,7 @@ namespace PalletManagementSystem.Core.Services
                 if (pallet.PalletNumber.IsTemporary)
                 {
                     // Get next permanent sequence number for this division
-                    int sequenceNumber = await _palletRepository.GetNextPermanentSequenceNumberAsync(pallet.Division);
+                    int sequenceNumber = await _unitOfWork.PalletRepository.GetNextPermanentSequenceNumberAsync(pallet.Division, cancellationToken);
                     permanentNumber = PalletNumber.CreatePermanent(sequenceNumber, pallet.Division);
                 }
 
@@ -214,7 +243,13 @@ namespace PalletManagementSystem.Core.Services
                 pallet.Close(permanentNumber);
 
                 // Update in repository
-                await _palletRepository.UpdateAsync(pallet);
+                await _unitOfWork.PalletRepository.UpdateAsync(pallet, cancellationToken);
+
+                // Save changes
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Commit transaction
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 // Print pallet list if requested
                 if (autoPrint)
@@ -226,23 +261,33 @@ namespace PalletManagementSystem.Core.Services
             }
             catch (PalletClosedException pex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(pex, $"Attempted to close already closed pallet {palletId}");
                 throw;
             }
             catch (DomainException dex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogWarning(dex, $"Domain error when closing pallet {palletId}");
                 throw;
             }
             catch (Exception ex)
             {
+                // Rollback transaction on error
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 _logger.LogError(ex, $"Error closing pallet {palletId}");
                 throw;
             }
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, bool includeItems = false)
+        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(
+            string keyword, bool includeItems = false, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
@@ -251,8 +296,12 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var pallets = await _palletRepository.SearchAsync(keyword);
-                return pallets.Select(MapToDto);
+                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
+
+                // Use explicit conversion to avoid type inference issues
+                return includeItems
+                    ? pallets.Select(p => MapToDtoWithItems(p))
+                    : pallets.Select(p => MapToDto(p));
             }
             catch (Exception ex)
             {
@@ -262,7 +311,7 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<PalletDto> GetPalletWithItemsByNumberAsync(string palletNumber)
+        public async Task<PalletDto> GetPalletWithItemsByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(palletNumber))
             {
@@ -271,7 +320,7 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var pallet = await _palletRepository.GetByPalletNumberWithItemsAsync(palletNumber);
+                var pallet = await _unitOfWork.PalletRepository.GetByPalletNumberWithItemsAsync(palletNumber, cancellationToken);
                 return pallet != null ? MapToDtoWithItems(pallet) : null;
             }
             catch (Exception ex)
@@ -282,24 +331,71 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<PalletDto>> GetAllPalletsAsync(bool includeItems = false)
+        public async Task<IEnumerable<PalletDto>> GetAllPalletsAsync(bool includeItems = false, CancellationToken cancellationToken = default)
         {
             try
             {
                 if (includeItems)
                 {
-                    var pallets = await _palletRepository.GetAllWithItemsAsync();
-                    return pallets.Select(MapToDtoWithItems);
+                    var pallets = await _unitOfWork.PalletRepository.GetAllWithItemsAsync(cancellationToken);
+                    return pallets.Select(p => MapToDtoWithItems(p));
                 }
                 else
                 {
-                    var pallets = await _palletRepository.GetAllAsync();
-                    return pallets.Select(MapToDto);
+                    var pallets = await _unitOfWork.PalletRepository.GetAllAsync(cancellationToken);
+                    return pallets.Select(p => MapToDto(p));
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all pallets");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<PagedResultDto<PalletDto>> GetPagedPalletsAsync(
+            int pageNumber,
+            int pageSize,
+            Division? division = null,
+            Platform? platform = null,
+            bool? isClosed = null,
+            string keyword = null,
+            bool includeItems = false,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var pagedResult = await _unitOfWork.PalletRepository.GetPagedPalletsAsync(
+                    pageNumber,
+                    pageSize,
+                    division,
+                    platform,
+                    isClosed,
+                    keyword,
+                    orderByCreatedDate: true,
+                    descending: true,
+                    cancellationToken);
+
+                // Map to DTOs - use explicit mapping based on includeItems flag
+                var palletDtos = includeItems
+                    ? pagedResult.Items.Select(p => MapToDtoWithItems(p)).ToList()
+                    : pagedResult.Items.Select(p => MapToDto(p)).ToList();
+
+                // Create DTO for paged result
+                var pagedResultDto = new PagedResultDto<PalletDto>
+                {
+                    Items = palletDtos,
+                    TotalCount = pagedResult.TotalCount,
+                    PageNumber = pagedResult.PageNumber,
+                    PageSize = pagedResult.PageSize
+                };
+
+                return pagedResultDto;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving paged pallets");
                 throw;
             }
         }
