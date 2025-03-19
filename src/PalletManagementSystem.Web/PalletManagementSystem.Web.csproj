@@ -47,11 +47,17 @@
 
 	<ItemGroup>
 		<!-- Folders to track -->
-		<Folder Include="Controllers\" />
+		<Folder Include="Areas\Admin\Controllers\" />
+		<Folder Include="Areas\Admin\Views\" />
+		<Folder Include="Extensions\" />
 		<Folder Include="Models\" />
-		<Folder Include="Views\" />
-		<Folder Include="Scripts\" />
-		<Folder Include="Content\" />
 		<Folder Include="App_Start\" />
+		<Folder Include="TagHelpers\" />
+		<Folder Include="Views\Items\" />
+		<Folder Include="Views\Pallets\" />
+		<Folder Include="Views\Settings\" />
+		<Folder Include="Views\Shared\Components\ItemTable\" />
+		<Folder Include="Views\Shared\Components\PalletCard\" />
+		<Folder Include="Views\Shared\Components\SearchBox\" />
 	</ItemGroup>
 </Project>
