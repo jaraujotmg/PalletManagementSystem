@@ -1,15 +1,14 @@
-﻿using System.Linq;
-using System.Web.Mvc;
+﻿using System.Web.Mvc;
 
 namespace PalletManagementSystem.Web.Controllers
 {
     /// <summary>
-    /// Base controller for common functionality
+    /// Base controller providing common functionality for all controllers
     /// </summary>
     public abstract class BaseController : Controller
     {
         /// <summary>
-        /// Sets a success message to be displayed to the user
+        /// Sets a success message to be displayed to the user via TempData
         /// </summary>
         /// <param name="message">The success message</param>
         protected void SetSuccessMessage(string message)
@@ -18,7 +17,7 @@ namespace PalletManagementSystem.Web.Controllers
         }
 
         /// <summary>
-        /// Sets an error message to be displayed to the user
+        /// Sets an error message to be displayed to the user via TempData
         /// </summary>
         /// <param name="message">The error message</param>
         protected void SetErrorMessage(string message)
@@ -27,7 +26,7 @@ namespace PalletManagementSystem.Web.Controllers
         }
 
         /// <summary>
-        /// Sets an information message to be displayed to the user
+        /// Sets an information message to be displayed to the user via TempData
         /// </summary>
         /// <param name="message">The information message</param>
         protected void SetInfoMessage(string message)
@@ -36,7 +35,7 @@ namespace PalletManagementSystem.Web.Controllers
         }
 
         /// <summary>
-        /// Sets a warning message to be displayed to the user
+        /// Sets a warning message to be displayed to the user via TempData
         /// </summary>
         /// <param name="message">The warning message</param>
         protected void SetWarningMessage(string message)
@@ -45,9 +44,26 @@ namespace PalletManagementSystem.Web.Controllers
         }
 
         /// <summary>
-        /// Handles controller-level exceptions
+        /// Prepares common view data for all views
         /// </summary>
-        /// <param name="filterContext">The exception context</param>
+        protected override void OnActionExecuting(ActionExecutingContext filterContext)
+        {
+            base.OnActionExecuting(filterContext);
+
+            // Set common ViewBag properties
+            ViewBag.Username = User?.Identity?.Name ?? "Unknown User";
+
+            // Get division and platform from session
+            ViewBag.Division = Session["CurrentDivision"] ?? "MA";
+            ViewBag.Platform = Session["CurrentPlatform"] ?? "TEC1";
+
+            // Get touch mode status
+            ViewBag.TouchModeEnabled = Session["TouchModeEnabled"] != null && (bool)Session["TouchModeEnabled"];
+        }
+
+        /// <summary>
+        /// Global error handling for controllers
+        /// </summary>
         protected override void OnException(ExceptionContext filterContext)
         {
             if (filterContext.ExceptionHandled)
@@ -55,13 +71,14 @@ namespace PalletManagementSystem.Web.Controllers
                 return;
             }
 
-            // Log the exception
-            // In a real application, we would inject a logger and log the exception here
+            // Log the exception - in a real implementation this would use a proper logger
+            System.Diagnostics.Debug.WriteLine($"Exception: {filterContext.Exception.Message}");
+            System.Diagnostics.Debug.WriteLine($"Stack Trace: {filterContext.Exception.StackTrace}");
 
             // Set error message
-            SetErrorMessage("An error occurred while processing your request. Please try again.");
+            SetErrorMessage("An error occurred. Please try again or contact support if the problem persists.");
 
-            // Determine if we should return a JSON response
+            // Return JSON response for AJAX requests
             if (filterContext.HttpContext.Request.IsAjaxRequest())
             {
                 filterContext.Result = new JsonResult
@@ -72,42 +89,11 @@ namespace PalletManagementSystem.Web.Controllers
             }
             else
             {
-                // Redirect to error page
-                filterContext.Result = new RedirectResult("~/Error");
+                // Redirect to Error page
+                filterContext.Result = new RedirectResult("~/Home/Error");
             }
 
             filterContext.ExceptionHandled = true;
-        }
-
-        /// <summary>
-        /// Checks if the model state is valid and returns a JSON response if not
-        /// </summary>
-        /// <returns>True if valid, false if errors were found and response sent</returns>
-        protected bool ValidateModelStateForAjaxRequest()
-        {
-            if (ModelState.IsValid)
-            {
-                return true;
-            }
-
-            var errors = ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
-                .ToList();
-
-            Response.StatusCode = 400;
-            Response.TrySkipIisCustomErrors = true;
-
-            var result = new JsonResult
-            {
-                Data = new { success = false, errors = errors },
-                JsonRequestBehavior = JsonRequestBehavior.AllowGet
-            };
-
-            Response.Write(result);
-            Response.End();
-
-            return false;
         }
     }
 }

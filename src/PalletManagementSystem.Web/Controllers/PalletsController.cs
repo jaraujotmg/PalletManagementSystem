@@ -5,9 +5,8 @@ using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Infrastructure.Logging;
-using PalletManagementSystem.Web.Models;
+using PalletManagementSystem.Web.ViewModels.PalletViewModels;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web.Mvc;
@@ -29,7 +28,7 @@ namespace PalletManagementSystem.Web.Controllers
         private readonly ILogger<PalletsController> _logger;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="PalletsController"/> class
+        /// Initializes a new instance of PalletsController
         /// </summary>
         public PalletsController(
             IPalletService palletService,
@@ -51,89 +50,52 @@ namespace PalletManagementSystem.Web.Controllers
 
         /// <summary>
         /// GET: Pallets
-        /// Displays a list of all pallets with optional filtering
+        /// Displays a list of all pallets with filtering options
         /// </summary>
-        /// <param name="page">Page number</param>
-        /// <param name="status">Filter by status (all, open, closed)</param>
-        /// <param name="searchTerm">Search term</param>
-        /// <returns>View with list of pallets</returns>
         public async Task<ActionResult> Index(int page = 1, string status = "all", string searchTerm = null)
         {
             try
             {
-                // Get currently selected division and platform from session
-                var division = GetCurrentDivision();
-                var platform = GetCurrentPlatform();
+                // Get current division and platform
+                var division = _userContext.GetDivision();
+                var platform = _userContext.GetPlatform();
 
-                // Get page size from user preferences
-                int pageSize = await _userPreferenceService.GetItemsPerPageAsync(_userContext.GetUsername());
+                // Get user preference for page size
+                var username = _userContext.GetUsername();
+                int pageSize = await _userPreferenceService.GetItemsPerPageAsync(username);
 
-                // Get pallets based on division, platform and status
-                IEnumerable<PalletDto> pallets;
+                // Get pallets according to filters
+                var pallets = await GetFilteredPalletsAsync(division, platform, status, searchTerm);
 
-                if (!string.IsNullOrWhiteSpace(searchTerm))
-                {
-                    // Search across all pallets for the search term
-                    pallets = await _palletService.SearchPalletsAsync(searchTerm);
-                }
-                else
-                {
-                    // Filter by division and platform
-                    pallets = await _palletService.GetPalletsByDivisionAndPlatformAsync(division, platform);
+                // Create the view model
+                var viewModel = PalletListViewModel.FromPalletDtos(
+                    pallets,
+                    page,
+                    pageSize,
+                    status,
+                    searchTerm,
+                    division,
+                    platform);
 
-                    // Further filter by status if requested
-                    if (status == "open")
-                    {
-                        pallets = pallets.Where(p => !p.IsClosed);
-                    }
-                    else if (status == "closed")
-                    {
-                        pallets = pallets.Where(p => p.IsClosed);
-                    }
-                }
-
-                // Calculate pagination
-                int totalItems = pallets.Count();
-                int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
-                page = Math.Max(1, Math.Min(page, totalPages));
-
-                // Apply pagination
-                var paginatedPallets = pallets
-                    .OrderByDescending(p => p.CreatedDate)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
-
-                // Set up ViewBag for pagination
-                ViewBag.CurrentPage = page;
-                ViewBag.TotalPages = totalPages;
-                ViewBag.Status = status;
-                ViewBag.SearchTerm = searchTerm;
-
-                // Log info
-                _loggingService.LogInfo($"Retrieved {paginatedPallets.Count} pallets for division {division}, platform {platform}");
-
-                return View(paginatedPallets);
+                return View(viewModel);
             }
             catch (Exception ex)
             {
-                _loggingService.LogError(ex, "Error retrieving pallets list");
-                SetErrorMessage("There was an error retrieving the pallet list. Please try again.");
-                return View(new List<PalletDto>());
+                _logger.LogError(ex, "Error retrieving pallet list");
+                SetErrorMessage("An error occurred while retrieving the pallet list. Please try again.");
+                return View(new PalletListViewModel());
             }
         }
 
         /// <summary>
         /// GET: Pallets/Details/5
-        /// Shows detailed view of a specific pallet
+        /// Shows details for a specific pallet
         /// </summary>
-        /// <param name="id">The pallet ID</param>
-        /// <returns>View with pallet details</returns>
         public async Task<ActionResult> Details(int id)
         {
             try
             {
-                // Get pallet with items
+                // Get the pallet with items
                 var pallet = await _palletService.GetPalletWithItemsAsync(id);
                 if (pallet == null)
                 {
@@ -141,61 +103,19 @@ namespace PalletManagementSystem.Web.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // Get activity log - this would normally come from a dedicated service
-                // For now, we'll create a simple mock activity log
-                var activityLog = new List<dynamic>
-                {
-                    new {
-                        Title = "Pallet created",
-                        Subtitle = $"Pallet {pallet.PalletNumber} created",
-                        Timestamp = pallet.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
-                        Username = pallet.CreatedBy,
-                        Icon = "fa-pallet",
-                        BadgeClass = "badge-primary"
-                    }
-                };
+                // Create the view model
+                var viewModel = PalletDetailsViewModel.FromPalletDto(pallet);
 
-                if (pallet.Items != null && pallet.Items.Any())
-                {
-                    // Add item activities
-                    foreach (var item in pallet.Items.OrderByDescending(i => i.CreatedDate).Take(3))
-                    {
-                        activityLog.Add(new
-                        {
-                            Title = "Item added",
-                            Subtitle = $"Item #{item.ItemNumber} added to pallet",
-                            Timestamp = item.CreatedDate.ToString("dd/MM/yyyy HH:mm"),
-                            Username = item.CreatedBy,
-                            Icon = "fa-plus",
-                            BadgeClass = "badge-primary"
-                        });
-                    }
-                }
+                // Log the view action
+                _loggingService.LogAudit("View", "Pallet", pallet.Id.ToString(),
+                    $"Viewed pallet {pallet.PalletNumber}");
 
-                if (pallet.IsClosed && pallet.ClosedDate.HasValue)
-                {
-                    activityLog.Insert(0, new
-                    {
-                        Title = "Pallet closed",
-                        Subtitle = $"Pallet {pallet.PalletNumber} closed",
-                        Timestamp = pallet.ClosedDate.Value.ToString("dd/MM/yyyy HH:mm"),
-                        Username = pallet.CreatedBy,
-                        Icon = "fa-lock",
-                        BadgeClass = "badge-success"
-                    });
-                }
-
-                ViewBag.ActivityLog = activityLog;
-
-                // Log the view
-                _loggingService.LogAudit("View", "Pallet", pallet.Id.ToString(), $"Viewed pallet {pallet.PalletNumber}");
-
-                return View(pallet);
+                return View(viewModel);
             }
             catch (Exception ex)
             {
-                _loggingService.LogError(ex, $"Error retrieving pallet details for ID {id}");
-                SetErrorMessage("There was an error retrieving the pallet details. Please try again.");
+                _logger.LogError(ex, $"Error retrieving pallet details for ID {id}");
+                SetErrorMessage("An error occurred while retrieving the pallet details. Please try again.");
                 return RedirectToAction("Index");
             }
         }
@@ -204,73 +124,62 @@ namespace PalletManagementSystem.Web.Controllers
         /// GET: Pallets/Create
         /// Shows form to create a new pallet
         /// </summary>
-        /// <returns>Create pallet view</returns>
         public ActionResult Create()
         {
             try
             {
-                // Check if user can create pallets
+                // Check if user has permission to create pallets
                 if (!_userContext.CanEditPallets())
                 {
-                    SetErrorMessage("You do not have permission to create pallets.");
+                    SetErrorMessage("You do not have permission to create new pallets.");
                     return RedirectToAction("Index");
                 }
 
-                // Create a new model
-                var model = new PalletDto
-                {
-                    Division = GetCurrentDivision().ToString(),
-                    Platform = GetCurrentPlatform().ToString(),
-                    UnitOfMeasure = UnitOfMeasure.PC.ToString()
-                };
+                // Get touch mode status
+                bool touchModeEnabled = Session["TouchModeEnabled"] != null &&
+                                       (bool)Session["TouchModeEnabled"];
 
-                return View(model);
+                // Create view model with user's current division and platform
+                var viewModel = new CreatePalletViewModel(
+                    _userContext.GetDivision(),
+                    _userContext.GetPlatform(),
+                    touchModeEnabled);
+
+                return View(viewModel);
             }
             catch (Exception ex)
             {
-                _loggingService.LogError(ex, "Error loading pallet creation form");
-                SetErrorMessage("There was an error loading the pallet creation form. Please try again.");
+                _logger.LogError(ex, "Error displaying pallet creation form");
+                SetErrorMessage("An error occurred while loading the pallet creation form. Please try again.");
                 return RedirectToAction("Index");
             }
         }
 
         /// <summary>
         /// POST: Pallets/Create
-        /// Processes the create pallet form
+        /// Processes the pallet creation form
         /// </summary>
-        /// <param name="model">The pallet data</param>
-        /// <returns>Redirect to Index or back to form with errors</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Create(PalletDto model)
+        public async Task<ActionResult> Create(CreatePalletViewModel model)
         {
             try
             {
-                // Check if user can create pallets
+                // Check if user has permission to create pallets
                 if (!_userContext.CanEditPallets())
                 {
-                    SetErrorMessage("You do not have permission to create pallets.");
+                    SetErrorMessage("You do not have permission to create new pallets.");
                     return RedirectToAction("Index");
                 }
 
                 if (ModelState.IsValid)
                 {
-                    // Parse enums
-                    if (!Enum.TryParse(model.Division, out Division division))
+                    // Parse enums from strings
+                    if (!Enum.TryParse(model.Division, out Division division) ||
+                        !Enum.TryParse(model.Platform, out Platform platform) ||
+                        !Enum.TryParse(model.UnitOfMeasure, out UnitOfMeasure unitOfMeasure))
                     {
-                        ModelState.AddModelError("Division", "Invalid division.");
-                        return View(model);
-                    }
-
-                    if (!Enum.TryParse(model.Platform, out Platform platform))
-                    {
-                        ModelState.AddModelError("Platform", "Invalid platform.");
-                        return View(model);
-                    }
-
-                    if (!Enum.TryParse(model.UnitOfMeasure, out UnitOfMeasure unitOfMeasure))
-                    {
-                        ModelState.AddModelError("UnitOfMeasure", "Invalid unit of measure.");
+                        ModelState.AddModelError("", "Invalid division, platform, or unit of measure selection.");
                         return View(model);
                     }
 
@@ -290,29 +199,26 @@ namespace PalletManagementSystem.Web.Controllers
                     return RedirectToAction("Details", new { id = pallet.Id });
                 }
 
+                // If we got here, there was a validation error
                 return View(model);
             }
             catch (Exception ex)
             {
-                _loggingService.LogError(ex, "Error creating pallet");
-                ModelState.AddModelError("", "There was an error creating the pallet. Please try again.");
+                _logger.LogError(ex, "Error creating pallet");
+                ModelState.AddModelError("", "An error occurred while creating the pallet. Please try again.");
                 return View(model);
             }
         }
 
         /// <summary>
-        /// POST: Pallets/Close/5
-        /// Closes a pallet
+        /// GET: Pallets/Close/5
+        /// Shows confirmation form to close a pallet
         /// </summary>
-        /// <param name="id">The pallet ID</param>
-        /// <returns>Redirect to Details with result</returns>
-        [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<ActionResult> Close(int id)
         {
             try
             {
-                // Check if user can close pallets
+                // Check if user has permission to close pallets
                 if (!_userContext.CanClosePallets())
                 {
                     SetErrorMessage("You do not have permission to close pallets.");
@@ -334,36 +240,113 @@ namespace PalletManagementSystem.Web.Controllers
                     return RedirectToAction("Details", new { id });
                 }
 
-                // Close the pallet
-                var closedPallet = await _palletService.ClosePalletAsync(id);
+                // Create close pallet view model
+                var viewModel = new ClosePalletViewModel(
+                    pallet.Id,
+                    pallet.PalletNumber,
+                    pallet.IsTemporary,
+                    pallet.ManufacturingOrder,
+                    pallet.ItemCount,
+                    pallet.Quantity,
+                    pallet.UnitOfMeasure);
 
-                // Log the close
-                _loggingService.LogAudit("Close", "Pallet", closedPallet.Id.ToString(),
-                    $"Closed pallet {closedPallet.PalletNumber}");
+                // Get auto-print preference
+                var username = _userContext.GetUsername();
+                var preferences = await _userPreferenceService.GetAllPreferencesAsync(username);
+                viewModel.AutoPrint = preferences.AutoPrintPalletList;
 
-                // Check if number changed (temporary to permanent)
-                if (pallet.PalletNumber != closedPallet.PalletNumber)
-                {
-                    SetSuccessMessage($"Pallet closed successfully. Number changed from {pallet.PalletNumber} to {closedPallet.PalletNumber}.");
-                }
-                else
-                {
-                    SetSuccessMessage($"Pallet {closedPallet.PalletNumber} closed successfully.");
-                }
-
-                return RedirectToAction("Details", new { id });
-            }
-            catch (PalletClosedException pcEx)
-            {
-                _loggingService.LogWarning(pcEx.Message);
-                SetErrorMessage(pcEx.Message);
-                return RedirectToAction("Details", new { id });
+                return View(viewModel);
             }
             catch (Exception ex)
             {
-                _loggingService.LogError(ex, $"Error closing pallet with ID {id}");
-                SetErrorMessage("There was an error closing the pallet. Please try again.");
+                _logger.LogError(ex, $"Error loading close pallet form for ID {id}");
+                SetErrorMessage("An error occurred while loading the close pallet form. Please try again.");
                 return RedirectToAction("Details", new { id });
+            }
+        }
+
+        /// <summary>
+        /// POST: Pallets/Close
+        /// Processes the close pallet form
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> CloseConfirm(ClosePalletViewModel model)
+        {
+            try
+            {
+                // Check if user has permission to close pallets
+                if (!_userContext.CanClosePallets())
+                {
+                    SetErrorMessage("You do not have permission to close pallets.");
+                    return RedirectToAction("Details", new { id = model.Id });
+                }
+
+                if (ModelState.IsValid)
+                {
+                    // Verify user confirms understanding
+                    if (!model.ConfirmUnderstanding)
+                    {
+                        ModelState.AddModelError("ConfirmUnderstanding",
+                            "You must confirm that you understand this action cannot be undone.");
+                        return View("Close", model);
+                    }
+
+                    // Get the pallet to verify it exists
+                    var pallet = await _palletService.GetPalletByIdAsync(model.Id);
+                    if (pallet == null)
+                    {
+                        SetErrorMessage("Pallet not found.");
+                        return RedirectToAction("Index");
+                    }
+
+                    // Check if already closed
+                    if (pallet.IsClosed)
+                    {
+                        SetErrorMessage($"Pallet {pallet.PalletNumber} is already closed.");
+                        return RedirectToAction("Details", new { id = model.Id });
+                    }
+
+                    // Close the pallet
+                    var closedPallet = await _palletService.ClosePalletAsync(model.Id);
+
+                    // Log the close action
+                    _loggingService.LogAudit("Close", "Pallet", closedPallet.Id.ToString(),
+                        $"Closed pallet {closedPallet.PalletNumber} with notes: {model.Notes ?? "None"}");
+
+                    // Auto-print if requested
+                    if (model.AutoPrint)
+                    {
+                        await _printerService.PrintPalletListAsync(model.Id);
+                    }
+
+                    // Check if number changed (temporary to permanent)
+                    if (pallet.PalletNumber != closedPallet.PalletNumber)
+                    {
+                        SetSuccessMessage($"Pallet closed successfully. Number changed from {pallet.PalletNumber} to {closedPallet.PalletNumber}.");
+                    }
+                    else
+                    {
+                        SetSuccessMessage($"Pallet {closedPallet.PalletNumber} closed successfully.");
+                    }
+
+                    return RedirectToAction("Details", new { id = model.Id });
+                }
+
+                // If we got here, there was a validation error
+                return View("Close", model);
+            }
+            catch (PalletClosedException pcEx)
+            {
+                _logger.LogWarning(pcEx.Message);
+                SetErrorMessage(pcEx.Message);
+                return RedirectToAction("Details", new { id = model.Id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error closing pallet with ID {model.Id}");
+                SetErrorMessage("An error occurred while closing the pallet. Please try again.");
+                return RedirectToAction("Details", new { id = model.Id });
             }
         }
 
@@ -371,8 +354,6 @@ namespace PalletManagementSystem.Web.Controllers
         /// GET: Pallets/Print/5
         /// Prints a pallet list
         /// </summary>
-        /// <param name="id">The pallet ID</param>
-        /// <returns>Redirect to Details with result or file download</returns>
         public async Task<ActionResult> Print(int id)
         {
             try
@@ -385,10 +366,10 @@ namespace PalletManagementSystem.Web.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // Print the pallet list - this would normally display a print dialog or download the file
+                // Print the pallet list
                 await _printerService.PrintPalletListAsync(id);
 
-                // Log the print
+                // Log the print action
                 _loggingService.LogAudit("Print", "Pallet", pallet.Id.ToString(),
                     $"Printed list for pallet {pallet.PalletNumber}");
 
@@ -397,28 +378,41 @@ namespace PalletManagementSystem.Web.Controllers
             }
             catch (Exception ex)
             {
-                _loggingService.LogError(ex, $"Error printing pallet list for ID {id}");
-                SetErrorMessage("There was an error printing the pallet list. Please try again.");
+                _logger.LogError(ex, $"Error printing pallet list for ID {id}");
+                SetErrorMessage("An error occurred while printing the pallet list. Please try again.");
                 return RedirectToAction("Details", new { id });
             }
         }
 
         /// <summary>
-        /// Gets the current division from session or user preferences
+        /// Helper method to get filtered pallets
         /// </summary>
-        /// <returns>The current division</returns>
-        private Division GetCurrentDivision()
+        private async Task<PalletDto[]> GetFilteredPalletsAsync(
+            Division division,
+            Platform platform,
+            string status,
+            string searchTerm)
         {
-            return _userContext.GetDivision();
-        }
+            // If search term provided, use search service
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return (await _palletService.SearchPalletsAsync(searchTerm)).ToArray();
+            }
 
-        /// <summary>
-        /// Gets the current platform from session or user preferences
-        /// </summary>
-        /// <returns>The current platform</returns>
-        private Platform GetCurrentPlatform()
-        {
-            return _userContext.GetPlatform();
+            // Otherwise get by division and platform
+            var pallets = await _palletService.GetPalletsByDivisionAndPlatformAsync(division, platform);
+
+            // Filter by status if specified
+            if (status == "open")
+            {
+                return pallets.Where(p => !p.IsClosed).ToArray();
+            }
+            else if (status == "closed")
+            {
+                return pallets.Where(p => p.IsClosed).ToArray();
+            }
+
+            return pallets.ToArray();
         }
     }
 }
