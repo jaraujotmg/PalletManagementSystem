@@ -1,51 +1,67 @@
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Exceptions;
 using PalletManagementSystem.Core.Models.Enums;
 
 namespace PalletManagementSystem.Core.Interfaces.Services
 {
     /// <summary>
-    /// Service interface for Pallet operations
+    /// Defines operations for managing pallets
     /// </summary>
     public interface IPalletService
     {
         /// <summary>
-        /// Gets a pallet by ID
+        /// Gets a pallet by its ID
         /// </summary>
         /// <param name="id">The pallet ID</param>
-        /// <returns>The pallet DTO if found, null otherwise</returns>
-        Task<PalletDto> GetPalletByIdAsync(int id);
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The pallet DTO or null if not found</returns>
+        Task<PalletDto> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Gets a pallet by its pallet number
+        /// Gets a pallet by its number
         /// </summary>
         /// <param name="palletNumber">The pallet number</param>
-        /// <returns>The pallet DTO if found, null otherwise</returns>
-        Task<PalletDto> GetPalletByNumberAsync(string palletNumber);
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The pallet DTO or null if not found</returns>
+        Task<PalletDto> GetByNumberAsync(string palletNumber, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Gets pallets by division and platform
+        /// Gets all pallets for a specific division and platform
         /// </summary>
         /// <param name="division">The division</param>
         /// <param name="platform">The platform</param>
-        /// <returns>A collection of pallet DTOs</returns>
-        Task<IEnumerable<PalletDto>> GetPalletsByDivisionAndPlatformAsync(Division division, Platform platform);
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Collection of pallet DTOs</returns>
+        Task<IReadOnlyList<PalletDto>> GetByDivisionAndPlatformAsync(
+            Division division,
+            Platform platform,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Gets pallets by status (open or closed)
+        /// Gets pallets by their status (open or closed)
         /// </summary>
-        /// <param name="isClosed">True for closed pallets, false for open pallets</param>
-        /// <returns>A collection of pallet DTOs</returns>
-        Task<IEnumerable<PalletDto>> GetPalletsByStatusAsync(bool isClosed);
+        /// <param name="isClosed">True to get closed pallets, false for open pallets</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Collection of pallet DTOs</returns>
+        Task<IReadOnlyList<PalletDto>> GetByStatusAsync(
+            bool isClosed,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Gets pallets for a division by status (open or closed)
+        /// Gets pallets by division and status
         /// </summary>
         /// <param name="division">The division</param>
-        /// <param name="isClosed">True for closed pallets, false for open pallets</param>
-        /// <returns>A collection of pallet DTOs</returns>
-        Task<IEnumerable<PalletDto>> GetPalletsByDivisionAndStatusAsync(Division division, bool isClosed);
+        /// <param name="isClosed">True to get closed pallets, false for open pallets</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Collection of pallet DTOs</returns>
+        Task<IReadOnlyList<PalletDto>> GetByDivisionAndStatusAsync(
+            Division division,
+            bool isClosed,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Creates a new pallet
@@ -54,47 +70,58 @@ namespace PalletManagementSystem.Core.Interfaces.Services
         /// <param name="division">The division</param>
         /// <param name="platform">The platform</param>
         /// <param name="unitOfMeasure">The unit of measure</param>
-        /// <param name="username">The creating user's username</param>
+        /// <param name="username">Username of the creator</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>The created pallet DTO</returns>
-        Task<PalletDto> CreatePalletAsync(
+        /// <exception cref="ArgumentException">Thrown when invalid inputs are provided</exception>
+        /// <exception cref="DomainException">Thrown when domain rules are violated</exception>
+        Task<PalletDto> CreateAsync(
             string manufacturingOrder,
             Division division,
             Platform platform,
             UnitOfMeasure unitOfMeasure,
-            string username);
+            string username,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Closes a pallet
+        /// Closes a pallet, assigning it a permanent number if needed
         /// </summary>
-        /// <param name="palletId">The pallet ID</param>
+        /// <param name="id">The pallet ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>The updated pallet DTO</returns>
-        Task<PalletDto> ClosePalletAsync(int palletId);
+        /// <exception cref="EntityNotFoundException">Thrown when the pallet is not found</exception>
+        /// <exception cref="PalletClosedException">Thrown when the pallet is already closed</exception>
+        Task<PalletDto> CloseAsync(int id, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Searches for pallets by keyword
+        /// Searches for pallets matching a keyword
         /// </summary>
         /// <param name="keyword">The search keyword</param>
-        /// <returns>A collection of matching pallet DTOs</returns>
-        Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword);
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Collection of matching pallet DTOs</returns>
+        Task<IReadOnlyList<PalletDto>> SearchAsync(string keyword, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Gets a pallet with items
+        /// Gets a pallet with its items
         /// </summary>
-        /// <param name="palletId">The pallet ID</param>
-        /// <returns>The pallet DTO with items if found, null otherwise</returns>
-        Task<PalletDto> GetPalletWithItemsAsync(int palletId);
+        /// <param name="id">The pallet ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The pallet DTO with items or null if not found</returns>
+        Task<PalletDto> GetWithItemsAsync(int id, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Gets a pallet by number with items
+        /// Gets a pallet with its items by pallet number
         /// </summary>
         /// <param name="palletNumber">The pallet number</param>
-        /// <returns>The pallet DTO with items if found, null otherwise</returns>
-        Task<PalletDto> GetPalletWithItemsByNumberAsync(string palletNumber);
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The pallet DTO with items or null if not found</returns>
+        Task<PalletDto> GetWithItemsByNumberAsync(string palletNumber, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets all pallets
         /// </summary>
-        /// <returns>A collection of pallet DTOs</returns>
-        Task<IEnumerable<PalletDto>> GetAllPalletsAsync();
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Collection of all pallet DTOs</returns>
+        Task<IReadOnlyList<PalletDto>> GetAllAsync(CancellationToken cancellationToken = default);
     }
 }

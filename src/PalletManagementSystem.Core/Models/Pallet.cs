@@ -102,6 +102,36 @@ namespace PalletManagementSystem.Core.Models
             UnitOfMeasure unitOfMeasure,
             string createdBy)
         {
+            ValidateConstructorParameters(
+                palletNumber,
+                manufacturingOrder,
+                division,
+                platform,
+                createdBy);
+
+            PalletNumber = palletNumber;
+            ManufacturingOrder = manufacturingOrder;
+            Division = division;
+            Platform = platform;
+            UnitOfMeasure = unitOfMeasure;
+            CreatedBy = createdBy;
+            CreatedDate = DateTime.Now;
+            IsClosed = false;
+            Quantity = 0;
+        }
+
+        private void ValidateConstructorParameters(
+            PalletNumber palletNumber,
+            string manufacturingOrder,
+            Division division,
+            Platform platform,
+            string createdBy)
+        {
+            if (palletNumber == null)
+            {
+                throw new ArgumentNullException(nameof(palletNumber));
+            }
+
             if (string.IsNullOrWhiteSpace(manufacturingOrder))
             {
                 throw new ArgumentException("Manufacturing order cannot be null or empty", nameof(manufacturingOrder));
@@ -113,20 +143,10 @@ namespace PalletManagementSystem.Core.Models
             }
 
             // Validate platform is valid for the division
-            if (!IsValidPlatformForDivision(platform, division))
+            if (!PlatformValidationService.IsValidPlatformForDivision(platform, division))
             {
                 throw new ArgumentException($"Platform {platform} is not valid for division {division}", nameof(platform));
             }
-
-            PalletNumber = palletNumber ?? throw new ArgumentNullException(nameof(palletNumber));
-            ManufacturingOrder = manufacturingOrder;
-            Division = division;
-            Platform = platform;
-            UnitOfMeasure = unitOfMeasure;
-            CreatedBy = createdBy;
-            CreatedDate = DateTime.Now;
-            IsClosed = false;
-            Quantity = 0;
         }
 
         /// <summary>
@@ -203,32 +223,6 @@ namespace PalletManagementSystem.Core.Models
         private void RecalculateQuantity()
         {
             Quantity = _items.Sum(i => i.Quantity);
-        }
-
-        /// <summary>
-        /// Determines if a platform is valid for a division
-        /// </summary>
-        /// <param name="platform">The platform to check</param>
-        /// <param name="division">The division</param>
-        /// <returns>True if valid, false otherwise</returns>
-        private static bool IsValidPlatformForDivision(Platform platform, Division division)
-        {
-            //return division switch
-            //{
-            //    Division.MA => platform == Platform.TEC1 || platform == Platform.TEC2 || platform == Platform.TEC4I,
-            //    Division.TC => platform == Platform.TEC1 || platform == Platform.TEC3 || platform == Platform.TEC5,
-            //    _ => false
-            //};
-            switch (division)
-            {
-                case Division.MA:
-                    return platform == Platform.TEC1 || platform == Platform.TEC2 || platform == Platform.TEC4I;
-                case Division.TC:
-                    return platform == Platform.TEC1 || platform == Platform.TEC3 || platform == Platform.TEC5;
-                default:
-                    return false;
-            }
-
         }
     }
 }

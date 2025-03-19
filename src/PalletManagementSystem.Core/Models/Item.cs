@@ -8,6 +8,10 @@ namespace PalletManagementSystem.Core.Models
     /// </summary>
     public class Item
     {
+        // Special client indicators - centralized here
+        private const string SPECIAL_CLIENT_CODE = "280898";
+        private const string SPECIAL_CLIENT_NAME = "Special Client HB";
+
         /// <summary>
         /// Gets the item ID
         /// </summary>
@@ -27,6 +31,8 @@ namespace PalletManagementSystem.Core.Models
         /// Gets or sets the pallet this item belongs to
         /// </summary>
         public Pallet Pallet { get; private set; }
+
+        #region Order Information
 
         /// <summary>
         /// Gets the manufacturing order
@@ -58,6 +64,10 @@ namespace PalletManagementSystem.Core.Models
         /// </summary>
         public string FinalOrderLine { get; private set; }
 
+        #endregion
+
+        #region Client Information
+
         /// <summary>
         /// Gets the client code
         /// </summary>
@@ -67,6 +77,10 @@ namespace PalletManagementSystem.Core.Models
         /// Gets the client name
         /// </summary>
         public string ClientName { get; private set; }
+
+        #endregion
+
+        #region Product Information
 
         /// <summary>
         /// Gets the reference
@@ -92,6 +106,10 @@ namespace PalletManagementSystem.Core.Models
         /// Gets the quantity unit
         /// </summary>
         public string QuantityUnit { get; private set; }
+
+        #endregion
+
+        #region Physical Properties (Editable)
 
         /// <summary>
         /// Gets or sets the weight (editable)
@@ -122,6 +140,8 @@ namespace PalletManagementSystem.Core.Models
         /// Gets or sets the batch (editable)
         /// </summary>
         public string Batch { get; private set; }
+
+        #endregion
 
         /// <summary>
         /// Gets the created date
@@ -186,6 +206,46 @@ namespace PalletManagementSystem.Core.Models
             string batch,
             string createdBy)
         {
+            ValidateConstructorParameters(
+                itemNumber,
+                manufacturingOrder,
+                quantity,
+                weight,
+                width,
+                createdBy);
+
+            ItemNumber = itemNumber;
+            ManufacturingOrder = manufacturingOrder;
+            ManufacturingOrderLine = manufacturingOrderLine;
+            ServiceOrder = serviceOrder;
+            ServiceOrderLine = serviceOrderLine;
+            FinalOrder = finalOrder;
+            FinalOrderLine = finalOrderLine;
+            ClientCode = clientCode;
+            ClientName = clientName;
+            Reference = reference;
+            Finish = finish;
+            Color = color;
+            Quantity = quantity;
+            QuantityUnit = quantityUnit;
+            Weight = weight;
+            WeightUnit = weightUnit;
+            Width = width;
+            WidthUnit = widthUnit;
+            Quality = quality;
+            Batch = batch;
+            CreatedDate = DateTime.Now;
+            CreatedBy = createdBy;
+        }
+
+        private void ValidateConstructorParameters(
+            string itemNumber,
+            string manufacturingOrder,
+            decimal quantity,
+            decimal weight,
+            decimal width,
+            string createdBy)
+        {
             if (string.IsNullOrWhiteSpace(itemNumber))
             {
                 throw new ArgumentException("Item number cannot be null or empty", nameof(itemNumber));
@@ -215,29 +275,6 @@ namespace PalletManagementSystem.Core.Models
             {
                 throw new ArgumentException("Width cannot be negative", nameof(width));
             }
-
-            ItemNumber = itemNumber;
-            ManufacturingOrder = manufacturingOrder;
-            ManufacturingOrderLine = manufacturingOrderLine;
-            ServiceOrder = serviceOrder;
-            ServiceOrderLine = serviceOrderLine;
-            FinalOrder = finalOrder;
-            FinalOrderLine = finalOrderLine;
-            ClientCode = clientCode;
-            ClientName = clientName;
-            Reference = reference;
-            Finish = finish;
-            Color = color;
-            Quantity = quantity;
-            QuantityUnit = quantityUnit;
-            Weight = weight;
-            WeightUnit = weightUnit;
-            Width = width;
-            WidthUnit = widthUnit;
-            Quality = quality;
-            Batch = batch;
-            CreatedDate = DateTime.Now;
-            CreatedBy = createdBy;
         }
 
         /// <summary>
@@ -249,25 +286,8 @@ namespace PalletManagementSystem.Core.Models
         /// <param name="batch">The new batch</param>
         public void Update(decimal weight, decimal width, string quality, string batch)
         {
-            if (Pallet != null && Pallet.IsClosed)
-            {
-                throw new PalletClosedException("Cannot update items on a closed pallet");
-            }
-
-            if (weight < 0)
-            {
-                throw new ItemValidationException("Weight cannot be negative");
-            }
-
-            if (width < 0)
-            {
-                throw new ItemValidationException("Width cannot be negative");
-            }
-
-            if (string.IsNullOrWhiteSpace(batch))
-            {
-                throw new ItemValidationException("Batch cannot be empty");
-            }
+            EnsurePalletNotClosed();
+            ValidateUpdateParameters(weight, width, batch);
 
             Weight = weight;
             Width = width;
@@ -281,10 +301,7 @@ namespace PalletManagementSystem.Core.Models
         /// <param name="pallet">The pallet</param>
         public void SetPallet(Pallet pallet)
         {
-            if (Pallet != null && Pallet.IsClosed)
-            {
-                throw new PalletClosedException("Cannot move items from a closed pallet");
-            }
+            EnsurePalletNotClosed();
 
             if (pallet != null && pallet.IsClosed)
             {
@@ -308,8 +325,33 @@ namespace PalletManagementSystem.Core.Models
         /// <returns>True if the client is special, false otherwise</returns>
         public bool IsSpecialClient()
         {
-            // Special client is identified by client code "280898" and name "Special Client HB" from the requirements
-            return ClientCode == "280898" && ClientName == "Special Client HB";
+            return ClientCode == SPECIAL_CLIENT_CODE && ClientName == SPECIAL_CLIENT_NAME;
+        }
+
+        private void EnsurePalletNotClosed()
+        {
+            if (Pallet != null && Pallet.IsClosed)
+            {
+                throw new PalletClosedException("Cannot update items on a closed pallet");
+            }
+        }
+
+        private void ValidateUpdateParameters(decimal weight, decimal width, string batch)
+        {
+            if (weight < 0)
+            {
+                throw new ItemValidationException("Weight cannot be negative");
+            }
+
+            if (width < 0)
+            {
+                throw new ItemValidationException("Width cannot be negative");
+            }
+
+            if (string.IsNullOrWhiteSpace(batch))
+            {
+                throw new ItemValidationException("Batch cannot be empty");
+            }
         }
     }
 }

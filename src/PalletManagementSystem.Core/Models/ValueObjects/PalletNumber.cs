@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using PalletManagementSystem.Core.Models.Enums;
 
 namespace PalletManagementSystem.Core.Models.ValueObjects
@@ -8,6 +9,10 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
     /// </summary>
     public class PalletNumber : IEquatable<PalletNumber>
     {
+        private static readonly Regex TemporaryPattern = new Regex(@"^TEMP-\d{3}$", RegexOptions.Compiled);
+        private static readonly Regex ManufacturingPattern = new Regex(@"^P8\d{5}$", RegexOptions.Compiled);
+        private static readonly Regex TechnicalCenterPattern = new Regex(@"^47\d{5}$", RegexOptions.Compiled);
+
         /// <summary>
         /// Gets the value of the pallet number
         /// </summary>
@@ -36,6 +41,12 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
                 throw new ArgumentException("Pallet number cannot be null or empty", nameof(value));
             }
 
+            // Validate pallet number format
+            if (!ValidateFormat(value, isTemporary, division))
+            {
+                throw new ArgumentException($"Invalid pallet number format: {value} for division {division} and isTemporary={isTemporary}", nameof(value));
+            }
+
             Value = value;
             IsTemporary = isTemporary;
             Division = division;
@@ -49,6 +60,11 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
         /// <returns>A new temporary pallet number</returns>
         public static PalletNumber CreateTemporary(int sequenceNumber, Division division)
         {
+            if (sequenceNumber <= 0)
+            {
+                throw new ArgumentException("Sequence number must be positive", nameof(sequenceNumber));
+            }
+
             return new PalletNumber($"TEMP-{sequenceNumber:000}", true, division);
         }
 
@@ -60,12 +76,10 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
         /// <returns>A new permanent pallet number</returns>
         public static PalletNumber CreatePermanent(int sequenceNumber, Division division)
         {
-            //string value = division switch
-            //{
-            //    Division.MA => $"P8{sequenceNumber:00000}",  // Manufacturing uses P8 prefix
-            //    Division.TC => $"47{sequenceNumber:00000}",  // Technical Center uses 47 prefix
-            //    _ => throw new ArgumentException($"Unsupported division: {division}", nameof(division))
-            //};
+            if (sequenceNumber <= 0)
+            {
+                throw new ArgumentException("Sequence number must be positive", nameof(sequenceNumber));
+            }
 
             string value;
             switch (division)
@@ -81,6 +95,71 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
             }
 
             return new PalletNumber(value, false, division);
+        }
+
+        /// <summary>
+        /// Validates the format of a pallet number
+        /// </summary>
+        /// <param name="value">The pallet number to validate</param>
+        /// <param name="isTemporary">Whether it's a temporary number</param>
+        /// <param name="division">The division</param>
+        /// <returns>True if the format is valid, false otherwise</returns>
+        private bool ValidateFormat(string value, bool isTemporary, Division division)
+        {
+            if (isTemporary)
+            {
+                return TemporaryPattern.IsMatch(value);
+            }
+
+            switch (division)
+            {
+                case Division.MA:
+                    return ManufacturingPattern.IsMatch(value);
+                case Division.TC:
+                    return TechnicalCenterPattern.IsMatch(value);
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to parse a pallet number string into a PalletNumber object
+        /// </summary>
+        /// <param name="value">The string value to parse</param>
+        /// <param name="palletNumber">The resulting pallet number if successful</param>
+        /// <returns>True if parsing was successful, false otherwise</returns>
+        public static bool TryParse(string value, out PalletNumber palletNumber)
+        {
+            palletNumber = null;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            // Check for temporary number format
+            if (TemporaryPattern.IsMatch(value))
+            {
+                // Temporary numbers can be used for any division
+                palletNumber = new PalletNumber(value, true, Division.MA);
+                return true;
+            }
+
+            // Check for MA division format
+            if (ManufacturingPattern.IsMatch(value))
+            {
+                palletNumber = new PalletNumber(value, false, Division.MA);
+                return true;
+            }
+
+            // Check for TC division format
+            if (TechnicalCenterPattern.IsMatch(value))
+            {
+                palletNumber = new PalletNumber(value, false, Division.TC);
+                return true;
+            }
+
+            return false;
         }
 
         /// <inheritdoc/>
@@ -141,18 +220,9 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
             return !(left == right);
         }
 
-        /// <summary>
-        /// Helper class for C# 7.3 HashCode calculation
-        /// </summary>
+        // HashCode helper for C# < 8.0
         private static class HashCode
         {
-            /// <summary>
-            /// Combines hash codes
-            /// </summary>
-            /// <param name="obj1">First object</param>
-            /// <param name="obj2">Second object</param>
-            /// <param name="obj3">Third object</param>
-            /// <returns>Combined hash code</returns>
             public static int Combine(object obj1, object obj2, object obj3)
             {
                 unchecked
