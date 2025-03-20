@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Transactions;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Exceptions;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models;
-using PalletManagementSystem.Infrastructure.Services;
 
 namespace PalletManagementSystem.Core.Services
 {
@@ -20,7 +18,7 @@ namespace PalletManagementSystem.Core.Services
         private readonly IItemRepository _itemRepository;
         private readonly IPalletRepository _palletRepository;
         private readonly IPrinterService _printerService;
-        private readonly TransactionManager _transactionManager;
+        private readonly ITransactionManager _transactionManager;
         private readonly ILogger<ItemService> _logger;
 
         public ItemService(
@@ -28,7 +26,7 @@ namespace PalletManagementSystem.Core.Services
             IItemRepository itemRepository,
             IPalletRepository palletRepository,
             IPrinterService printerService,
-            TransactionManager transactionManager,
+            ITransactionManager transactionManager,
             ILogger<ItemService> logger)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));

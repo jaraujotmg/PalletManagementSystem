@@ -35,7 +35,7 @@ namespace PalletManagementSystem.Infrastructure.Extensions
 
             // Unit of Work and Transaction Manager
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<TransactionManager>();
+            services.AddScoped<ITransactionManager, TransactionManager>();
 
             // Infrastructure Services
             services.AddScoped<IPrinterService, PrinterService>();

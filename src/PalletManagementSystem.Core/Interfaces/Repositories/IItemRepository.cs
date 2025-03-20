@@ -11,6 +11,15 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
     /// </summary>
     public interface IItemRepository : IRepository<Item>
     {
+
+        /// <summary>
+        /// Gets an item by ID with its pallet (for domain operations)
+        /// </summary>
+        /// <param name="id">The item ID</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>The item with pallet, or null if not found</returns>
+        Task<Item> GetByIdWithPalletAsync(int id, CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Gets an item by ID as a list DTO (without pallet)
         /// </summary>

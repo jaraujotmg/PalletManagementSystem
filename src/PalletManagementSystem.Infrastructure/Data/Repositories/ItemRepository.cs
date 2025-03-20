@@ -324,5 +324,19 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 PageSize = pageSize
             };
         }
+
+
+        /// <inheritdoc/>
+        public async Task<Item> GetByIdWithPalletAsync(int id, CancellationToken cancellationToken = default)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("Invalid item ID", nameof(id));
+            }
+
+            return await _dbSet
+                .Include(i => i.Pallet)
+                .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
+        }
     }
 }

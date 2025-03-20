@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Transactions;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Exceptions;
@@ -12,7 +11,6 @@ using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Core.Models.ValueObjects;
-using PalletManagementSystem.Infrastructure.Services;
 
 namespace PalletManagementSystem.Core.Services
 {
@@ -22,7 +20,7 @@ namespace PalletManagementSystem.Core.Services
         private readonly IPalletRepository _palletRepository;
         private readonly IPrinterService _printerService;
         private readonly IPlatformValidationService _platformValidationService;
-        private readonly TransactionManager _transactionManager;
+        private readonly ITransactionManager _transactionManager;
         private readonly ILogger<PalletService> _logger;
 
         public PalletService(
@@ -30,7 +28,7 @@ namespace PalletManagementSystem.Core.Services
             IPalletRepository palletRepository,
             IPrinterService printerService,
             IPlatformValidationService platformValidationService,
-            TransactionManager transactionManager,
+            ITransactionManager transactionManager,
             ILogger<PalletService> logger)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
@@ -41,6 +39,7 @@ namespace PalletManagementSystem.Core.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+       
         public async Task<PalletListDto> GetPalletByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _palletRepository.GetPalletListByIdAsync(id, cancellationToken);
