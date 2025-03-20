@@ -3,14 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Exceptions;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Mappers;
 using PalletManagementSystem.Core.Models;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Core.Models.ValueObjects;
+using PalletManagementSystem.Infrastructure.Data;
 
 namespace PalletManagementSystem.Core.Services
 {
@@ -44,13 +47,19 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
-                var pallet = await _unitOfWork.PalletRepository.GetByIdAsync(id, cancellationToken);
-                return pallet != null ? MapToDto(pallet) : null;
+                // Get the pallet using projection
+                return await DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p => p.Id == id)
+                    .ProjectToDto()
+                    .FirstOrDefaultAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving pallet with ID {id}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var pallet = await _unitOfWork.PalletRepository.GetByIdAsync(id, cancellationToken);
+                return PalletMapper.ToDto(pallet);
             }
         }
 
@@ -64,13 +73,19 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var pallet = await _unitOfWork.PalletRepository.GetByPalletNumberAsync(palletNumber, cancellationToken);
-                return pallet != null ? MapToDto(pallet) : null;
+                // Get the pallet using projection
+                return await DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p => EF.Property<string>(p, "_palletNumberValue") == palletNumber)
+                    .ProjectToDto()
+                    .FirstOrDefaultAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving pallet with number {palletNumber}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var pallet = await _unitOfWork.PalletRepository.GetByPalletNumberAsync(palletNumber, cancellationToken);
+                return PalletMapper.ToDto(pallet);
             }
         }
 
@@ -78,47 +93,82 @@ namespace PalletManagementSystem.Core.Services
         public async Task<IEnumerable<PalletDto>> GetPalletsByDivisionAndPlatformAsync(
             Division division, Platform platform, bool includeItems = false, CancellationToken cancellationToken = default)
         {
+            // Validate platform is valid for division
+            bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
+            if (!isValid)
+            {
+                throw new ArgumentException($"Platform {platform} is not valid for division {division}");
+            }
+
             try
             {
-                // Validate platform is valid for division
-                bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
-                if (!isValid)
+                // Build the query
+                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p => p.Division == division && p.Platform == platform);
+
+                // Apply projection based on whether to include items
+                if (includeItems)
                 {
-                    throw new ArgumentException($"Platform {platform} is not valid for division {division}");
+                    return await query
+                        .ProjectToDtoWithItems()
+                        .ToListAsync(cancellationToken);
                 }
-
-                var pallets = includeItems
-                    ? await _unitOfWork.PalletRepository.GetByDivisionAndPlatformWithItemsAsync(division, platform, cancellationToken)
-                    : await _unitOfWork.PalletRepository.GetByDivisionAndPlatformAsync(division, platform, cancellationToken);
-
-                // Use explicit conversion to avoid type inference issues
-                return includeItems
-                    ? pallets.Select(p => MapToDtoWithItems(p))
-                    : pallets.Select(p => MapToDto(p));
+                else
+                {
+                    return await query
+                        .ProjectToDto()
+                        .ToListAsync(cancellationToken);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving pallets for division {division} and platform {platform}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var pallets = includeItems
+                    ? await _unitOfWork.PalletRepository.GetByDivisionAndPlatformWithItemsAsync(division, platform, cancellationToken)
+                    : await _unitOfWork.PalletRepository.GetByDivisionAndPlatformAsync(division, platform, cancellationToken);
+
+                return includeItems
+                    ? PalletMapper.ToDtoWithItemsList(pallets)
+                    : PalletMapper.ToDtoList(pallets);
             }
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<PalletDto>> GetPalletsByStatusAsync(bool isClosed, bool includeItems = false, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<PalletDto>> GetPalletsByStatusAsync(
+            bool isClosed, bool includeItems = false, CancellationToken cancellationToken = default)
         {
             try
             {
-                var pallets = await _unitOfWork.PalletRepository.GetByStatusAsync(isClosed, cancellationToken);
+                // Build the query
+                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p => p.IsClosed == isClosed);
 
-                // Use explicit conversion to avoid type inference issues
-                return includeItems
-                    ? pallets.Select(p => MapToDtoWithItems(p))
-                    : pallets.Select(p => MapToDto(p));
+                // Apply projection based on whether to include items
+                if (includeItems)
+                {
+                    return await query
+                        .ProjectToDtoWithItems()
+                        .ToListAsync(cancellationToken);
+                }
+                else
+                {
+                    return await query
+                        .ProjectToDto()
+                        .ToListAsync(cancellationToken);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving pallets with isClosed={isClosed}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var pallets = await _unitOfWork.PalletRepository.GetByStatusAsync(isClosed, cancellationToken);
+
+                return includeItems
+                    ? PalletMapper.ToDtoWithItemsList(pallets)
+                    : PalletMapper.ToDtoList(pallets);
             }
         }
 
@@ -128,17 +178,34 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
-                var pallets = await _unitOfWork.PalletRepository.GetByDivisionAndStatusAsync(division, isClosed, cancellationToken);
+                // Build the query
+                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p => p.Division == division && p.IsClosed == isClosed);
 
-                // Use explicit conversion to avoid type inference issues
-                return includeItems
-                    ? pallets.Select(p => MapToDtoWithItems(p))
-                    : pallets.Select(p => MapToDto(p));
+                // Apply projection based on whether to include items
+                if (includeItems)
+                {
+                    return await query
+                        .ProjectToDtoWithItems()
+                        .ToListAsync(cancellationToken);
+                }
+                else
+                {
+                    return await query
+                        .ProjectToDto()
+                        .ToListAsync(cancellationToken);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving pallets for division {division} with isClosed={isClosed}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var pallets = await _unitOfWork.PalletRepository.GetByDivisionAndStatusAsync(division, isClosed, cancellationToken);
+
+                return includeItems
+                    ? PalletMapper.ToDtoWithItemsList(pallets)
+                    : PalletMapper.ToDtoList(pallets);
             }
         }
 
@@ -198,7 +265,7 @@ namespace PalletManagementSystem.Core.Services
                 // Commit transaction
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-                return MapToDto(createdPallet);
+                return PalletMapper.ToDto(createdPallet);
             }
             catch (Exception ex)
             {
@@ -257,7 +324,7 @@ namespace PalletManagementSystem.Core.Services
                     await _printerService.PrintPalletListAsync(pallet.Id);
                 }
 
-                return MapToDtoWithItems(pallet);
+                return PalletMapper.ToDtoWithItems(pallet);
             }
             catch (PalletClosedException pex)
             {
@@ -296,17 +363,36 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
+                // Build the query
+                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p =>
+                        EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
+                        p.ManufacturingOrder.Contains(keyword));
 
-                // Use explicit conversion to avoid type inference issues
-                return includeItems
-                    ? pallets.Select(p => MapToDtoWithItems(p))
-                    : pallets.Select(p => MapToDto(p));
+                // Apply projection based on whether to include items
+                if (includeItems)
+                {
+                    return await query
+                        .ProjectToDtoWithItems()
+                        .ToListAsync(cancellationToken);
+                }
+                else
+                {
+                    return await query
+                        .ProjectToDto()
+                        .ToListAsync(cancellationToken);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error searching pallets with keyword '{keyword}'");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
+
+                return includeItems
+                    ? PalletMapper.ToDtoWithItemsList(pallets)
+                    : PalletMapper.ToDtoList(pallets);
             }
         }
 
@@ -320,13 +406,19 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var pallet = await _unitOfWork.PalletRepository.GetByPalletNumberWithItemsAsync(palletNumber, cancellationToken);
-                return pallet != null ? MapToDtoWithItems(pallet) : null;
+                // Get the pallet with items using projection
+                return await DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p => EF.Property<string>(p, "_palletNumberValue") == palletNumber)
+                    .ProjectToDtoWithItems()
+                    .FirstOrDefaultAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving pallet with items for number {palletNumber}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var pallet = await _unitOfWork.PalletRepository.GetByPalletNumberWithItemsAsync(palletNumber, cancellationToken);
+                return PalletMapper.ToDtoWithItems(pallet);
             }
         }
 
@@ -335,21 +427,38 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
+                // Build the query
+                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork);
+
+                // Apply projection based on whether to include items
                 if (includeItems)
                 {
-                    var pallets = await _unitOfWork.PalletRepository.GetAllWithItemsAsync(cancellationToken);
-                    return pallets.Select(p => MapToDtoWithItems(p));
+                    return await query
+                        .ProjectToDtoWithItems()
+                        .ToListAsync(cancellationToken);
                 }
                 else
                 {
-                    var pallets = await _unitOfWork.PalletRepository.GetAllAsync(cancellationToken);
-                    return pallets.Select(p => MapToDto(p));
+                    return await query
+                        .ProjectToDto()
+                        .ToListAsync(cancellationToken);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all pallets");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                if (includeItems)
+                {
+                    var pallets = await _unitOfWork.PalletRepository.GetAllWithItemsAsync(cancellationToken);
+                    return PalletMapper.ToDtoWithItemsList(pallets);
+                }
+                else
+                {
+                    var pallets = await _unitOfWork.PalletRepository.GetAllAsync(cancellationToken);
+                    return PalletMapper.ToDtoList(pallets);
+                }
             }
         }
 
@@ -366,6 +475,44 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
+                // Build the query
+                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork);
+
+                // Apply filters
+                if (division.HasValue)
+                {
+                    query = query.Where(p => p.Division == division.Value);
+                }
+
+                if (platform.HasValue)
+                {
+                    query = query.Where(p => p.Platform == platform.Value);
+                }
+
+                if (isClosed.HasValue)
+                {
+                    query = query.Where(p => p.IsClosed == isClosed.Value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(keyword))
+                {
+                    // Search in pallet number and manufacturing order
+                    query = query.Where(p =>
+                        EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
+                        p.ManufacturingOrder.Contains(keyword));
+                }
+
+                // Apply ordering - newest first
+                query = query.OrderByDescending(p => p.CreatedDate);
+
+                // Use projection to get paged results
+                return await query.ProjectToPagedResultAsync(pageNumber, pageSize, includeItems);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving paged pallets");
+
+                // Fallback to traditional approach
                 var pagedResult = await _unitOfWork.PalletRepository.GetPagedPalletsAsync(
                     pageNumber,
                     pageSize,
@@ -377,97 +524,20 @@ namespace PalletManagementSystem.Core.Services
                     descending: true,
                     cancellationToken);
 
-                // Map to DTOs - use explicit mapping based on includeItems flag
+                // Map results
                 var palletDtos = includeItems
-                    ? pagedResult.Items.Select(p => MapToDtoWithItems(p)).ToList()
-                    : pagedResult.Items.Select(p => MapToDto(p)).ToList();
+                    ? pagedResult.Items.Select(PalletMapper.ToDtoWithItems).ToList()
+                    : pagedResult.Items.Select(PalletMapper.ToDto).ToList();
 
                 // Create DTO for paged result
-                var pagedResultDto = new PagedResultDto<PalletDto>
+                return new PagedResultDto<PalletDto>
                 {
                     Items = palletDtos,
                     TotalCount = pagedResult.TotalCount,
                     PageNumber = pagedResult.PageNumber,
                     PageSize = pagedResult.PageSize
                 };
-
-                return pagedResultDto;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving paged pallets");
-                throw;
             }
         }
-
-        #region Mapping Methods
-
-        /// <summary>
-        /// Maps a Pallet entity to a PalletDto
-        /// </summary>
-        /// <param name="pallet">The pallet entity</param>
-        /// <returns>The pallet DTO</returns>
-        private static PalletDto MapToDto(Pallet pallet)
-        {
-            return new PalletDto
-            {
-                Id = pallet.Id,
-                PalletNumber = pallet.PalletNumber.Value,
-                IsTemporary = pallet.PalletNumber.IsTemporary,
-                ManufacturingOrder = pallet.ManufacturingOrder,
-                Division = pallet.Division.ToString(),
-                Platform = pallet.Platform.ToString(),
-                UnitOfMeasure = pallet.UnitOfMeasure.ToString(),
-                Quantity = pallet.Quantity,
-                ItemCount = pallet.ItemCount,
-                IsClosed = pallet.IsClosed,
-                CreatedDate = pallet.CreatedDate,
-                ClosedDate = pallet.ClosedDate,
-                CreatedBy = pallet.CreatedBy
-            };
-        }
-
-        /// <summary>
-        /// Maps a Pallet entity to a PalletDto including its items
-        /// </summary>
-        /// <param name="pallet">The pallet entity</param>
-        /// <returns>The pallet DTO with items</returns>
-        private static PalletDto MapToDtoWithItems(Pallet pallet)
-        {
-            var dto = MapToDto(pallet);
-
-            // Add items
-            dto.Items = pallet.Items.Select(item => new ItemDto
-            {
-                Id = item.Id,
-                ItemNumber = item.ItemNumber,
-                PalletId = item.PalletId,
-                ManufacturingOrder = item.ManufacturingOrder,
-                ManufacturingOrderLine = item.ManufacturingOrderLine,
-                ServiceOrder = item.ServiceOrder,
-                ServiceOrderLine = item.ServiceOrderLine,
-                FinalOrder = item.FinalOrder,
-                FinalOrderLine = item.FinalOrderLine,
-                ClientCode = item.ClientCode,
-                ClientName = item.ClientName,
-                Reference = item.Reference,
-                Finish = item.Finish,
-                Color = item.Color,
-                Quantity = item.Quantity,
-                QuantityUnit = item.QuantityUnit,
-                Weight = item.Weight,
-                WeightUnit = item.WeightUnit,
-                Width = item.Width,
-                WidthUnit = item.WidthUnit,
-                Quality = item.Quality,
-                Batch = item.Batch,
-                CreatedDate = item.CreatedDate,
-                CreatedBy = item.CreatedBy
-            }).ToList();
-
-            return dto;
-        }
-
-        #endregion
     }
 }

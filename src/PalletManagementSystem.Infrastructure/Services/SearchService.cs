@@ -3,15 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Mappers;
+using PalletManagementSystem.Core.Models;
+using PalletManagementSystem.Infrastructure.Data;
 
 namespace PalletManagementSystem.Infrastructure.Services
 {
     /// <summary>
-    /// Implementation of the search service
+    /// Implementation of the search service with projection optimizations
     /// </summary>
     public class SearchService : ISearchService
     {
@@ -30,9 +34,9 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0)
         {
-            return SearchAsync(keyword, maxResults, CancellationToken.None);
+            return await SearchAsync(keyword, maxResults, CancellationToken.None);
         }
 
         /// <summary>
@@ -53,53 +57,115 @@ namespace PalletManagementSystem.Infrastructure.Services
             {
                 var results = new List<SearchResultDto>();
 
-                // Search for pallets
-                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
-                foreach (var pallet in pallets)
-                {
-                    results.Add(new SearchResultDto
+                // Search for pallets using projections
+                var palletQuery = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p =>
+                        EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
+                        p.ManufacturingOrder.Contains(keyword))
+                    .Select(p => new SearchResultDto
                     {
-                        Id = pallet.Id,
+                        Id = p.Id,
                         EntityType = "Pallet",
-                        Identifier = pallet.PalletNumber.Value,
-                        AdditionalInfo = $"MO: {pallet.ManufacturingOrder}",
-                        ViewUrl = $"/Pallets/Details/{pallet.Id}"
+                        Identifier = EF.Property<string>(p, "_palletNumberValue"),
+                        AdditionalInfo = $"MO: {p.ManufacturingOrder}",
+                        ViewUrl = $"/Pallets/Details/{p.Id}"
                     });
+
+                if (maxResults > 0)
+                {
+                    palletQuery = palletQuery.Take(maxResults / 2); // Take half of the max results for pallets
                 }
 
-                // Search for items
-                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
-                foreach (var item in items)
-                {
-                    results.Add(new SearchResultDto
+                results.AddRange(await palletQuery.ToListAsync(cancellationToken));
+
+                // Search for items using projections
+                var remainingResults = maxResults > 0 ? maxResults - results.Count : 0;
+
+                var itemQuery = DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i =>
+                        i.ItemNumber.Contains(keyword) ||
+                        i.ManufacturingOrder.Contains(keyword) ||
+                        i.ServiceOrder.Contains(keyword) ||
+                        i.FinalOrder.Contains(keyword) ||
+                        i.ClientCode.Contains(keyword) ||
+                        i.ClientName.Contains(keyword) ||
+                        i.Reference.Contains(keyword) ||
+                        i.Batch.Contains(keyword))
+                    .Select(i => new SearchResultDto
                     {
-                        Id = item.Id,
+                        Id = i.Id,
                         EntityType = "Item",
-                        Identifier = item.ItemNumber,
-                        AdditionalInfo = $"Client: {item.ClientName}",
-                        ViewUrl = $"/Items/Details/{item.Id}"
+                        Identifier = i.ItemNumber,
+                        AdditionalInfo = $"Client: {i.ClientName}",
+                        ViewUrl = $"/Items/Details/{i.Id}"
                     });
+
+                if (maxResults > 0 && remainingResults > 0)
+                {
+                    itemQuery = itemQuery.Take(remainingResults);
                 }
 
-                // Apply max results limit if specified
-                if (maxResults > 0 && results.Count > maxResults)
-                {
-                    results = results.Take(maxResults).ToList();
-                }
+                results.AddRange(await itemQuery.ToListAsync(cancellationToken));
 
                 return results;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error searching for '{keyword}'");
-                throw;
+
+                // Fallback to traditional approach
+                return await FallbackSearchAsync(keyword, maxResults, cancellationToken);
             }
         }
 
-        /// <inheritdoc/>
-        public Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5)
+        /// <summary>
+        /// Fallback search method using traditional approach
+        /// </summary>
+        private async Task<IEnumerable<SearchResultDto>> FallbackSearchAsync(string keyword, int maxResults, CancellationToken cancellationToken)
         {
-            return GetSearchSuggestionsAsync(partialKeyword, maxResults, CancellationToken.None);
+            var results = new List<SearchResultDto>();
+
+            // Search for pallets
+            var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
+            foreach (var pallet in pallets)
+            {
+                results.Add(new SearchResultDto
+                {
+                    Id = pallet.Id,
+                    EntityType = "Pallet",
+                    Identifier = pallet.PalletNumber.Value,
+                    AdditionalInfo = $"MO: {pallet.ManufacturingOrder}",
+                    ViewUrl = $"/Pallets/Details/{pallet.Id}"
+                });
+            }
+
+            // Search for items
+            var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
+            foreach (var item in items)
+            {
+                results.Add(new SearchResultDto
+                {
+                    Id = item.Id,
+                    EntityType = "Item",
+                    Identifier = item.ItemNumber,
+                    AdditionalInfo = $"Client: {item.ClientName}",
+                    ViewUrl = $"/Items/Details/{item.Id}"
+                });
+            }
+
+            // Apply max results limit if specified
+            if (maxResults > 0 && results.Count > maxResults)
+            {
+                results = results.Take(maxResults).ToList();
+            }
+
+            return results;
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5)
+        {
+            return await GetSearchSuggestionsAsync(partialKeyword, maxResults, CancellationToken.None);
         }
 
         /// <summary>
@@ -121,36 +187,44 @@ namespace PalletManagementSystem.Infrastructure.Services
             {
                 var suggestions = new List<SearchSuggestionDto>();
 
-                // Search for pallets
-                var pallets = (await _unitOfWork.PalletRepository.SearchAsync(partialKeyword, cancellationToken));
-                int palletsToInclude = maxResults > 0 ? Math.Min(pallets.Count(), maxResults / 2) : pallets.Count();
-
-                foreach (var pallet in pallets.Take(palletsToInclude))
-                {
-                    suggestions.Add(new SearchSuggestionDto
+                // Search for pallets using projections
+                var palletSuggestionsQuery = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p =>
+                        EF.Property<string>(p, "_palletNumberValue").Contains(partialKeyword) ||
+                        p.ManufacturingOrder.Contains(partialKeyword))
+                    .Select(p => new SearchSuggestionDto
                     {
-                        Text = pallet.PalletNumber.Value,
+                        Text = EF.Property<string>(p, "_palletNumberValue"),
                         Type = "Pallet",
-                        Url = $"/Pallets/Details/{pallet.Id}",
-                        EntityId = pallet.Id,
+                        Url = $"/Pallets/Details/{p.Id}",
+                        EntityId = p.Id,
                         IsViewAll = false
                     });
-                }
 
-                // Search for items
-                var items = (await _unitOfWork.ItemRepository.SearchAsync(partialKeyword, cancellationToken));
-                int itemsToInclude = maxResults > 0 ? Math.Min(items.Count(), maxResults - suggestions.Count) : items.Count();
+                int palletsToInclude = maxResults > 0 ? Math.Min(maxResults / 2, 5) : 5;
+                suggestions.AddRange(await palletSuggestionsQuery.Take(palletsToInclude).ToListAsync(cancellationToken));
 
-                foreach (var item in items.Take(itemsToInclude))
+                // Search for items using projections
+                var remainingSuggestions = maxResults > 0 ? maxResults - suggestions.Count : 5;
+
+                if (remainingSuggestions > 0)
                 {
-                    suggestions.Add(new SearchSuggestionDto
-                    {
-                        Text = item.ItemNumber,
-                        Type = "Item",
-                        Url = $"/Items/Details/{item.Id}",
-                        EntityId = item.Id,
-                        IsViewAll = false
-                    });
+                    var itemSuggestionsQuery = DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                        .Where(i =>
+                            i.ItemNumber.Contains(partialKeyword) ||
+                            i.ManufacturingOrder.Contains(partialKeyword) ||
+                            i.ClientCode.Contains(partialKeyword) ||
+                            i.ClientName.Contains(partialKeyword))
+                        .Select(i => new SearchSuggestionDto
+                        {
+                            Text = i.ItemNumber,
+                            Type = "Item",
+                            Url = $"/Items/Details/{i.Id}",
+                            EntityId = i.Id,
+                            IsViewAll = false
+                        });
+
+                    suggestions.AddRange(await itemSuggestionsQuery.Take(remainingSuggestions).ToListAsync(cancellationToken));
                 }
 
                 // Add "View All" suggestion if there are results and space
@@ -176,197 +250,181 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0)
         {
-            return SearchPalletsAsync(keyword, maxResults, CancellationToken.None);
-        }
-
-        /// <summary>
-        /// Searches for pallets matching the keyword
-        /// </summary>
-        /// <param name="keyword">The search keyword</param>
-        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>Collection of pallets matching the search</returns>
-        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(
-            string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
-        {
-            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
+            if (string.IsNullOrWhiteSpace(keyword))
             {
                 return Enumerable.Empty<PalletDto>();
             }
 
             try
             {
-                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
-                var results = pallets.Select(p => new PalletDto
-                {
-                    Id = p.Id,
-                    PalletNumber = p.PalletNumber.Value,
-                    IsTemporary = p.PalletNumber.IsTemporary,
-                    ManufacturingOrder = p.ManufacturingOrder,
-                    Division = p.Division.ToString(),
-                    Platform = p.Platform.ToString(),
-                    UnitOfMeasure = p.UnitOfMeasure.ToString(),
-                    Quantity = p.Quantity,
-                    ItemCount = p.ItemCount,
-                    IsClosed = p.IsClosed,
-                    CreatedDate = p.CreatedDate,
-                    ClosedDate = p.ClosedDate,
-                    CreatedBy = p.CreatedBy
-                });
+                // Build query with projection
+                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p =>
+                        EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
+                        p.ManufacturingOrder.Contains(keyword))
+                    .ProjectToDto();
 
                 // Apply max results limit if specified
                 if (maxResults > 0)
+                {
+                    query = query.Take(maxResults);
+                }
+
+                return await query.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching pallets for '{keyword}'");
+
+                // Fallback to traditional approach
+                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword);
+                var results = PalletMapper.ToDtoList(pallets);
+
+                // Apply max results limit if specified
+                if (maxResults > 0 && results.Count() > maxResults)
                 {
                     results = results.Take(maxResults);
                 }
 
                 return results;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error searching pallets for '{keyword}'");
-                throw;
-            }
         }
 
         /// <inheritdoc/>
-        public Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0)
         {
-            return SearchItemsAsync(keyword, maxResults, CancellationToken.None);
-        }
-
-        /// <summary>
-        /// Searches for items matching the keyword
-        /// </summary>
-        /// <param name="keyword">The search keyword</param>
-        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>Collection of items matching the search</returns>
-        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(
-            string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
-        {
-            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
+            if (string.IsNullOrWhiteSpace(keyword))
             {
                 return Enumerable.Empty<ItemDto>();
             }
 
             try
             {
-                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
-                var results = items.Select(i => new ItemDto
-                {
-                    Id = i.Id,
-                    ItemNumber = i.ItemNumber,
-                    PalletId = i.PalletId,
-                    ManufacturingOrder = i.ManufacturingOrder,
-                    ManufacturingOrderLine = i.ManufacturingOrderLine,
-                    ServiceOrder = i.ServiceOrder,
-                    ServiceOrderLine = i.ServiceOrderLine,
-                    FinalOrder = i.FinalOrder,
-                    FinalOrderLine = i.FinalOrderLine,
-                    ClientCode = i.ClientCode,
-                    ClientName = i.ClientName,
-                    Reference = i.Reference,
-                    Finish = i.Finish,
-                    Color = i.Color,
-                    Quantity = i.Quantity,
-                    QuantityUnit = i.QuantityUnit,
-                    Weight = i.Weight,
-                    WeightUnit = i.WeightUnit,
-                    Width = i.Width,
-                    WidthUnit = i.WidthUnit,
-                    Quality = i.Quality,
-                    Batch = i.Batch,
-                    CreatedDate = i.CreatedDate,
-                    CreatedBy = i.CreatedBy
-                });
+                // Build query with projection
+                var query = DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i =>
+                        i.ItemNumber.Contains(keyword) ||
+                        i.ManufacturingOrder.Contains(keyword) ||
+                        i.ServiceOrder.Contains(keyword) ||
+                        i.FinalOrder.Contains(keyword) ||
+                        i.ClientCode.Contains(keyword) ||
+                        i.ClientName.Contains(keyword) ||
+                        i.Reference.Contains(keyword) ||
+                        i.Batch.Contains(keyword))
+                    .ProjectToDto();
 
                 // Apply max results limit if specified
                 if (maxResults > 0)
+                {
+                    query = query.Take(maxResults);
+                }
+
+                return await query.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching items for '{keyword}'");
+
+                // Fallback to traditional approach
+                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword);
+                var results = ItemMapper.ToDtoList(items);
+
+                // Apply max results limit if specified
+                if (maxResults > 0 && results.Count() > maxResults)
                 {
                     results = results.Take(maxResults);
                 }
 
                 return results;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error searching items for '{keyword}'");
-                throw;
-            }
         }
 
         /// <inheritdoc/>
-        public Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0)
         {
-            return SearchManufacturingOrdersAsync(keyword, maxResults, CancellationToken.None);
-        }
-
-        /// <summary>
-        /// Searches for manufacturing orders matching the keyword
-        /// </summary>
-        /// <param name="keyword">The search keyword</param>
-        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>Collection of manufacturing orders matching the search</returns>
-        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(
-            string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
-        {
-            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
+            if (string.IsNullOrWhiteSpace(keyword))
             {
                 return Enumerable.Empty<string>();
             }
 
             try
             {
-                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
-                var results = pallets
+                // Build query with projection
+                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                    .Where(p => p.ManufacturingOrder.Contains(keyword))
                     .Select(p => p.ManufacturingOrder)
                     .Distinct();
 
                 // Apply max results limit if specified
                 if (maxResults > 0)
                 {
+                    query = query.Take(maxResults);
+                }
+
+                return await query.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching manufacturing orders for '{keyword}'");
+
+                // Fallback to traditional approach
+                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword);
+                var results = pallets
+                    .Select(p => p.ManufacturingOrder)
+                    .Distinct();
+
+                // Apply max results limit if specified
+                if (maxResults > 0 && results.Count() > maxResults)
+                {
                     results = results.Take(maxResults);
                 }
 
                 return results;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error searching manufacturing orders for '{keyword}'");
-                throw;
-            }
         }
 
         /// <inheritdoc/>
-        public Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0)
         {
-            return SearchClientsAsync(keyword, maxResults, CancellationToken.None);
-        }
-
-        /// <summary>
-        /// Searches for clients matching the keyword
-        /// </summary>
-        /// <param name="keyword">The search keyword</param>
-        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>Collection of clients matching the search</returns>
-        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(
-            string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
-        {
-            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
+            if (string.IsNullOrWhiteSpace(keyword))
             {
                 return Enumerable.Empty<ClientDto>();
             }
 
             try
             {
-                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
-                // Use IEnumerable<ClientDto> instead of IOrderedEnumerable<ClientDto>
-                IEnumerable<ClientDto> clients = items
+                // Build query with projection
+                var query = DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i =>
+                        i.ClientCode.Contains(keyword) ||
+                        i.ClientName.Contains(keyword))
+                    .GroupBy(i => new { i.ClientCode, i.ClientName })
+                    .Select(g => new ClientDto
+                    {
+                        ClientCode = g.Key.ClientCode,
+                        ClientName = g.Key.ClientName,
+                        IsSpecial = g.Any(i => i.ClientCode == "280898" && i.ClientName == "Special Client HB"),
+                        ItemCount = g.Count()
+                    })
+                    .OrderBy(c => c.ClientName);
+
+                // Apply max results limit if specified
+                if (maxResults > 0)
+                {
+                    query = query.Take(maxResults);
+                }
+
+                return await query.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching clients for '{keyword}'");
+
+                // Fallback to traditional approach
+                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword);
+                var results = items
                     .GroupBy(i => new { i.ClientCode, i.ClientName })
                     .Select(g => new ClientDto
                     {
@@ -378,17 +436,12 @@ namespace PalletManagementSystem.Infrastructure.Services
                     .OrderBy(c => c.ClientName);
 
                 // Apply max results limit if specified
-                if (maxResults > 0)
+                if (maxResults > 0 && results.Count() > maxResults)
                 {
-                    clients = clients.Take(maxResults);
+                    results = results.Take(maxResults);
                 }
 
-                return clients;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error searching clients for '{keyword}'");
-                throw;
+                return results;
             }
         }
 

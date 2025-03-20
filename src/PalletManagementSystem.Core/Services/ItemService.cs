@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Exceptions;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Mappers;
 using PalletManagementSystem.Core.Models;
+using PalletManagementSystem.Infrastructure.Data;
 
 namespace PalletManagementSystem.Core.Services
 {
@@ -38,13 +41,19 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
-                var item = await _unitOfWork.ItemRepository.GetByIdAsync(id, cancellationToken);
-                return item != null ? MapToDto(item) : null;
+                // Get the item using projection
+                return await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i => i.Id == id)
+                    .ProjectToDto()
+                    .FirstOrDefaultAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving item with ID {id}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var item = await _unitOfWork.ItemRepository.GetByIdAsync(id, cancellationToken);
+                return ItemMapper.ToDto(item);
             }
         }
 
@@ -58,13 +67,19 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var item = await _unitOfWork.ItemRepository.GetByItemNumberAsync(itemNumber, cancellationToken);
-                return item != null ? MapToDto(item) : null;
+                // Get the item using projection
+                return await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i => i.ItemNumber == itemNumber)
+                    .ProjectToDto()
+                    .FirstOrDefaultAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving item with number {itemNumber}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var item = await _unitOfWork.ItemRepository.GetByItemNumberAsync(itemNumber, cancellationToken);
+                return ItemMapper.ToDto(item);
             }
         }
 
@@ -73,13 +88,19 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
-                var items = await _unitOfWork.ItemRepository.GetByPalletIdAsync(palletId, cancellationToken);
-                return items.Select(MapToDto);
+                // Get the items using projection
+                return await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i => i.PalletId == palletId)
+                    .ProjectToDto()
+                    .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving items for pallet ID {palletId}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var items = await _unitOfWork.ItemRepository.GetByPalletIdAsync(palletId, cancellationToken);
+                return ItemMapper.ToDtoList(items);
             }
         }
 
@@ -93,13 +114,19 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var items = await _unitOfWork.ItemRepository.GetByClientCodeAsync(clientCode, cancellationToken);
-                return items.Select(MapToDto);
+                // Get the items using projection
+                return await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i => i.ClientCode == clientCode)
+                    .ProjectToDto()
+                    .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving items for client code {clientCode}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var items = await _unitOfWork.ItemRepository.GetByClientCodeAsync(clientCode, cancellationToken);
+                return ItemMapper.ToDtoList(items);
             }
         }
 
@@ -170,7 +197,7 @@ namespace PalletManagementSystem.Core.Services
                 // Commit transaction
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-                return MapToDto(createdItem);
+                return ItemMapper.ToDto(createdItem);
             }
             catch (PalletClosedException pex)
             {
@@ -257,7 +284,7 @@ namespace PalletManagementSystem.Core.Services
                 // Commit transaction
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-                return MapToDto(item);
+                return ItemMapper.ToDto(item);
             }
             catch (PalletClosedException pex)
             {
@@ -323,7 +350,7 @@ namespace PalletManagementSystem.Core.Services
                 // Commit transaction
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-                return MapToDto(item);
+                return ItemMapper.ToDto(item);
             }
             catch (PalletClosedException pex)
             {
@@ -400,13 +427,27 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
-                return items.Select(MapToDto);
+                // Use direct projection with appropriate query
+                return await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i =>
+                        i.ItemNumber.Contains(keyword) ||
+                        i.ManufacturingOrder.Contains(keyword) ||
+                        i.ServiceOrder.Contains(keyword) ||
+                        i.FinalOrder.Contains(keyword) ||
+                        i.ClientCode.Contains(keyword) ||
+                        i.ClientName.Contains(keyword) ||
+                        i.Reference.Contains(keyword) ||
+                        i.Batch.Contains(keyword))
+                    .ProjectToDto()
+                    .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error searching items with keyword '{keyword}'");
-                throw;
+
+                // Fallback to traditional approach
+                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
+                return ItemMapper.ToDtoList(items);
             }
         }
 
@@ -415,13 +456,19 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
-                var item = await _unitOfWork.ItemRepository.GetByIdWithPalletAsync(itemId, cancellationToken);
-                return item != null ? MapToDtoWithPallet(item) : null;
+                // Get the item with pallet using projection
+                return await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i => i.Id == itemId)
+                    .ProjectToDtoWithPallet()
+                    .FirstOrDefaultAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving item with pallet for ID {itemId}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var item = await _unitOfWork.ItemRepository.GetByIdWithPalletAsync(itemId, cancellationToken);
+                return ItemMapper.ToDtoWithPallet(item);
             }
         }
 
@@ -435,13 +482,19 @@ namespace PalletManagementSystem.Core.Services
 
             try
             {
-                var item = await _unitOfWork.ItemRepository.GetByItemNumberWithPalletAsync(itemNumber, cancellationToken);
-                return item != null ? MapToDtoWithPallet(item) : null;
+                // Get the item with pallet using projection
+                return await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .Where(i => i.ItemNumber == itemNumber)
+                    .ProjectToDtoWithPallet()
+                    .FirstOrDefaultAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error retrieving item with pallet for number {itemNumber}");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var item = await _unitOfWork.ItemRepository.GetByItemNumberWithPalletAsync(itemNumber, cancellationToken);
+                return ItemMapper.ToDtoWithPallet(item);
             }
         }
 
@@ -450,13 +503,18 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
-                var items = await _unitOfWork.ItemRepository.GetAllAsync(cancellationToken);
-                return items.Select(MapToDto);
+                // Get all items using projection
+                return await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    .ProjectToDto()
+                    .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all items");
-                throw;
+
+                // Fallback to traditional approach if projection fails
+                var items = await _unitOfWork.ItemRepository.GetAllAsync(cancellationToken);
+                return ItemMapper.ToDtoList(items);
             }
         }
 
@@ -473,6 +531,50 @@ namespace PalletManagementSystem.Core.Services
         {
             try
             {
+                // Build the query
+                var query = DbContextAccessor.CreateQuery<Item>(_unitOfWork);
+
+                // Apply filters
+                if (palletId.HasValue)
+                {
+                    query = query.Where(i => i.PalletId == palletId.Value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(clientCode))
+                {
+                    query = query.Where(i => i.ClientCode == clientCode);
+                }
+
+                if (!string.IsNullOrWhiteSpace(manufacturingOrder))
+                {
+                    query = query.Where(i => i.ManufacturingOrder == manufacturingOrder);
+                }
+
+                if (!string.IsNullOrWhiteSpace(keyword))
+                {
+                    // Search in relevant fields
+                    query = query.Where(i =>
+                        i.ItemNumber.Contains(keyword) ||
+                        i.ManufacturingOrder.Contains(keyword) ||
+                        i.ServiceOrder.Contains(keyword) ||
+                        i.FinalOrder.Contains(keyword) ||
+                        i.ClientCode.Contains(keyword) ||
+                        i.ClientName.Contains(keyword) ||
+                        i.Reference.Contains(keyword) ||
+                        i.Batch.Contains(keyword));
+                }
+
+                // Apply ordering - newest first
+                query = query.OrderByDescending(i => i.CreatedDate);
+
+                // Use projection to get paged results
+                return await query.ProjectToPagedResultAsync(pageNumber, pageSize, includePallets);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving paged items");
+
+                // Fallback to traditional approach
                 var pagedResult = await _unitOfWork.ItemRepository.GetPagedItemsAsync(
                     pageNumber,
                     pageSize,
@@ -485,100 +587,20 @@ namespace PalletManagementSystem.Core.Services
                     descending: true,
                     cancellationToken);
 
-                // Map to DTOs
+                // Map results
                 var itemDtos = includePallets
-                    ? pagedResult.Items.Select(MapToDtoWithPallet).ToList()
-                    : pagedResult.Items.Select(MapToDto).ToList();
+                    ? pagedResult.Items.Select(ItemMapper.ToDtoWithPallet).ToList()
+                    : pagedResult.Items.Select(ItemMapper.ToDto).ToList();
 
                 // Create DTO for paged result
-                var pagedResultDto = new PagedResultDto<ItemDto>
+                return new PagedResultDto<ItemDto>
                 {
                     Items = itemDtos,
                     TotalCount = pagedResult.TotalCount,
                     PageNumber = pagedResult.PageNumber,
                     PageSize = pagedResult.PageSize
                 };
-
-                return pagedResultDto;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving paged items");
-                throw;
             }
         }
-
-        #region Mapping Methods
-
-        /// <summary>
-        /// Maps an Item entity to an ItemDto
-        /// </summary>
-        /// <param name="item">The item entity</param>
-        /// <returns>The item DTO</returns>
-        private static ItemDto MapToDto(Item item)
-        {
-            return new ItemDto
-            {
-                Id = item.Id,
-                ItemNumber = item.ItemNumber,
-                PalletId = item.PalletId,
-                ManufacturingOrder = item.ManufacturingOrder,
-                ManufacturingOrderLine = item.ManufacturingOrderLine,
-                ServiceOrder = item.ServiceOrder,
-                ServiceOrderLine = item.ServiceOrderLine,
-                FinalOrder = item.FinalOrder,
-                FinalOrderLine = item.FinalOrderLine,
-                ClientCode = item.ClientCode,
-                ClientName = item.ClientName,
-                Reference = item.Reference,
-                Finish = item.Finish,
-                Color = item.Color,
-                Quantity = item.Quantity,
-                QuantityUnit = item.QuantityUnit,
-                Weight = item.Weight,
-                WeightUnit = item.WeightUnit,
-                Width = item.Width,
-                WidthUnit = item.WidthUnit,
-                Quality = item.Quality,
-                Batch = item.Batch,
-                CreatedDate = item.CreatedDate,
-                CreatedBy = item.CreatedBy
-            };
-        }
-
-        /// <summary>
-        /// Maps an Item entity to an ItemDto including its pallet
-        /// </summary>
-        /// <param name="item">The item entity</param>
-        /// <returns>The item DTO with pallet</returns>
-        private static ItemDto MapToDtoWithPallet(Item item)
-        {
-            var dto = MapToDto(item);
-
-            // Add pallet if exists
-            if (item.Pallet != null)
-            {
-                dto.Pallet = new PalletDto
-                {
-                    Id = item.Pallet.Id,
-                    PalletNumber = item.Pallet.PalletNumber.Value,
-                    IsTemporary = item.Pallet.PalletNumber.IsTemporary,
-                    ManufacturingOrder = item.Pallet.ManufacturingOrder,
-                    Division = item.Pallet.Division.ToString(),
-                    Platform = item.Pallet.Platform.ToString(),
-                    UnitOfMeasure = item.Pallet.UnitOfMeasure.ToString(),
-                    Quantity = item.Pallet.Quantity,
-                    ItemCount = item.Pallet.ItemCount,
-                    IsClosed = item.Pallet.IsClosed,
-                    CreatedDate = item.Pallet.CreatedDate,
-                    ClosedDate = item.Pallet.ClosedDate,
-                    CreatedBy = item.Pallet.CreatedBy
-                };
-            }
-
-            return dto;
-        }
-
-        #endregion
     }
 }
