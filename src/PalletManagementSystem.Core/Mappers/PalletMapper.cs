@@ -9,10 +9,33 @@ using PalletManagementSystem.Core.Models;
 namespace PalletManagementSystem.Core.Mappers
 {
     /// <summary>
-    /// Provides mapping expressions for Pallet entities
+    /// Provides mapping expressions and extension methods for Pallet entities
     /// </summary>
     public static class PalletMapper
     {
+        /// <summary>
+        /// Creates a projection expression to map Pallet entities to PalletDto objects
+        /// </summary>
+        public static Expression<Func<Pallet, PalletDto>> ProjectToDto()
+        {
+            return p => new PalletDto
+            {
+                Id = p.Id,
+                PalletNumber = p.PalletNumber.Value,
+                IsTemporary = p.PalletNumber.IsTemporary,
+                ManufacturingOrder = p.ManufacturingOrder,
+                Division = p.Division.ToString(),
+                Platform = p.Platform.ToString(),
+                UnitOfMeasure = p.UnitOfMeasure.ToString(),
+                Quantity = p.Quantity,
+                ItemCount = p.Items.Count,
+                IsClosed = p.IsClosed,
+                CreatedDate = p.CreatedDate,
+                ClosedDate = p.ClosedDate,
+                CreatedBy = p.CreatedBy
+            };
+        }
+
         /// <summary>
         /// Creates a projection expression to map Pallet entities to PalletListDto objects
         /// </summary>
@@ -76,6 +99,14 @@ namespace PalletManagementSystem.Core.Mappers
         }
 
         /// <summary>
+        /// Applies the DTO projection to a queryable of Pallet entities
+        /// </summary>
+        public static IQueryable<PalletDto> ProjectToDto(this IQueryable<Pallet> query)
+        {
+            return query.Select(ProjectToDto());
+        }
+
+        /// <summary>
         /// Applies the list projection to a queryable of Pallet entities
         /// </summary>
         public static IQueryable<PalletListDto> ProjectToListDto(this IQueryable<Pallet> query)
@@ -89,6 +120,29 @@ namespace PalletManagementSystem.Core.Mappers
         public static IQueryable<PalletDetailDto> ProjectToDetailDto(this IQueryable<Pallet> query)
         {
             return query.Include(p => p.Items).Select(ProjectToDetailDto());
+        }
+
+        /// <summary>
+        /// Converts a list of Pallet list DTOs to an enumerable of PalletDto
+        /// </summary>
+        public static IEnumerable<PalletDto> ToDto(this IReadOnlyList<PalletListDto> palletListDtos)
+        {
+            return palletListDtos.Select(p => new PalletDto
+            {
+                Id = p.Id,
+                PalletNumber = p.PalletNumber,
+                IsTemporary = p.IsTemporary,
+                ManufacturingOrder = p.ManufacturingOrder,
+                Division = p.Division,
+                Platform = p.Platform,
+                UnitOfMeasure = p.UnitOfMeasure,
+                Quantity = p.Quantity,
+                ItemCount = p.ItemCount,
+                IsClosed = p.IsClosed,
+                CreatedDate = p.CreatedDate,
+                ClosedDate = p.ClosedDate,
+                CreatedBy = p.CreatedBy
+            });
         }
     }
 }

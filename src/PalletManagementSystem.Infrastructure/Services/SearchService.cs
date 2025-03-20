@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Mappers;
 using PalletManagementSystem.Core.Models;
 using PalletManagementSystem.Infrastructure.Data;
 
