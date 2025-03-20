@@ -14,14 +14,14 @@ namespace PalletManagementSystem.Infrastructure.Logging
     public class LoggingService
     {
         private readonly ILogger<LoggingService> _logger;
-        private readonly UserContext _userContext;
+        private readonly IUserContext _userContext;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LoggingService"/> class
         /// </summary>
         /// <param name="logger">The logger</param>
         /// <param name="userContext">The user context</param>
-        public LoggingService(ILogger<LoggingService> logger, UserContext userContext)
+        public LoggingService(ILogger<LoggingService> logger, IUserContext userContext)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));

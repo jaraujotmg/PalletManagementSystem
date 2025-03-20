@@ -30,6 +30,18 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
+        public Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0)
+        {
+            return SearchAsync(keyword, maxResults, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Performs a general search across all entities
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>Collection of search results</returns>
         public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
             if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
@@ -85,6 +97,18 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
+        public Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5)
+        {
+            return GetSearchSuggestionsAsync(partialKeyword, maxResults, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Gets search suggestions as the user types
+        /// </summary>
+        /// <param name="partialKeyword">The partial search keyword</param>
+        /// <param name="maxResults">Maximum number of suggestions to return</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>Collection of search suggestions</returns>
         public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(
             string partialKeyword, int maxResults = 5, CancellationToken cancellationToken = default)
         {
@@ -152,6 +176,18 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
+        public Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0)
+        {
+            return SearchPalletsAsync(keyword, maxResults, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Searches for pallets matching the keyword
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>Collection of pallets matching the search</returns>
         public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(
             string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
@@ -196,6 +232,18 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
+        public Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0)
+        {
+            return SearchItemsAsync(keyword, maxResults, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Searches for items matching the keyword
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>Collection of items matching the search</returns>
         public async Task<IEnumerable<ItemDto>> SearchItemsAsync(
             string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
@@ -251,6 +299,18 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
+        public Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0)
+        {
+            return SearchManufacturingOrdersAsync(keyword, maxResults, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Searches for manufacturing orders matching the keyword
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>Collection of manufacturing orders matching the search</returns>
         public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(
             string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
@@ -282,6 +342,18 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
+        public Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0)
+        {
+            return SearchClientsAsync(keyword, maxResults, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Searches for clients matching the keyword
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>Collection of clients matching the search</returns>
         public async Task<IEnumerable<ClientDto>> SearchClientsAsync(
             string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
@@ -293,7 +365,8 @@ namespace PalletManagementSystem.Infrastructure.Services
             try
             {
                 var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
-                var clients = items
+                // Use IEnumerable<ClientDto> instead of IOrderedEnumerable<ClientDto>
+                IEnumerable<ClientDto> clients = items
                     .GroupBy(i => new { i.ClientCode, i.ClientName })
                     .Select(g => new ClientDto
                     {
@@ -320,6 +393,17 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
+        public Task<bool> ValidateSearchKeywordAsync(string keyword)
+        {
+            return ValidateSearchKeywordAsync(keyword, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Validates a search keyword
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>True if the keyword is valid, false otherwise</returns>
         public async Task<bool> ValidateSearchKeywordAsync(string keyword, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
