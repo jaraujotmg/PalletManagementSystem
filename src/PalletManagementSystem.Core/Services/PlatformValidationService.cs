@@ -24,12 +24,14 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<bool> IsValidPlatformForDivisionAsync(Platform platform, Division division)
+        public Task<bool> IsValidPlatformForDivisionAsync(Platform platform, Division division)
         {
             try
             {
-                // Return result as an async operation for consistency
-                return await Task.FromResult(IsValidPlatformForDivision(platform, division));
+                // This validation logic is simple enough to be fully synchronous
+                // but we keep the async signature for consistency with the interface
+                bool isValid = IsValidPlatformForDivision(platform, division);
+                return Task.FromResult(isValid);
             }
             catch (Exception ex)
             {
@@ -39,12 +41,12 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<Platform> GetDefaultPlatformForDivisionAsync(Division division)
+        public Task<Platform> GetDefaultPlatformForDivisionAsync(Division division)
         {
             try
             {
-                // Return result as an async operation for consistency
-                return await Task.FromResult(GetDefaultPlatformForDivision(division));
+                Platform defaultPlatform = GetDefaultPlatformForDivision(division);
+                return Task.FromResult(defaultPlatform);
             }
             catch (Exception ex)
             {
@@ -54,12 +56,12 @@ namespace PalletManagementSystem.Core.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<Platform>> GetPlatformsForDivisionAsync(Division division)
+        public Task<IEnumerable<Platform>> GetPlatformsForDivisionAsync(Division division)
         {
             try
             {
-                // Return result as an async operation for consistency
-                return await Task.FromResult(GetPlatformsForDivision(division));
+                IEnumerable<Platform> platforms = GetPlatformsForDivision(division);
+                return Task.FromResult(platforms);
             }
             catch (Exception ex)
             {
@@ -104,7 +106,7 @@ namespace PalletManagementSystem.Core.Services
         /// <summary>
         /// Gets all platforms valid for a specific division
         /// </summary>
-        private Platform[] GetPlatformsForDivision(Division division)
+        private IEnumerable<Platform> GetPlatformsForDivision(Division division)
         {
             switch (division)
             {

@@ -6,6 +6,7 @@ using PalletManagementSystem.Core.Models.ValueObjects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PalletManagementSystem.Infrastructure.Data.Repositories
@@ -24,9 +25,9 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override async Task<Pallet> GetByIdAsync(int id)
+        public override async Task<Pallet> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var pallet = await _dbSet.FindAsync(id);
+            var pallet = await _dbSet.FindAsync(new object[] { id }, cancellationToken);
             if (pallet != null)
             {
                 ReconstructPalletNumber(pallet);
@@ -35,9 +36,9 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override async Task<IReadOnlyList<Pallet>> GetAllAsync()
+        public override async Task<IReadOnlyList<Pallet>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            var pallets = await base.GetAllAsync();
+            var pallets = await base.GetAllAsync(cancellationToken);
             foreach (var pallet in pallets)
             {
                 ReconstructPalletNumber(pallet);
@@ -46,10 +47,10 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<Pallet> GetByPalletNumberAsync(string palletNumber)
+        public async Task<Pallet> GetByPalletNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
         {
             var pallet = await _dbSet
-                .FirstOrDefaultAsync(p => EF.Property<string>(p, "_palletNumberValue") == palletNumber);
+                .FirstOrDefaultAsync(p => EF.Property<string>(p, "_palletNumberValue") == palletNumber, cancellationToken);
 
             if (pallet != null)
             {
@@ -60,11 +61,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<Pallet>> GetByDivisionAndPlatformAsync(Division division, Platform platform)
+        public async Task<IReadOnlyList<Pallet>> GetByDivisionAndPlatformAsync(Division division, Platform platform, CancellationToken cancellationToken = default)
         {
             var pallets = await _dbSet
                 .Where(p => p.Division == division && p.Platform == platform)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var pallet in pallets)
             {
@@ -75,11 +76,27 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<Pallet>> GetByManufacturingOrderAsync(string manufacturingOrder)
+        public async Task<IReadOnlyList<Pallet>> GetByDivisionAndPlatformWithItemsAsync(Division division, Platform platform, CancellationToken cancellationToken = default)
+        {
+            var pallets = await _dbSet
+                .Include(p => p.Items)
+                .Where(p => p.Division == division && p.Platform == platform)
+                .ToListAsync(cancellationToken);
+
+            foreach (var pallet in pallets)
+            {
+                ReconstructPalletNumber(pallet);
+            }
+
+            return pallets;
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<Pallet>> GetByManufacturingOrderAsync(string manufacturingOrder, CancellationToken cancellationToken = default)
         {
             var pallets = await _dbSet
                 .Where(p => p.ManufacturingOrder == manufacturingOrder)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var pallet in pallets)
             {
@@ -90,11 +107,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<Pallet>> GetByStatusAsync(bool isClosed)
+        public async Task<IReadOnlyList<Pallet>> GetByStatusAsync(bool isClosed, CancellationToken cancellationToken = default)
         {
             var pallets = await _dbSet
                 .Where(p => p.IsClosed == isClosed)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var pallet in pallets)
             {
@@ -105,11 +122,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<Pallet>> GetByDivisionAndStatusAsync(Division division, bool isClosed)
+        public async Task<IReadOnlyList<Pallet>> GetByDivisionAndStatusAsync(Division division, bool isClosed, CancellationToken cancellationToken = default)
         {
             var pallets = await _dbSet
                 .Where(p => p.Division == division && p.IsClosed == isClosed)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var pallet in pallets)
             {
@@ -120,11 +137,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<Pallet>> GetAllWithItemsAsync()
+        public async Task<IReadOnlyList<Pallet>> GetAllWithItemsAsync(CancellationToken cancellationToken = default)
         {
             var pallets = await _dbSet
                 .Include(p => p.Items)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var pallet in pallets)
             {
@@ -135,11 +152,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<Pallet> GetByIdWithItemsAsync(int id)
+        public async Task<Pallet> GetByIdWithItemsAsync(int id, CancellationToken cancellationToken = default)
         {
             var pallet = await _dbSet
                 .Include(p => p.Items)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
             if (pallet != null)
             {
@@ -150,11 +167,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<Pallet> GetByPalletNumberWithItemsAsync(string palletNumber)
+        public async Task<Pallet> GetByPalletNumberWithItemsAsync(string palletNumber, CancellationToken cancellationToken = default)
         {
             var pallet = await _dbSet
                 .Include(p => p.Items)
-                .FirstOrDefaultAsync(p => EF.Property<string>(p, "_palletNumberValue") == palletNumber);
+                .FirstOrDefaultAsync(p => EF.Property<string>(p, "_palletNumberValue") == palletNumber, cancellationToken);
 
             if (pallet != null)
             {
@@ -165,12 +182,12 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<int> GetNextTemporarySequenceNumberAsync()
+        public async Task<int> GetNextTemporarySequenceNumberAsync(CancellationToken cancellationToken = default)
         {
             // Find the highest temporary sequence number and add 1
             var tempPallets = await _dbSet
                 .Where(p => EF.Property<bool>(p, "_isTemporaryPalletNumber"))
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             // If no temporary pallets exist, start with 1
             if (!tempPallets.Any())
@@ -195,12 +212,12 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<int> GetNextPermanentSequenceNumberAsync(Division division)
+        public async Task<int> GetNextPermanentSequenceNumberAsync(Division division, CancellationToken cancellationToken = default)
         {
             // Find the highest permanent sequence number for this division and add 1
             var divisionPallets = await _dbSet
                 .Where(p => p.Division == division && !EF.Property<bool>(p, "_isTemporaryPalletNumber"))
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             // If no permanent pallets exist for this division, start with 1
             if (!divisionPallets.Any())
@@ -244,14 +261,14 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                     break;
 
                 default:
-                    throw new ArgumentException($"Unsupported division: {division}");
+                    throw new ArgumentException($"Unsupported division: {division}", nameof(division));
             }
 
             return maxNumber + 1;
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<Pallet>> SearchAsync(string keyword)
+        public async Task<IReadOnlyList<Pallet>> SearchAsync(string keyword, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
                 return new List<Pallet>();
@@ -263,7 +280,7 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                     EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
                     p.ManufacturingOrder.Contains(keyword)
                 )
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var pallet in pallets)
             {
@@ -274,25 +291,104 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public override async Task<Pallet> AddAsync(Pallet entity)
+        public async Task<PagedResult<Pallet>> GetPagedPalletsAsync(
+            int pageNumber,
+            int pageSize,
+            Division? division = null,
+            Platform? platform = null,
+            bool? isClosed = null,
+            string keyword = null,
+            bool orderByCreatedDate = false,
+            bool descending = false,
+            CancellationToken cancellationToken = default)
         {
-            // Save the PalletNumber value object to shadow properties
-            _context.Entry(entity).Property("_palletNumberValue").CurrentValue = entity.PalletNumber.Value;
-            _context.Entry(entity).Property("_isTemporaryPalletNumber").CurrentValue = entity.PalletNumber.IsTemporary;
-            _context.Entry(entity).Property("_palletNumberDivision").CurrentValue = entity.PalletNumber.Division;
+            // Validate parameters
+            if (pageNumber < 1)
+                throw new ArgumentException("Page number must be greater than or equal to 1", nameof(pageNumber));
 
-            return await base.AddAsync(entity);
+            if (pageSize < 1)
+                throw new ArgumentException("Page size must be greater than or equal to 1", nameof(pageSize));
+
+            // Build query
+            var query = _dbSet.AsQueryable();
+
+            // Apply filters
+            if (division.HasValue)
+            {
+                query = query.Where(p => p.Division == division.Value);
+            }
+
+            if (platform.HasValue)
+            {
+                query = query.Where(p => p.Platform == platform.Value);
+            }
+
+            if (isClosed.HasValue)
+            {
+                query = query.Where(p => p.IsClosed == isClosed.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                // Search in pallet number and manufacturing order
+                query = query.Where(p =>
+                    EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword));
+            }
+
+            // Apply ordering
+            if (orderByCreatedDate)
+            {
+                query = descending
+                    ? query.OrderByDescending(p => p.CreatedDate)
+                    : query.OrderBy(p => p.CreatedDate);
+            }
+            else
+            {
+                query = descending
+                    ? query.OrderByDescending(p => EF.Property<string>(p, "_palletNumberValue"))
+                    : query.OrderBy(p => EF.Property<string>(p, "_palletNumberValue"));
+            }
+
+            // Get total count
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Apply paging
+            var skip = (pageNumber - 1) * pageSize;
+            var pallets = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            // Reconstruct pallet numbers
+            foreach (var pallet in pallets)
+            {
+                ReconstructPalletNumber(pallet);
+            }
+
+            return new PagedResult<Pallet>(pallets, totalCount, pageNumber, pageSize);
         }
 
         /// <inheritdoc/>
-        public override async Task UpdateAsync(Pallet entity)
+        public override async Task<Pallet> AddAsync(Pallet entity, CancellationToken cancellationToken = default)
         {
             // Save the PalletNumber value object to shadow properties
             _context.Entry(entity).Property("_palletNumberValue").CurrentValue = entity.PalletNumber.Value;
             _context.Entry(entity).Property("_isTemporaryPalletNumber").CurrentValue = entity.PalletNumber.IsTemporary;
             _context.Entry(entity).Property("_palletNumberDivision").CurrentValue = entity.PalletNumber.Division;
 
-            await base.UpdateAsync(entity);
+            return await base.AddAsync(entity, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public override async Task UpdateAsync(Pallet entity, CancellationToken cancellationToken = default)
+        {
+            // Save the PalletNumber value object to shadow properties
+            _context.Entry(entity).Property("_palletNumberValue").CurrentValue = entity.PalletNumber.Value;
+            _context.Entry(entity).Property("_isTemporaryPalletNumber").CurrentValue = entity.PalletNumber.IsTemporary;
+            _context.Entry(entity).Property("_palletNumberDivision").CurrentValue = entity.PalletNumber.Division;
+
+            await base.UpdateAsync(entity, cancellationToken);
         }
 
         /// <summary>

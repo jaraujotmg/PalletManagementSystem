@@ -9,7 +9,7 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
     /// </summary>
     public class ReportingService : IReportingService
     {
-        private readonly SSRSClient _ssrsClient;
+        private readonly ISSRSClient _ssrsClient;
         private readonly ILogger<ReportingService> _logger;
 
         /// <summary>
@@ -17,7 +17,7 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
         /// </summary>
         /// <param name="ssrsClient">The SSRS client</param>
         /// <param name="logger">The logger</param>
-        public ReportingService(SSRSClient ssrsClient, ILogger<ReportingService> logger)
+        public ReportingService(ISSRSClient ssrsClient, ILogger<ReportingService> logger)
         {
             _ssrsClient = ssrsClient ?? throw new ArgumentNullException(nameof(ssrsClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -28,7 +28,7 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
         {
             try
             {
-                var paramDict = SSRSClient.ConvertParametersToDict(parameters);
+                var paramDict = _ssrsClient.ConvertParametersToDict(parameters);
                 return await _ssrsClient.GetReportAsync(reportPath, paramDict);
             }
             catch (Exception ex)
@@ -39,17 +39,17 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
         }
 
         /// <inheritdoc/>
-        public async Task PrintReportAsync(string reportPath, object parameters, string printerName)
+        public async Task<bool> PrintReportAsync(string reportPath, object parameters, string printerName)
         {
             try
             {
-                var paramDict = SSRSClient.ConvertParametersToDict(parameters);
-                await _ssrsClient.PrintReportAsync(reportPath, paramDict, printerName);
+                var paramDict = _ssrsClient.ConvertParametersToDict(parameters);
+                return await _ssrsClient.PrintReportAsync(reportPath, paramDict, printerName);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error printing report {reportPath} to printer {printerName}");
-                throw;
+                return false;
             }
         }
 
@@ -58,7 +58,7 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
         {
             try
             {
-                var paramDict = SSRSClient.ConvertParametersToDict(parameters);
+                var paramDict = _ssrsClient.ConvertParametersToDict(parameters);
                 return await _ssrsClient.ExportReportAsync(reportPath, paramDict, format);
             }
             catch (Exception ex)

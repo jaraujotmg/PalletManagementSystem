@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using PalletManagementSystem.Core.Interfaces;
 using PalletManagementSystem.Core.Models.Enums;
 using System;
+using System.Security.Principal;
 using System.Threading.Tasks;
 
 namespace PalletManagementSystem.Infrastructure.Identity
@@ -9,145 +9,180 @@ namespace PalletManagementSystem.Infrastructure.Identity
     /// <summary>
     /// Provides context information for the current user
     /// </summary>
-    public class UserContext
+    public class UserContext : IUserContext
     {
-        private readonly IUserContextProvider _userContextProvider;
         private readonly WindowsAuthenticationService _windowsAuthService;
         private readonly ILogger<UserContext> _logger;
+        private readonly WindowsIdentity _windowsIdentity;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UserContext"/> class
         /// </summary>
-        /// <param name="userContextProvider">The user context provider</param>
         /// <param name="windowsAuthService">The Windows authentication service</param>
         /// <param name="logger">The logger</param>
         public UserContext(
-            IUserContextProvider userContextProvider,
             WindowsAuthenticationService windowsAuthService,
             ILogger<UserContext> logger)
         {
-            _userContextProvider = userContextProvider ?? throw new ArgumentNullException(nameof(userContextProvider));
             _windowsAuthService = windowsAuthService ?? throw new ArgumentNullException(nameof(windowsAuthService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+            try
+            {
+                _windowsIdentity = WindowsIdentity.GetCurrent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to get current Windows identity");
+            }
         }
 
-        /// <summary>
-        /// Gets the current username
-        /// </summary>
-        /// <returns>The username</returns>
+        /// <inheritdoc/>
         public string GetUsername()
         {
-            return _userContextProvider.GetCurrentUsername();
+            try
+            {
+                return _windowsIdentity?.Name?.Split('\\').Length > 1
+                    ? _windowsIdentity.Name.Split('\\')[1]
+                    : _windowsIdentity?.Name ?? Environment.UserName;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting username");
+                return Environment.UserName;
+            }
         }
 
-        /// <summary>
-        /// Gets the current user's display name
-        /// </summary>
-        /// <returns>The display name</returns>
+        /// <inheritdoc/>
         public async Task<string> GetDisplayNameAsync()
         {
-            return await _userContextProvider.GetDisplayNameAsync();
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    var userDetails = await _windowsAuthService.GetUserDetailsAsync(_windowsIdentity);
+                    return userDetails.DisplayName;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting display name");
+            }
+
+            return GetUsername();
         }
 
-        /// <summary>
-        /// Gets the current user's email
-        /// </summary>
-        /// <returns>The email</returns>
+        /// <inheritdoc/>
         public async Task<string> GetEmailAsync()
         {
-            return await _userContextProvider.GetEmailAsync();
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    var userDetails = await _windowsAuthService.GetUserDetailsAsync(_windowsIdentity);
+                    return userDetails.Email;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting email");
+            }
+
+            return $"{GetUsername()}@example.com";
         }
 
-        /// <summary>
-        /// Checks if the current user is in a specified role
-        /// </summary>
-        /// <param name="role">The role name</param>
-        /// <returns>True if the user is in the role, false otherwise</returns>
+        /// <inheritdoc/>
         public bool IsInRole(string role)
         {
-            return _userContextProvider.IsInRole(role);
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    // This is synchronous for simplicity
+                    var isInGroup = _windowsAuthService.IsUserInGroupAsync(_windowsIdentity, $"PalletSystem_{role}s").Result;
+                    return isInGroup;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error checking if user is in role {role}");
+            }
+
+            // Default to Viewer role only
+            return role == "Viewer";
         }
 
-        /// <summary>
-        /// Gets the current user's roles
-        /// </summary>
-        /// <returns>An array of role names</returns>
+        /// <inheritdoc/>
         public async Task<string[]> GetRolesAsync()
         {
-            return await _userContextProvider.GetRolesAsync();
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    return await _windowsAuthService.GetUserRolesAsync(_windowsIdentity);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting roles");
+            }
+
+            return new[] { "Viewer" };
         }
 
-        /// <summary>
-        /// Checks if the current user can edit pallets
-        /// </summary>
-        /// <returns>True if the user can edit pallets, false otherwise</returns>
+        /// <inheritdoc/>
         public bool CanEditPallets()
         {
             return IsInRole("Administrator") || IsInRole("Editor");
         }
 
-        /// <summary>
-        /// Checks if the current user can close pallets
-        /// </summary>
-        /// <returns>True if the user can close pallets, false otherwise</returns>
+        /// <inheritdoc/>
         public bool CanClosePallets()
         {
             return IsInRole("Administrator") || IsInRole("Editor");
         }
 
-        /// <summary>
-        /// Checks if the current user can edit items
-        /// </summary>
-        /// <returns>True if the user can edit items, false otherwise</returns>
+        /// <inheritdoc/>
         public bool CanEditItems()
         {
             return IsInRole("Administrator") || IsInRole("Editor");
         }
 
-        /// <summary>
-        /// Checks if the current user can move items
-        /// </summary>
-        /// <returns>True if the user can move items, false otherwise</returns>
+        /// <inheritdoc/>
         public bool CanMoveItems()
         {
             return IsInRole("Administrator") || IsInRole("Editor");
         }
 
-        /// <summary>
-        /// Gets the current session's division
-        /// </summary>
-        /// <returns>The division</returns>
+        /// <inheritdoc/>
         public Division GetDivision()
         {
             try
             {
                 // In a real application, this would get the division from the session
-                // For this implementation, we'll use a default value
-                return Division.MA; // Default to Manufacturing
+                // For now, default to Manufacturing
+                return Division.MA;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting division");
-                return Division.MA; // Default to Manufacturing
+                return Division.MA;
             }
         }
 
-        /// <summary>
-        /// Gets the current session's platform
-        /// </summary>
-        /// <returns>The platform</returns>
+        /// <inheritdoc/>
         public Platform GetPlatform()
         {
             try
             {
                 // In a real application, this would get the platform from the session
-                // For this implementation, we'll use a default value
-                return Platform.TEC1; // Default to TEC1
+                // For now, default to TEC1
+                return Platform.TEC1;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting platform");
-                return Platform.TEC1; // Default to TEC1
+                return Platform.TEC1;
             }
         }
     }

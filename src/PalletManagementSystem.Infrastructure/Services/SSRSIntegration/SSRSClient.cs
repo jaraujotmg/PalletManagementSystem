@@ -2,18 +2,16 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml;
 
 namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
 {
     /// <summary>
     /// Client for SQL Server Reporting Services
     /// </summary>
-    public class SSRSClient
+    public class SSRSClient : ISSRSClient
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
@@ -47,12 +45,7 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
             }
         }
 
-        /// <summary>
-        /// Gets a report as a byte array
-        /// </summary>
-        /// <param name="reportPath">The report path</param>
-        /// <param name="parameters">The report parameters</param>
-        /// <returns>The report as a byte array</returns>
+        /// <inheritdoc/>
         public async Task<byte[]> GetReportAsync(string reportPath, IDictionary<string, string> parameters)
         {
             try
@@ -76,13 +69,7 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
             }
         }
 
-        /// <summary>
-        /// Exports a report to a specific format
-        /// </summary>
-        /// <param name="reportPath">The report path</param>
-        /// <param name="parameters">The report parameters</param>
-        /// <param name="format">The export format</param>
-        /// <returns>The report as a byte array</returns>
+        /// <inheritdoc/>
         public async Task<byte[]> ExportReportAsync(string reportPath, IDictionary<string, string> parameters, string format)
         {
             try
@@ -106,14 +93,8 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
             }
         }
 
-        /// <summary>
-        /// Prints a report to a specific printer
-        /// </summary>
-        /// <param name="reportPath">The report path</param>
-        /// <param name="parameters">The report parameters</param>
-        /// <param name="printerName">The printer name</param>
-        /// <returns>A task representing the asynchronous operation</returns>
-        public async Task PrintReportAsync(string reportPath, IDictionary<string, string> parameters, string printerName)
+        /// <inheritdoc/>
+        public async Task<bool> PrintReportAsync(string reportPath, IDictionary<string, string> parameters, string printerName)
         {
             try
             {
@@ -137,16 +118,38 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
                     _logger.LogError($"Error printing report from SSRS. Status code: {response.StatusCode}, Error: {errorContent}");
-                    throw new Exception($"Failed to print report. Status code: {response.StatusCode}");
+                    return false;
                 }
 
                 _logger.LogInformation($"Successfully sent print job to printer {printerName} for report {reportPath}");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error printing report {reportPath} to printer {printerName}");
-                throw;
+                return false;
             }
+        }
+
+        /// <inheritdoc/>
+        public IDictionary<string, string> ConvertParametersToDict(object parameters)
+        {
+            if (parameters == null)
+                return new Dictionary<string, string>();
+
+            var result = new Dictionary<string, string>();
+            var properties = parameters.GetType().GetProperties();
+
+            foreach (var prop in properties)
+            {
+                var value = prop.GetValue(parameters);
+                if (value != null)
+                {
+                    result.Add(prop.Name, value.ToString());
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -189,31 +192,6 @@ namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
             }
 
             return urlBuilder.ToString();
-        }
-
-        /// <summary>
-        /// Converts an object to a dictionary of string parameters
-        /// </summary>
-        /// <param name="parameters">The parameters object</param>
-        /// <returns>A dictionary of string parameters</returns>
-        public static IDictionary<string, string> ConvertParametersToDict(object parameters)
-        {
-            if (parameters == null)
-                return new Dictionary<string, string>();
-
-            var result = new Dictionary<string, string>();
-            var properties = parameters.GetType().GetProperties();
-
-            foreach (var prop in properties)
-            {
-                var value = prop.GetValue(parameters);
-                if (value != null)
-                {
-                    result.Add(prop.Name, value.ToString());
-                }
-            }
-
-            return result;
         }
     }
 }

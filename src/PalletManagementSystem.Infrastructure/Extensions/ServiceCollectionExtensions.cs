@@ -36,16 +36,21 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             services.AddScoped<IPalletRepository, PalletRepository>();
             services.AddScoped<IItemRepository, ItemRepository>();
 
-            // Unit of Work (New)
+            // Unit of Work
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Infrastructure Services
             services.AddScoped<IPrinterService, PrinterService>();
             services.AddScoped<ISearchService, SearchService>();
             services.AddScoped<IUserPreferenceService, UserPreferenceService>();
+
+            // SSRS Integration
+            services.AddHttpClient<ISSRSClient, SSRSClient>();
             services.AddScoped<IReportingService, ReportingService>();
-            services.AddScoped<ISSRSClient, SSRSClient>();
-            services.AddScoped<IUserContext, WindowsUserContext>();
+
+            // Identity and Authentication
+            services.AddScoped<WindowsAuthenticationService>();
+            services.AddScoped<IUserContext, UserContext>();
 
             return services;
         }
