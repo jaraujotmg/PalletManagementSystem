@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Interfaces.Services;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,7 +10,7 @@ namespace PalletManagementSystem.Infrastructure.Services
     /// <summary>
     /// Manages database transactions
     /// </summary>
-    public class TransactionManager
+    public class TransactionManager : ITransactionManager
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<TransactionManager> _logger;
@@ -25,13 +26,7 @@ namespace PalletManagementSystem.Infrastructure.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        /// <summary>
-        /// Executes an action within a transaction
-        /// </summary>
-        /// <typeparam name="TResult">The result type</typeparam>
-        /// <param name="action">The action to execute</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>The result of the action</returns>
+        /// <inheritdoc/>
         public async Task<TResult> ExecuteInTransactionAsync<TResult>(
             Func<CancellationToken, Task<TResult>> action,
             CancellationToken cancellationToken = default)
@@ -55,12 +50,7 @@ namespace PalletManagementSystem.Infrastructure.Services
             }
         }
 
-        /// <summary>
-        /// Executes an action within a transaction
-        /// </summary>
-        /// <param name="action">The action to execute</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>A task representing the operation</returns>
+        /// <inheritdoc/>
         public async Task ExecuteInTransactionAsync(
             Func<CancellationToken, Task> action,
             CancellationToken cancellationToken = default)

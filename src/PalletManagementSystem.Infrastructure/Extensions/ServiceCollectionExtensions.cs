@@ -12,7 +12,7 @@ using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
 
 namespace PalletManagementSystem.Infrastructure.Extensions
 {
-    public static partial class ServiceCollectionExtensions
+    public static class ServiceCollectionExtensions
     {
         /// <summary>
         /// Adds infrastructure services to the service collection

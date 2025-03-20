@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
-using PalletManagementSystem.Core.Mappers;
 using PalletManagementSystem.Core.Models;
 using PalletManagementSystem.Infrastructure.Data;
 
@@ -126,30 +125,30 @@ namespace PalletManagementSystem.Infrastructure.Services
             var results = new List<SearchResultDto>();
 
             // Search for pallets
-            var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword, cancellationToken);
-            foreach (var pallet in pallets)
+            var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword, cancellationToken);
+            foreach (var palletDto in palletDtos)
             {
                 results.Add(new SearchResultDto
                 {
-                    Id = pallet.Id,
+                    Id = palletDto.Id,
                     EntityType = "Pallet",
-                    Identifier = pallet.PalletNumber.Value,
-                    AdditionalInfo = $"MO: {pallet.ManufacturingOrder}",
-                    ViewUrl = $"/Pallets/Details/{pallet.Id}"
+                    Identifier = palletDto.PalletNumber,
+                    AdditionalInfo = $"MO: {palletDto.ManufacturingOrder}",
+                    ViewUrl = $"/Pallets/Details/{palletDto.Id}"
                 });
             }
 
             // Search for items
-            var items = await _unitOfWork.ItemRepository.SearchAsync(keyword, cancellationToken);
-            foreach (var item in items)
+            var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword, cancellationToken);
+            foreach (var itemDto in itemDtos)
             {
                 results.Add(new SearchResultDto
                 {
-                    Id = item.Id,
+                    Id = itemDto.Id,
                     EntityType = "Item",
-                    Identifier = item.ItemNumber,
-                    AdditionalInfo = $"Client: {item.ClientName}",
-                    ViewUrl = $"/Items/Details/{item.Id}"
+                    Identifier = itemDto.ItemNumber,
+                    AdditionalInfo = $"Client: {itemDto.ClientName}",
+                    ViewUrl = $"/Items/Details/{itemDto.Id}"
                 });
             }
 
@@ -279,16 +278,15 @@ namespace PalletManagementSystem.Infrastructure.Services
                 _logger.LogError(ex, $"Error searching pallets for '{keyword}'");
 
                 // Fallback to traditional approach
-                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword);
-                var results = PalletMapper.ToDtoList(pallets);
+                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword);
 
                 // Apply max results limit if specified
-                if (maxResults > 0 && results.Count() > maxResults)
+                if (maxResults > 0 && palletDtos.Count > maxResults)
                 {
-                    results = results.Take(maxResults);
+                    palletDtos = palletDtos.Take(maxResults).ToList();
                 }
 
-                return results;
+                return palletDtos;
             }
         }
 
@@ -328,16 +326,15 @@ namespace PalletManagementSystem.Infrastructure.Services
                 _logger.LogError(ex, $"Error searching items for '{keyword}'");
 
                 // Fallback to traditional approach
-                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword);
-                var results = ItemMapper.ToDtoList(items);
+                var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword);
 
                 // Apply max results limit if specified
-                if (maxResults > 0 && results.Count() > maxResults)
+                if (maxResults > 0 && itemDtos.Count > maxResults)
                 {
-                    results = results.Take(maxResults);
+                    itemDtos = itemDtos.Take(maxResults).ToList();
                 }
 
-                return results;
+                return itemDtos;
             }
         }
 
@@ -370,18 +367,19 @@ namespace PalletManagementSystem.Infrastructure.Services
                 _logger.LogError(ex, $"Error searching manufacturing orders for '{keyword}'");
 
                 // Fallback to traditional approach
-                var pallets = await _unitOfWork.PalletRepository.SearchAsync(keyword);
-                var results = pallets
+                // Get pallet DTOs and extract manufacturing orders
+                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword);
+                var manufacturingOrders = palletDtos
                     .Select(p => p.ManufacturingOrder)
                     .Distinct();
 
                 // Apply max results limit if specified
-                if (maxResults > 0 && results.Count() > maxResults)
+                if (maxResults > 0 && manufacturingOrders.Count() > maxResults)
                 {
-                    results = results.Take(maxResults);
+                    manufacturingOrders = manufacturingOrders.Take(maxResults);
                 }
 
-                return results;
+                return manufacturingOrders;
             }
         }
 
@@ -395,17 +393,22 @@ namespace PalletManagementSystem.Infrastructure.Services
 
             try
             {
-                // Build query with projection
-                var query = DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                // Get the matching clients with counts
+                var matchingItems = await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
                     .Where(i =>
                         i.ClientCode.Contains(keyword) ||
                         i.ClientName.Contains(keyword))
+                    .Select(i => new { i.ClientCode, i.ClientName })
+                    .ToListAsync();
+
+                // Process in memory
+                var groupedClients = matchingItems
                     .GroupBy(i => new { i.ClientCode, i.ClientName })
                     .Select(g => new ClientDto
                     {
                         ClientCode = g.Key.ClientCode,
                         ClientName = g.Key.ClientName,
-                        IsSpecial = g.Any(i => i.ClientCode == "280898" && i.ClientName == "Special Client HB"),
+                        IsSpecial = g.Key.ClientCode == "280898" && g.Key.ClientName == "Special Client HB",
                         ItemCount = g.Count()
                     })
                     .OrderBy(c => c.ClientName);
@@ -413,35 +416,36 @@ namespace PalletManagementSystem.Infrastructure.Services
                 // Apply max results limit if specified
                 if (maxResults > 0)
                 {
-                    query = query.Take(maxResults);
+                    groupedClients = groupedClients.Take(maxResults);
                 }
 
-                return await query.ToListAsync();
+                return groupedClients.ToList();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error searching clients for '{keyword}'");
 
-                // Fallback to traditional approach
-                var items = await _unitOfWork.ItemRepository.SearchAsync(keyword);
-                var results = items
+                // Fallback to traditional approach using the item repository
+                var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword);
+                var clients = itemDtos
                     .GroupBy(i => new { i.ClientCode, i.ClientName })
                     .Select(g => new ClientDto
                     {
                         ClientCode = g.Key.ClientCode,
                         ClientName = g.Key.ClientName,
-                        IsSpecial = g.Any(i => i.IsSpecialClient()),
+                        // Check for special client based on code and name
+                        IsSpecial = g.Key.ClientCode == "280898" && g.Key.ClientName == "Special Client HB",
                         ItemCount = g.Count()
                     })
                     .OrderBy(c => c.ClientName);
 
                 // Apply max results limit if specified
-                if (maxResults > 0 && results.Count() > maxResults)
+                if (maxResults > 0 && clients.Count() > maxResults)
                 {
-                    results = results.Take(maxResults);
+                    clients = clients.Take(maxResults);
                 }
 
-                return results;
+                return clients;
             }
         }
 

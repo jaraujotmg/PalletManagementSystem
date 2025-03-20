@@ -13,6 +13,14 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
     public interface IPalletRepository : IRepository<Pallet>
     {
         /// <summary>
+        /// Gets a pallet by ID with its items
+        /// </summary>
+        /// <param name="id">The pallet ID</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>The pallet with items, or null if not found</returns>
+        Task<Pallet> GetByIdWithItemsAsync(int id, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Gets a pallet by ID as a list DTO (without items)
         /// </summary>
         /// <param name="id">The pallet ID</param>

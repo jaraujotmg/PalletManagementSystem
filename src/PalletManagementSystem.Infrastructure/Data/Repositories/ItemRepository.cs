@@ -114,16 +114,20 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         /// <inheritdoc/>
         public async Task<string> GetNextItemNumberAsync(CancellationToken cancellationToken = default)
         {
-            var maxNumber = await _dbSet
+            // Fetch all item numbers to process in memory
+            var itemNumbers = await _dbSet
                 .Select(i => i.ItemNumber)
-                .Select(i =>
-                {
+                .ToListAsync(cancellationToken);
+
+            // Process the conversion in memory where statement lambdas are allowed
+            var maxNumber = itemNumbers
+                .Select(i => {
                     if (int.TryParse(i, out int num))
                         return num;
                     return 0;
                 })
                 .DefaultIfEmpty(100000)
-                .MaxAsync(cancellationToken);
+                .Max();
 
             return (maxNumber + 1).ToString();
         }
@@ -324,7 +328,6 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 PageSize = pageSize
             };
         }
-
 
         /// <inheritdoc/>
         public async Task<Item> GetByIdWithPalletAsync(int id, CancellationToken cancellationToken = default)

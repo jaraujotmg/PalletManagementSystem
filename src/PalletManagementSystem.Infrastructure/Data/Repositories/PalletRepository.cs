@@ -19,6 +19,19 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
+        public async Task<Pallet> GetByIdWithItemsAsync(int id, CancellationToken cancellationToken = default)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("Invalid pallet ID", nameof(id));
+            }
+
+            return await _dbSet
+                .Include(p => p.Items)
+                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         public async Task<PalletListDto> GetPalletListByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _dbSet
@@ -118,18 +131,22 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         /// <inheritdoc/>
         public async Task<int> GetNextTemporarySequenceNumberAsync(CancellationToken cancellationToken = default)
         {
-            var maxNumber = await _dbSet
+            // Get all temporary pallet numbers that start with TEMP-
+            var tempPalletNumbers = await _dbSet
                 .Where(p => p.PalletNumber.IsTemporary)
                 .Select(p => p.PalletNumber.Value)
                 .Where(p => p.StartsWith("TEMP-", StringComparison.OrdinalIgnoreCase))
-                .Select(p =>
-                {
+                .ToListAsync(cancellationToken);
+
+            // Process the numbers in memory
+            var maxNumber = tempPalletNumbers
+                .Select(p => {
                     if (int.TryParse(p.Substring(5), out int num))
                         return num;
                     return 0;
                 })
                 .DefaultIfEmpty(0)
-                .MaxAsync(cancellationToken);
+                .Max();
 
             return maxNumber + 1;
         }
@@ -139,45 +156,51 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             Division division,
             CancellationToken cancellationToken = default)
         {
-            var maxNumber = 0;
-
             switch (division)
             {
                 case Division.MA:
-                    maxNumber = await _dbSet
+                    // Get all permanent pallet numbers for Manufacturing division
+                    var maPalletNumbers = await _dbSet
                         .Where(p => !p.PalletNumber.IsTemporary && p.Division == division)
                         .Select(p => p.PalletNumber.Value)
                         .Where(p => p.StartsWith("P8"))
-                        .Select(p =>
-                        {
+                        .ToListAsync(cancellationToken);
+
+                    // Process the numbers in memory
+                    var maMaxNumber = maPalletNumbers
+                        .Select(p => {
                             if (int.TryParse(p.Substring(2), out int num))
                                 return num;
                             return 0;
                         })
                         .DefaultIfEmpty(0)
-                        .MaxAsync(cancellationToken);
-                    break;
+                        .Max();
+
+                    return maMaxNumber + 1;
 
                 case Division.TC:
-                    maxNumber = await _dbSet
+                    // Get all permanent pallet numbers for Technical Center division
+                    var tcPalletNumbers = await _dbSet
                         .Where(p => !p.PalletNumber.IsTemporary && p.Division == division)
                         .Select(p => p.PalletNumber.Value)
                         .Where(p => p.StartsWith("47"))
-                        .Select(p =>
-                        {
+                        .ToListAsync(cancellationToken);
+
+                    // Process the numbers in memory
+                    var tcMaxNumber = tcPalletNumbers
+                        .Select(p => {
                             if (int.TryParse(p.Substring(2), out int num))
                                 return num;
                             return 0;
                         })
                         .DefaultIfEmpty(0)
-                        .MaxAsync(cancellationToken);
-                    break;
+                        .Max();
+
+                    return tcMaxNumber + 1;
 
                 default:
                     throw new ArgumentException($"Unsupported division: {division}", nameof(division));
             }
-
-            return maxNumber + 1;
         }
 
         /// <inheritdoc/>
