@@ -3,99 +3,67 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Exceptions;
-using PalletManagementSystem.Core.Extensions;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
-using PalletManagementSystem.Core.Mappers;
 using PalletManagementSystem.Core.Models;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Core.Models.ValueObjects;
+using PalletManagementSystem.Infrastructure.Services;
 
 namespace PalletManagementSystem.Core.Services
 {
     public class PalletService : IPalletService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IQueryService _queryService;
+        private readonly IPalletRepository _palletRepository;
         private readonly IPrinterService _printerService;
         private readonly IPlatformValidationService _platformValidationService;
+        private readonly TransactionManager _transactionManager;
         private readonly ILogger<PalletService> _logger;
 
         public PalletService(
             IUnitOfWork unitOfWork,
-            IQueryService queryService,
+            IPalletRepository palletRepository,
             IPrinterService printerService,
             IPlatformValidationService platformValidationService,
+            TransactionManager transactionManager,
             ILogger<PalletService> logger)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
-            _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
+            _palletRepository = palletRepository ?? throw new ArgumentNullException(nameof(palletRepository));
             _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
             _platformValidationService = platformValidationService ?? throw new ArgumentNullException(nameof(platformValidationService));
+            _transactionManager = transactionManager ?? throw new ArgumentNullException(nameof(transactionManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<PalletDto> GetPalletByIdAsync(int id, CancellationToken cancellationToken = default)
+        public async Task<PalletListDto> GetPalletByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            if (id <= 0)
-            {
-                throw new ArgumentException("Invalid pallet ID", nameof(id));
-            }
-
-            try
-            {
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p => p.Id == id);
-
-                var results = await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    false,
-                    cancellationToken);
-
-                return results.FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error retrieving pallet with ID {id}");
-                throw;
-            }
+            return await _palletRepository.GetPalletListByIdAsync(id, cancellationToken);
         }
 
-        public async Task<PalletDto> GetPalletByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
+        public async Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(palletNumber))
-            {
-                throw new ArgumentException("Pallet number cannot be null or empty", nameof(palletNumber));
-            }
-
-            try
-            {
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p => p.PalletNumber.Value == palletNumber);
-
-                var results = await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    false,
-                    cancellationToken);
-
-                return results.FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error retrieving pallet with number {palletNumber}");
-                throw;
-            }
+            return await _palletRepository.GetPalletDetailByIdAsync(id, cancellationToken);
         }
 
-        public async Task<IEnumerable<PalletDto>> GetPalletsByDivisionAndPlatformAsync(
+        public async Task<PalletListDto> GetPalletByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
+        {
+            return await _palletRepository.GetPalletListByNumberAsync(palletNumber, cancellationToken);
+        }
+
+        public async Task<PalletDetailDto> GetPalletDetailByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
+        {
+            return await _palletRepository.GetPalletDetailByNumberAsync(palletNumber, cancellationToken);
+        }
+
+        public async Task<IEnumerable<PalletListDto>> GetPalletsByDivisionAndPlatformAsync(
             Division division,
             Platform platform,
-            bool includeItems = false,
             CancellationToken cancellationToken = default)
         {
             bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
@@ -104,72 +72,17 @@ namespace PalletManagementSystem.Core.Services
                 throw new ArgumentException($"Platform {platform} is not valid for division {division}");
             }
 
-            try
-            {
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p => p.Division == division && p.Platform == platform);
-
-                return await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    includeItems,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error retrieving pallets for division {division} and platform {platform}");
-                throw;
-            }
+            return await _palletRepository.GetPalletsByDivisionAndPlatformAsync(division, platform, cancellationToken);
         }
 
-        public async Task<IEnumerable<PalletDto>> GetPalletsByStatusAsync(
+        public async Task<IEnumerable<PalletListDto>> GetPalletsByStatusAsync(
             bool isClosed,
-            bool includeItems = false,
             CancellationToken cancellationToken = default)
         {
-            try
-            {
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p => p.IsClosed == isClosed);
-
-                return await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    includeItems,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error retrieving pallets with status {isClosed}");
-                throw;
-            }
+            return await _palletRepository.GetPalletsByStatusAsync(isClosed, cancellationToken);
         }
 
-        public async Task<IEnumerable<PalletDto>> GetPalletsByDivisionAndStatusAsync(
-            Division division,
-            bool isClosed,
-            bool includeItems = false,
-            CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p => p.Division == division && p.IsClosed == isClosed);
-
-                return await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    includeItems,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error retrieving pallets for division {division} with status {isClosed}");
-                throw;
-            }
-        }
-
-        public async Task<PalletDto> CreatePalletAsync(
+        public async Task<PalletListDto> CreatePalletAsync(
             string manufacturingOrder,
             Division division,
             Platform platform,
@@ -177,27 +90,15 @@ namespace PalletManagementSystem.Core.Services
             string username,
             CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(manufacturingOrder))
+            return await _transactionManager.ExecuteInTransactionAsync(async (token) =>
             {
-                throw new ArgumentException("Manufacturing order cannot be null or empty", nameof(manufacturingOrder));
-            }
+                bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
+                if (!isValid)
+                {
+                    throw new ArgumentException($"Platform {platform} is not valid for division {division}");
+                }
 
-            if (string.IsNullOrWhiteSpace(username))
-            {
-                throw new ArgumentException("Username cannot be null or empty", nameof(username));
-            }
-
-            bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
-            if (!isValid)
-            {
-                throw new ArgumentException($"Platform {platform} is not valid for division {division}");
-            }
-
-            try
-            {
-                await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
-                int sequenceNumber = await _unitOfWork.PalletRepository.GetNextTemporarySequenceNumberAsync(cancellationToken);
+                int sequenceNumber = await _palletRepository.GetNextTemporarySequenceNumberAsync(token);
                 var palletNumber = PalletNumber.CreateTemporary(sequenceNumber, division);
 
                 var pallet = new Pallet(
@@ -208,45 +109,21 @@ namespace PalletManagementSystem.Core.Services
                     unitOfMeasure,
                     username);
 
-                var createdPallet = await _unitOfWork.PalletRepository.AddAsync(pallet, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                await _unitOfWork.PalletRepository.AddAsync(pallet, token);
 
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p => p.Id == createdPallet.Id);
-
-                var results = await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    false,
-                    cancellationToken);
-
-                return results.FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                _logger.LogError(ex, $"Error creating pallet for manufacturing order {manufacturingOrder}");
-                throw;
-            }
+                // Return the created pallet
+                return await _palletRepository.GetPalletListByIdAsync(pallet.Id, token);
+            }, cancellationToken);
         }
 
-        public async Task<PalletDto> ClosePalletAsync(
+        public async Task<PalletDetailDto> ClosePalletAsync(
             int palletId,
             bool autoPrint = true,
-            string notes = null,
             CancellationToken cancellationToken = default)
         {
-            if (palletId <= 0)
+            return await _transactionManager.ExecuteInTransactionAsync(async (token) =>
             {
-                throw new ArgumentException("Invalid pallet ID", nameof(palletId));
-            }
-
-            try
-            {
-                await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
-                var pallet = await _unitOfWork.PalletRepository.GetByIdWithItemsAsync(palletId, cancellationToken);
+                var pallet = await _unitOfWork.PalletRepository.GetByIdWithItemsAsync(palletId, token);
                 if (pallet == null)
                 {
                     throw new DomainException($"Pallet with ID {palletId} not found");
@@ -260,185 +137,68 @@ namespace PalletManagementSystem.Core.Services
                 PalletNumber permanentNumber = null;
                 if (pallet.PalletNumber.IsTemporary)
                 {
-                    int sequenceNumber = await _unitOfWork.PalletRepository.GetNextPermanentSequenceNumberAsync(pallet.Division, cancellationToken);
+                    int sequenceNumber = await _palletRepository.GetNextPermanentSequenceNumberAsync(pallet.Division, token);
                     permanentNumber = PalletNumber.CreatePermanent(sequenceNumber, pallet.Division);
                 }
 
                 pallet.Close(permanentNumber);
 
-                await _unitOfWork.PalletRepository.UpdateAsync(pallet, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                await _unitOfWork.PalletRepository.UpdateAsync(pallet, token);
 
+                var updatedPallet = await _palletRepository.GetPalletDetailByIdAsync(palletId, token);
+
+                // Print outside the transaction
                 if (autoPrint)
                 {
-                    await _printerService.PrintPalletListAsync(pallet.Id);
+                    try
+                    {
+                        await _printerService.PrintPalletListAsync(pallet.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Failed to print pallet list for pallet ID {pallet.Id}");
+                        // Continue - printing failure shouldn't affect the business operation
+                    }
                 }
 
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p => p.Id == pallet.Id);
-
-                var results = await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    true,
-                    cancellationToken);
-
-                return results.FirstOrDefault();
-            }
-            catch (PalletClosedException pex)
-            {
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                _logger.LogWarning(pex, $"Attempted to close already closed pallet {palletId}");
-                throw;
-            }
-            catch (Exception ex)
-            {
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                _logger.LogError(ex, $"Error closing pallet {palletId}");
-                throw;
-            }
+                return updatedPallet;
+            }, cancellationToken);
         }
 
-        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(
-            string keyword,
-            bool includeItems = false,
-            CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<PalletListDto>> SearchPalletsAsync(string keyword, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(keyword))
-            {
-                return Enumerable.Empty<PalletDto>();
-            }
-
-            try
-            {
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p =>
-                        p.PalletNumber.Value.Contains(keyword) ||
-                        p.ManufacturingOrder.Contains(keyword));
-
-                return await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    includeItems,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error searching pallets with keyword '{keyword}'");
-                throw;
-            }
+            return await _palletRepository.SearchPalletsAsync(keyword, cancellationToken);
         }
 
-        public async Task<PalletDto> GetPalletWithItemsByNumberAsync(
-            string palletNumber,
-            CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(palletNumber))
-            {
-                throw new ArgumentException("Pallet number cannot be null or empty", nameof(palletNumber));
-            }
-
-            try
-            {
-                var query = _unitOfWork.PalletRepository
-                    .AsQueryable()
-                    .Where(p => p.PalletNumber.Value == palletNumber);
-
-                var results = await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    true,
-                    cancellationToken);
-
-                return results.FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error retrieving pallet with items for number {palletNumber}");
-                throw;
-            }
-        }
-
-        public async Task<IEnumerable<PalletDto>> GetAllPalletsAsync(
-            bool includeItems = false,
-            CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var query = _unitOfWork.PalletRepository.AsQueryable();
-
-                return await _queryService.ProjectToDtoAsync<Pallet, PalletDto>(
-                    query,
-                    includeItems,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving all pallets");
-                throw;
-            }
-        }
-
-        public async Task<PagedResultDto<PalletDto>> GetPagedPalletsAsync(
+        public async Task<PagedResultDto<PalletListDto>> GetPagedPalletsAsync(
             int pageNumber,
             int pageSize,
             Division? division = null,
             Platform? platform = null,
             bool? isClosed = null,
             string keyword = null,
-            bool includeItems = false,
             CancellationToken cancellationToken = default)
         {
-            if (pageNumber < 1)
+            // Validate platform for division if both are specified
+            if (division.HasValue && platform.HasValue)
             {
-                throw new ArgumentException("Page number must be greater than 0", nameof(pageNumber));
+                bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform.Value, division.Value);
+                if (!isValid)
+                {
+                    throw new ArgumentException($"Platform {platform} is not valid for division {division}");
+                }
             }
 
-            if (pageSize < 1)
-            {
-                throw new ArgumentException("Page size must be greater than 0", nameof(pageSize));
-            }
-
-            try
-            {
-                var query = _unitOfWork.PalletRepository.AsQueryable();
-
-                if (division.HasValue)
-                {
-                    query = query.Where(p => p.Division == division.Value);
-                }
-
-                if (platform.HasValue)
-                {
-                    query = query.Where(p => p.Platform == platform.Value);
-                }
-
-                if (isClosed.HasValue)
-                {
-                    query = query.Where(p => p.IsClosed == isClosed.Value);
-                }
-
-                if (!string.IsNullOrWhiteSpace(keyword))
-                {
-                    query = query.Where(p =>
-                        p.PalletNumber.Value.Contains(keyword) ||
-                        p.ManufacturingOrder.Contains(keyword));
-                }
-
-                query = query.OrderByDescending(p => p.CreatedDate);
-
-                return await _queryService.ProjectToPagedResultAsync<Pallet, PalletDto>(
-                    query,
-                    pageNumber,
-                    pageSize,
-                    includeItems,
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving paged pallets");
-                throw;
-            }
+            return await _palletRepository.GetPagedPalletsAsync(
+                pageNumber,
+                pageSize,
+                division,
+                platform,
+                isClosed,
+                keyword,
+                true,
+                true,
+                cancellationToken);
         }
     }
 }

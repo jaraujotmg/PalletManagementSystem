@@ -25,12 +25,12 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets or sets the pallet ID this item belongs to
         /// </summary>
-        public int PalletId { get; private set; }
+        public int PalletId { get; set; }
 
         /// <summary>
         /// Gets or sets the pallet this item belongs to
         /// </summary>
-        public Pallet Pallet { get; private set; }
+        public Pallet Pallet { get; set; }
 
         #region Order Information
 
@@ -296,27 +296,73 @@ namespace PalletManagementSystem.Core.Models
         }
 
         /// <summary>
-        /// Sets the pallet this item belongs to
+        /// Assigns this item to a pallet
         /// </summary>
-        /// <param name="pallet">The pallet</param>
-        public void SetPallet(Pallet pallet)
+        /// <param name="pallet">The pallet to assign to</param>
+        public void AssignToPallet(Pallet pallet)
         {
-            EnsurePalletNotClosed();
-
-            if (pallet != null && pallet.IsClosed)
+            if (pallet == null)
             {
-                throw new PalletClosedException("Cannot move items to a closed pallet");
+                throw new ArgumentNullException(nameof(pallet));
             }
 
-            // Remove from current pallet if exists
-            Pallet?.RemoveItem(this);
+            if (pallet.IsClosed)
+            {
+                throw new PalletClosedException("Cannot assign items to a closed pallet");
+            }
 
-            // Add to new pallet if not null
-            pallet?.AddItem(this);
+            if (Pallet != null && Pallet.IsClosed)
+            {
+                throw new PalletClosedException("Cannot reassign items from a closed pallet");
+            }
 
-            // Update references
+            // Set the pallet and update the ID
             Pallet = pallet;
-            PalletId = pallet?.Id ?? 0;
+            PalletId = pallet.Id;
+
+            // Let the pallet know about this item
+            pallet.AddItem(this);
+        }
+
+        /// <summary>
+        /// Removes this item from its current pallet
+        /// </summary>
+        public void RemoveFromPallet()
+        {
+            if (Pallet == null)
+            {
+                return;
+            }
+
+            if (Pallet.IsClosed)
+            {
+                throw new PalletClosedException("Cannot remove items from a closed pallet");
+            }
+
+            // Let the pallet know this item is being removed
+            Pallet.RemoveItem(this);
+
+            // Clear the pallet references
+            Pallet = null;
+            PalletId = 0;
+        }
+
+        /// <summary>
+        /// Moves this item from its current pallet to another pallet
+        /// </summary>
+        /// <param name="targetPallet">The target pallet</param>
+        public void MoveToPallet(Pallet targetPallet)
+        {
+            if (targetPallet == null)
+            {
+                throw new ArgumentNullException(nameof(targetPallet));
+            }
+
+            // Remove from current pallet if any
+            RemoveFromPallet();
+
+            // Assign to the target pallet
+            AssignToPallet(targetPallet);
         }
 
         /// <summary>

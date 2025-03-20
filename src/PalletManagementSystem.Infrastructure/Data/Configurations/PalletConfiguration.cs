@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PalletManagementSystem.Core.Models;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Core.Models.ValueObjects;
+using PalletManagementSystem.Infrastructure.Data.ValueConverters;
 using System;
 
 namespace PalletManagementSystem.Infrastructure.Data.Configurations
@@ -24,18 +24,12 @@ namespace PalletManagementSystem.Infrastructure.Data.Configurations
             builder.Property(p => p.Id)
                 .ValueGeneratedOnAdd();
 
-            // Configure PalletNumber value object
-            builder.Property<string>("_palletNumberValue")
+            // Configure PalletNumber value object using a value converter
+            builder.Property(p => p.PalletNumber)
+                .HasConversion(new PalletNumberConverter())
                 .HasColumnName("PalletNumber")
-                .HasMaxLength(20)
+                .HasMaxLength(50)
                 .IsRequired();
-
-            builder.Property<bool>("_isTemporaryPalletNumber")
-                .HasColumnName("IsTemporaryNumber");
-
-            builder.Property<Division>("_palletNumberDivision")
-                .HasColumnName("PalletNumberDivision")
-                .HasConversion<string>();
 
             // Configure other scalar properties
             builder.Property(p => p.ManufacturingOrder)
@@ -76,12 +70,6 @@ namespace PalletManagementSystem.Infrastructure.Data.Configurations
                 .WithOne(i => i.Pallet)
                 .HasForeignKey(i => i.PalletId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            // Ignore the PalletNumber property as we're mapping its components to separate columns
-            builder.Ignore(p => p.PalletNumber);
-
-            // In the repository, we'll need to manually reconstruct the PalletNumber value object
-            // from the shadow properties when loading entities from the database
         }
     }
 }

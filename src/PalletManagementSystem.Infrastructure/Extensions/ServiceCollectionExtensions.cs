@@ -22,7 +22,7 @@ namespace PalletManagementSystem.Infrastructure.Extensions
         /// <returns>The service collection</returns>
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Existing infrastructure service registration
+            // Database context
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
                     configuration.GetConnectionString("DefaultConnection"),
@@ -33,16 +33,14 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             services.AddScoped<IPalletRepository, PalletRepository>();
             services.AddScoped<IItemRepository, ItemRepository>();
 
-            // Unit of Work
+            // Unit of Work and Transaction Manager
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<TransactionManager>();
 
             // Infrastructure Services
             services.AddScoped<IPrinterService, PrinterService>();
             services.AddScoped<ISearchService, SearchService>();
             services.AddScoped<IUserPreferenceService, UserPreferenceService>();
-
-            // Query Service
-            services.AddScoped<IQueryService, QueryService>();
 
             // SSRS Integration
             services.AddHttpClient<ISSRSClient, SSRSClient>();
