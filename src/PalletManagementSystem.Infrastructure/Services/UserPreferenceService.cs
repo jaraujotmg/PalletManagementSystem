@@ -78,13 +78,23 @@ namespace PalletManagementSystem.Infrastructure.Services
                 preferences.PreferredDivision = division.ToString();
 
                 // Ensure platform is valid for this division
-                bool isValidPlatform = await _platformValidationService.IsValidPlatformForDivisionAsync(
-                    Enum.Parse<Platform>(preferences.PreferredPlatform),
-                    division);
-
-                if (!isValidPlatform)
+                Platform platform;
+                if (Enum.TryParse<Platform>(preferences.PreferredPlatform, out platform))
                 {
-                    // If current platform is not valid for the new division, use default platform
+                    bool isValidPlatform = await _platformValidationService.IsValidPlatformForDivisionAsync(
+                        platform,
+                        division);
+
+                    if (!isValidPlatform)
+                    {
+                        // If current platform is not valid for the new division, use default platform
+                        Platform defaultPlatform = await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
+                        preferences.PreferredPlatform = defaultPlatform.ToString();
+                    }
+                }
+                else
+                {
+                    // If parsing failed, use default platform
                     Platform defaultPlatform = await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
                     preferences.PreferredPlatform = defaultPlatform.ToString();
                 }
@@ -517,13 +527,15 @@ namespace PalletManagementSystem.Infrastructure.Services
         private async void ValidatePreferences(UserPreferencesDto preferences)
         {
             // Validate division
-            if (!Enum.TryParse<Division>(preferences.PreferredDivision, out var division))
+            Division division;
+            if (!Enum.TryParse<Division>(preferences.PreferredDivision, out division))
             {
                 preferences.PreferredDivision = Division.MA.ToString();
             }
 
             // Validate platform
-            if (!Enum.TryParse<Platform>(preferences.PreferredPlatform, out var platform) ||
+            Platform platform;
+            if (!Enum.TryParse<Platform>(preferences.PreferredPlatform, out platform) ||
                 !await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division))
             {
                 Platform defaultPlatform = await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);

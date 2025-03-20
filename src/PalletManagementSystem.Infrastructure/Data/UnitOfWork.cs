@@ -112,7 +112,7 @@ namespace PalletManagementSystem.Infrastructure.Data
             try
             {
                 await _context.SaveChangesAsync(cancellationToken);
-                await _transaction.CommitAsync(cancellationToken);
+                _transaction.Commit(); // Changed from CommitAsync to Commit
                 _logger.LogInformation("Database transaction committed");
             }
             catch (Exception ex)
@@ -138,7 +138,7 @@ namespace PalletManagementSystem.Infrastructure.Data
 
             try
             {
-                await _transaction.RollbackAsync(cancellationToken);
+                _transaction.Rollback(); // Changed from RollbackAsync to Rollback
                 _logger.LogInformation("Database transaction rolled back");
             }
             catch (Exception ex)
