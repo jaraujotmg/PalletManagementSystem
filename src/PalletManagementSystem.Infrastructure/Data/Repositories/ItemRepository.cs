@@ -155,5 +155,113 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 )
                 .ToListAsync(cancellationToken);
         }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<Item>> GetByReferenceAsync(string reference, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                throw new ArgumentException("Reference cannot be null or empty", nameof(reference));
+            }
+
+            return await _dbSet
+                .Where(i => i.Reference.Contains(reference))
+                .ToListAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<Item>> GetAllWithPalletsAsync(CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .Include(i => i.Pallet)
+                .ToListAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<PagedResult<Item>> GetPagedItemsAsync(
+            int pageNumber,
+            int pageSize,
+            int? palletId = null,
+            string clientCode = null,
+            string manufacturingOrder = null,
+            string keyword = null,
+            bool includePallets = false,
+            bool orderByCreatedDate = false,
+            bool descending = false,
+            CancellationToken cancellationToken = default)
+        {
+            if (pageNumber < 1)
+            {
+                throw new ArgumentException("Page number must be greater than or equal to 1", nameof(pageNumber));
+            }
+
+            if (pageSize < 1)
+            {
+                throw new ArgumentException("Page size must be greater than or equal to 1", nameof(pageSize));
+            }
+
+            var query = _dbSet.AsQueryable();
+
+            // Apply filters
+            if (palletId.HasValue)
+            {
+                query = query.Where(i => i.PalletId == palletId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(clientCode))
+            {
+                query = query.Where(i => i.ClientCode == clientCode);
+            }
+
+            if (!string.IsNullOrWhiteSpace(manufacturingOrder))
+            {
+                query = query.Where(i => i.ManufacturingOrder == manufacturingOrder);
+            }
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(i =>
+                    i.ItemNumber.Contains(keyword) ||
+                    i.ManufacturingOrder.Contains(keyword) ||
+                    i.ServiceOrder.Contains(keyword) ||
+                    i.FinalOrder.Contains(keyword) ||
+                    i.ClientCode.Contains(keyword) ||
+                    i.ClientName.Contains(keyword) ||
+                    i.Reference.Contains(keyword) ||
+                    i.Batch.Contains(keyword));
+            }
+
+            // Apply ordering
+            if (orderByCreatedDate)
+            {
+                query = descending
+                    ? query.OrderByDescending(i => i.CreatedDate)
+                    : query.OrderBy(i => i.CreatedDate);
+            }
+            else
+            {
+                query = descending
+                    ? query.OrderByDescending(i => i.ItemNumber)
+                    : query.OrderBy(i => i.ItemNumber);
+            }
+
+            // Include pallets if requested
+            if (includePallets)
+            {
+                query = query.Include(i => i.Pallet);
+            }
+
+            // Get total count
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Apply pagination
+            var skip = (pageNumber - 1) * pageSize;
+            var items = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return new PagedResult<Item>(items, totalCount, pageNumber, pageSize);
+        }
     }
 }

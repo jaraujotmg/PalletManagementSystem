@@ -19,27 +19,33 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
 
         /// <inheritdoc/>
         public IQueryable<Pallet> Queryable => _dbSet
-            .AsQueryable()
-            .Select(p => new Pallet(
-                new PalletNumber(
-                    EF.Property<string>(p, "_palletNumberValue"),
-                    EF.Property<bool>(p, "_isTemporaryPalletNumber"),
-                    EF.Property<Division>(p, "_palletNumberDivision")
-                ),
-                p.ManufacturingOrder,
-                p.Division,
-                p.Platform,
-                p.UnitOfMeasure,
-                p.CreatedBy
-            )
-            {
-                // Manually set other properties that cannot be set in constructor
-                Id = p.Id,
-                IsClosed = p.IsClosed,
-                CreatedDate = p.CreatedDate,
-                ClosedDate = p.ClosedDate,
-                Quantity = p.Quantity
-            });
+          .AsQueryable()
+          .Select(p =>
+          {
+              var pallet = new Pallet(
+                  new PalletNumber(
+                      EF.Property<string>(p, "_palletNumberValue"),
+                      EF.Property<bool>(p, "_isTemporaryPalletNumber"),
+                      EF.Property<Division>(p, "_palletNumberDivision")
+                  ),
+                  p.ManufacturingOrder,
+                  p.Division,
+                  p.Platform,
+                  p.UnitOfMeasure,
+                  p.CreatedBy
+              );
+
+              // Use reflection to set the private Id field if needed
+              var idProperty = typeof(Pallet).GetField("_id", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+              idProperty?.SetValue(pallet, p.Id);
+
+              pallet.SetClosedState(p.IsClosed);
+              pallet.SetCreatedDate(p.CreatedDate);
+              pallet.SetClosedDate(p.ClosedDate);
+              pallet.SetQuantity(p.Quantity);
+
+              return pallet;
+          });
 
         /// <inheritdoc/>
         public override async Task<Pallet> AddAsync(Pallet entity, CancellationToken cancellationToken = default)
@@ -401,6 +407,23 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             return new PagedResult<Pallet>(pallets, totalCount, pageNumber, pageSize);
         }
 
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<Pallet>> GetAllWithItemsAsync(CancellationToken cancellationToken = default)
+        {
+            // Retrieve all pallets with their items
+            var pallets = await _dbSet
+                .Include(p => p.Items)
+                .ToListAsync(cancellationToken);
+
+            // Reconstruct pallet numbers for each pallet
+            foreach (var pallet in pallets)
+            {
+                ReconstructPalletNumber(pallet);
+            }
+
+            return pallets;
+        }
+
         /// <summary>
         /// Reconstructs the PalletNumber value object from shadow properties
         /// </summary>
@@ -415,5 +438,7 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
 
             pallet.PalletNumber = new PalletNumber(palletNumberValue, isTemporary, division);
         }
+
+
     }
 }

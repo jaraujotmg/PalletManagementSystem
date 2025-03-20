@@ -13,11 +13,12 @@ namespace PalletManagementSystem.Core.Models
     public class Pallet
     {
         private readonly List<Item> _items = new List<Item>();
+        private int _id;  // Private backing field for Id
 
         /// <summary>
         /// Gets the pallet ID
         /// </summary>
-        public int Id { get; private set; }
+        public int Id => _id;
 
         /// <summary>
         /// Gets the pallet number
@@ -120,6 +121,9 @@ namespace PalletManagementSystem.Core.Models
             Quantity = 0;
         }
 
+        /// <summary>
+        /// Validates constructor parameters
+        /// </summary>
         private void ValidateConstructorParameters(
             PalletNumber palletNumber,
             string manufacturingOrder,
@@ -141,15 +145,6 @@ namespace PalletManagementSystem.Core.Models
             {
                 throw new ArgumentException("CreatedBy cannot be null or empty", nameof(createdBy));
             }
-
-            //// Validate platform is valid for the division
-            //if (!PlatformValidationService.IsValidPlatformForDivision(platform, division))
-            //{
-            //    throw new ArgumentException($"Platform {platform} is not valid for division {division}", nameof(platform));
-            //}
-
-            // Platform validation will be handled at the service level
-            // The domain model should not have dependencies on services
         }
 
         /// <summary>
@@ -226,6 +221,60 @@ namespace PalletManagementSystem.Core.Models
         private void RecalculateQuantity()
         {
             Quantity = _items.Sum(i => i.Quantity);
+        }
+
+        /// <summary>
+        /// Method to set the ID (used by repositories)
+        /// </summary>
+        /// <param name="id">The pallet ID</param>
+        /// <remarks>
+        /// This method should only be used by repository classes during hydration.
+        /// It should not be called directly by application logic.
+        /// </remarks>
+        public void SetId(int id)
+        {
+            if (_id != 0)
+            {
+                // Throw an exception if someone tries to change an already set ID
+                throw new InvalidOperationException("Pallet ID cannot be changed once set.");
+            }
+            _id = id;
+        }
+
+        /// <summary>
+        /// Method to set closed state (used by repositories)
+        /// </summary>
+        /// <param name="isClosed">The closed state</param>
+        public void SetClosedState(bool isClosed)
+        {
+            IsClosed = isClosed;
+        }
+
+        /// <summary>
+        /// Method to set created date (used by repositories)
+        /// </summary>
+        /// <param name="createdDate">The created date</param>
+        public void SetCreatedDate(DateTime createdDate)
+        {
+            CreatedDate = createdDate;
+        }
+
+        /// <summary>
+        /// Method to set closed date (used by repositories)
+        /// </summary>
+        /// <param name="closedDate">The closed date</param>
+        public void SetClosedDate(DateTime? closedDate)
+        {
+            ClosedDate = closedDate;
+        }
+
+        /// <summary>
+        /// Method to set quantity (used by repositories)
+        /// </summary>
+        /// <param name="quantity">The quantity</param>
+        public void SetQuantity(decimal quantity)
+        {
+            Quantity = quantity;
         }
     }
 }
