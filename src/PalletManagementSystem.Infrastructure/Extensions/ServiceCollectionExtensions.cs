@@ -4,18 +4,15 @@ using Microsoft.Extensions.DependencyInjection;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Services;
-using PalletManagementSystem.Infrastructure.Data;
 using PalletManagementSystem.Infrastructure.Data.Repositories;
+using PalletManagementSystem.Infrastructure.Data;
 using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Infrastructure.Services;
 using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
 
 namespace PalletManagementSystem.Infrastructure.Extensions
 {
-    /// <summary>
-    /// Extensions for configuring services in the application
-    /// </summary>
-    public static class ServiceCollectionExtensions
+    public static partial class ServiceCollectionExtensions
     {
         /// <summary>
         /// Adds infrastructure services to the service collection
@@ -25,7 +22,7 @@ namespace PalletManagementSystem.Infrastructure.Extensions
         /// <returns>The service collection</returns>
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Database
+            // Existing infrastructure service registration
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
                     configuration.GetConnectionString("DefaultConnection"),
@@ -43,6 +40,9 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             services.AddScoped<IPrinterService, PrinterService>();
             services.AddScoped<ISearchService, SearchService>();
             services.AddScoped<IUserPreferenceService, UserPreferenceService>();
+
+            // Query Service
+            services.AddScoped<IQueryService, QueryService>();
 
             // SSRS Integration
             services.AddHttpClient<ISSRSClient, SSRSClient>();
