@@ -144,5 +144,13 @@ namespace PalletManagementSystem.Core.Mappers
                 CreatedBy = p.CreatedBy
             });
         }
+
+        /// <summary>
+        /// Converts a queryable of Pallet entities to an IEnumerable of PalletDto
+        /// </summary>
+        public static IEnumerable<PalletDto> ToDto(this IQueryable<Pallet> query)
+        {
+            return query.Select(ProjectToDto());
+        }
     }
 }

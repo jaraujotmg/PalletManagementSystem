@@ -42,10 +42,6 @@ namespace PalletManagementSystem.Infrastructure.Services
         /// <summary>
         /// Performs a general search across all entities
         /// </summary>
-        /// <param name="keyword">The search keyword</param>
-        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>Collection of search results</returns>
         public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
             if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
@@ -171,10 +167,6 @@ namespace PalletManagementSystem.Infrastructure.Services
         /// <summary>
         /// Gets search suggestions as the user types
         /// </summary>
-        /// <param name="partialKeyword">The partial search keyword</param>
-        /// <param name="maxResults">Maximum number of suggestions to return</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>Collection of search suggestions</returns>
         public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(
             string partialKeyword, int maxResults = 5, CancellationToken cancellationToken = default)
         {
@@ -282,12 +274,9 @@ namespace PalletManagementSystem.Infrastructure.Services
                 var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword);
 
                 // Apply max results limit if specified
-                if (maxResults > 0 && palletDtos.Count > maxResults)
-                {
-                    palletDtos = palletDtos.Take(maxResults).ToList();
-                }
-
-                return palletDtos;
+                return maxResults > 0 && palletDtos.Count > maxResults
+                    ? palletDtos.ToDto().Take(maxResults)
+                    : palletDtos.ToDto();
             }
         }
 
@@ -330,12 +319,9 @@ namespace PalletManagementSystem.Infrastructure.Services
                 var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword);
 
                 // Apply max results limit if specified
-                if (maxResults > 0 && itemDtos.Count > maxResults)
-                {
-                    itemDtos = itemDtos.Take(maxResults).ToList();
-                }
-
-                return itemDtos;
+                return maxResults > 0 && itemDtos.Count > maxResults
+                    ? itemDtos.ToDto().Take(maxResults)
+                    : itemDtos.ToDto();
             }
         }
 
@@ -375,12 +361,9 @@ namespace PalletManagementSystem.Infrastructure.Services
                     .Distinct();
 
                 // Apply max results limit if specified
-                if (maxResults > 0 && manufacturingOrders.Count() > maxResults)
-                {
-                    manufacturingOrders = manufacturingOrders.Take(maxResults);
-                }
-
-                return manufacturingOrders;
+                return maxResults > 0 && manufacturingOrders.Count() > maxResults
+                    ? manufacturingOrders.Take(maxResults)
+                    : manufacturingOrders;
             }
         }
 
@@ -412,15 +395,16 @@ namespace PalletManagementSystem.Infrastructure.Services
                         IsSpecial = g.Key.ClientCode == "280898" && g.Key.ClientName == "Special Client HB",
                         ItemCount = g.Count()
                     })
-                    .OrderBy(c => c.ClientName);
+                    .OrderBy(c => c.ClientName)
+                    .ToList(); // Convert to List to remove IOrderedEnumerable
 
                 // Apply max results limit if specified
-                if (maxResults > 0)
+                if (maxResults > 0 && groupedClients.Count > maxResults)
                 {
-                    groupedClients = groupedClients.Take(maxResults);
+                    groupedClients = groupedClients.Take(maxResults).ToList();
                 }
 
-                return groupedClients.ToList();
+                return groupedClients;
             }
             catch (Exception ex)
             {
@@ -438,12 +422,13 @@ namespace PalletManagementSystem.Infrastructure.Services
                         IsSpecial = g.Key.ClientCode == "280898" && g.Key.ClientName == "Special Client HB",
                         ItemCount = g.Count()
                     })
-                    .OrderBy(c => c.ClientName);
+                    .OrderBy(c => c.ClientName)
+                    .ToList();
 
                 // Apply max results limit if specified
-                if (maxResults > 0 && clients.Count() > maxResults)
+                if (maxResults > 0 && clients.Count > maxResults)
                 {
-                    clients = clients.Take(maxResults);
+                    clients = clients.Take(maxResults).ToList();
                 }
 
                 return clients;
@@ -459,9 +444,6 @@ namespace PalletManagementSystem.Infrastructure.Services
         /// <summary>
         /// Validates a search keyword
         /// </summary>
-        /// <param name="keyword">The search keyword</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>True if the keyword is valid, false otherwise</returns>
         public async Task<bool> ValidateSearchKeywordAsync(string keyword, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
