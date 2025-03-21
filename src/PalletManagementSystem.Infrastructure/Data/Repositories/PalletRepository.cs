@@ -38,20 +38,30 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         /// <inheritdoc/>
         public async Task<PalletListDto> GetPalletListByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            return await _dbSet
-                .Where(p => p.Id == id)
-                .ProjectToListDto()
-                .FirstOrDefaultAsync(cancellationToken);
+            var query = GetQuery().Where(p => p.Id == id);
+            var pallet = query.FirstOrDefault();
+
+            if (pallet == null)
+                return null;
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return mapper(pallet);
         }
 
         /// <inheritdoc/>
         public async Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            // No need to change the ProjectToDetailDto method as it already handles the includes
-            return await _dbSet
+            // For complex includes like this, we'll use the EF Core version for now
+            var pallet = await _dbSet
+                .Include(p => p.Items)
                 .Where(p => p.Id == id)
-                .ProjectToDetailDto()
                 .FirstOrDefaultAsync(cancellationToken);
+
+            if (pallet == null)
+                return null;
+
+            var mapper = PalletMapper.ProjectToDetailDto().Compile();
+            return mapper(pallet);
         }
 
         /// <inheritdoc/>
@@ -62,10 +72,14 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Pallet number cannot be null or empty", nameof(palletNumber));
             }
 
-            return await _dbSet
-                .Where(p => p.PalletNumber.Value == palletNumber)
-                .ProjectToListDto()
-                .FirstOrDefaultAsync(cancellationToken);
+            var query = GetQuery().Where(p => p.PalletNumber.Value == palletNumber);
+            var pallet = query.FirstOrDefault();
+
+            if (pallet == null)
+                return null;
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return mapper(pallet);
         }
 
         /// <inheritdoc/>
@@ -76,10 +90,17 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Pallet number cannot be null or empty", nameof(palletNumber));
             }
 
-            return await _dbSet
+            // For complex includes like this, we'll use the EF Core version for now
+            var pallet = await _dbSet
+                .Include(p => p.Items)
                 .Where(p => p.PalletNumber.Value == palletNumber)
-                .ProjectToDetailDto()
                 .FirstOrDefaultAsync(cancellationToken);
+
+            if (pallet == null)
+                return null;
+
+            var mapper = PalletMapper.ProjectToDetailDto().Compile();
+            return mapper(pallet);
         }
 
         /// <inheritdoc/>
@@ -88,10 +109,14 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             Platform platform,
             CancellationToken cancellationToken = default)
         {
-            return await _dbSet
+            // For backward compatibility and to ensure good performance with
+            // complex projections, we'll use EF Core directly for this
+            var pallets = await _dbSet
                 .Where(p => p.Division == division && p.Platform == platform)
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return pallets.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -100,10 +125,15 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             Platform platform,
             CancellationToken cancellationToken = default)
         {
-            return await _dbSet
+            // For backward compatibility and to ensure good performance with
+            // complex projections, we'll use EF Core directly for this
+            var pallets = await _dbSet
+                .Include(p => p.Items)
                 .Where(p => p.Division == division && p.Platform == platform)
-                .ProjectToDetailDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToDetailDto().Compile();
+            return pallets.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -111,10 +141,12 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             bool isClosed,
             CancellationToken cancellationToken = default)
         {
-            return await _dbSet
+            var pallets = await _dbSet
                 .Where(p => p.IsClosed == isClosed)
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return pallets.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -127,10 +159,12 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Manufacturing order cannot be null or empty", nameof(manufacturingOrder));
             }
 
-            return await _dbSet
+            var pallets = await _dbSet
                 .Where(p => p.ManufacturingOrder == manufacturingOrder)
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return pallets.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -220,13 +254,15 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
 
             keyword = keyword.Trim();
 
-            return await _dbSet
+            var pallets = await _dbSet
                 .Where(p =>
                     p.PalletNumber.Value.Contains(keyword) ||
                     p.ManufacturingOrder.Contains(keyword)
                 )
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return pallets.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -291,11 +327,13 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             }
 
             var skip = (pageNumber - 1) * pageSize;
-            var items = await query
+            var palletEntities = await query
                 .Skip(skip)
                 .Take(pageSize)
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            var items = palletEntities.Select(mapper).ToList();
 
             return new PagedResultDto<PalletListDto>
             {
@@ -317,19 +355,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 return Enumerable.Empty<SearchResultDto>();
             }
 
-            // Build query with direct field access for EF Core compatibility
+            // Build query
             var query = _dbSet.AsQueryable()
                 .Where(p =>
-                    EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
-                    p.ManufacturingOrder.Contains(keyword))
-                .Select(p => new SearchResultDto
-                {
-                    Id = p.Id,
-                    EntityType = "Pallet",
-                    Identifier = EF.Property<string>(p, "_palletNumberValue"),
-                    AdditionalInfo = $"MO: {p.ManufacturingOrder}",
-                    ViewUrl = $"/Pallets/Details/{p.Id}"
-                });
+                    p.PalletNumber.Value.Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword));
 
             // Apply max results limit if specified
             if (maxResults > 0)
@@ -337,7 +367,16 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 query = query.Take(maxResults);
             }
 
-            return await query.ToListAsync(cancellationToken);
+            var pallets = await query.ToListAsync(cancellationToken);
+
+            return pallets.Select(p => new SearchResultDto
+            {
+                Id = p.Id,
+                EntityType = "Pallet",
+                Identifier = p.PalletNumber.Value,
+                AdditionalInfo = $"MO: {p.ManufacturingOrder}",
+                ViewUrl = $"/Pallets/Details/{p.Id}"
+            });
         }
 
         /// <inheritdoc/>
@@ -351,19 +390,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 return Enumerable.Empty<SearchSuggestionDto>();
             }
 
-            // Build query with direct field access for EF Core compatibility
+            // Build query
             var query = _dbSet.AsQueryable()
                 .Where(p =>
-                    EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
-                    p.ManufacturingOrder.Contains(keyword))
-                .Select(p => new SearchSuggestionDto
-                {
-                    Text = EF.Property<string>(p, "_palletNumberValue"),
-                    Type = "Pallet",
-                    Url = $"/Pallets/Details/{p.Id}",
-                    EntityId = p.Id,
-                    IsViewAll = false
-                });
+                    p.PalletNumber.Value.Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword));
 
             // Apply max results limit if specified
             if (maxResults > 0)
@@ -371,7 +402,16 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 query = query.Take(maxResults);
             }
 
-            return await query.ToListAsync(cancellationToken);
+            var pallets = await query.ToListAsync(cancellationToken);
+
+            return pallets.Select(p => new SearchSuggestionDto
+            {
+                Text = p.PalletNumber.Value,
+                Type = "Pallet",
+                Url = $"/Pallets/Details/{p.Id}",
+                EntityId = p.Id,
+                IsViewAll = false
+            });
         }
     }
 }

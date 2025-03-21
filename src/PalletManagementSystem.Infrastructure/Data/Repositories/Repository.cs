@@ -15,7 +15,7 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
     /// Generic repository implementation
     /// </summary>
     /// <typeparam name="T">The entity type</typeparam>
-    public class Repository<T> : IRepository<T>, IQueryableRepository<T> where T : class
+    public class Repository<T> : IRepository<T> where T : class
     {
         protected readonly ApplicationDbContext _context;
         protected readonly DbSet<T> _dbSet;
@@ -31,11 +31,16 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <summary>
-        /// Gets a queryable view of the repository
+        /// Gets a query adapter for the repository
         /// </summary>
-        public IQueryable<T> Queryable => _dbSet.AsQueryable();
+        public virtual IQuery<T> GetQuery()
+        {
+            return new QueryAdapter<T>(_dbSet.AsQueryable());
+        }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets a queryable view of the repository (for backward compatibility)
+        /// </summary>
         public virtual IQueryable<T> GetQueryable()
         {
             return _dbSet.AsQueryable();
@@ -194,102 +199,121 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             return SpecificationEvaluator<T>.GetQuery(_dbSet.AsQueryable(), specification);
         }
 
-        /// <summary>
-        /// Gets an entity by ID with specified navigation properties
-        /// </summary>
-        /// <param name="id">The entity ID</param>
-        /// <param name="includes">The navigation properties to include</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>The entity with included navigation properties</returns>
+        /// <inheritdoc/>
         public virtual async Task<T> GetByIdWithIncludesAsync(int id, IEnumerable<string> includes, CancellationToken cancellationToken = default)
         {
-            var query = _dbSet.AsQueryable();
-            query = query.IncludeMultiple(includes);
-            return await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id, cancellationToken);
+            var query = GetQuery();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    if (!string.IsNullOrWhiteSpace(include))
+                    {
+                        query = query.Include(include);
+                    }
+                }
+            }
+
+            return await Task.FromResult(query.Where(e => EF.Property<int>(e, "Id") == id).FirstOrDefault());
         }
 
-        /// <summary>
-        /// Gets an entity by ID with specified navigation properties
-        /// </summary>
-        /// <param name="id">The entity ID</param>
-        /// <param name="includes">The navigation properties to include as expressions</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>The entity with included navigation properties</returns>
+        /// <inheritdoc/>
         public virtual async Task<T> GetByIdWithIncludesAsync(int id, IEnumerable<Expression<Func<T, object>>> includes, CancellationToken cancellationToken = default)
         {
             var query = _dbSet.AsQueryable();
-            query = query.IncludeMultiple(includes);
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
+            }
+
             return await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id, cancellationToken);
         }
 
-        /// <summary>
-        /// Finds entities matching a predicate with specified navigation properties
-        /// </summary>
-        /// <param name="predicate">The filter predicate</param>
-        /// <param name="includes">The navigation properties to include</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>A read-only list of matching entities with includes</returns>
+        /// <inheritdoc/>
         public virtual async Task<IReadOnlyList<T>> FindWithIncludesAsync(
             Expression<Func<T, bool>> predicate,
             IEnumerable<string> includes,
             CancellationToken cancellationToken = default)
         {
-            var query = _dbSet.AsQueryable();
-            query = query.IncludeMultiple(includes);
-            return await query.Where(predicate).ToListAsync(cancellationToken);
+            var query = GetQuery();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    if (!string.IsNullOrWhiteSpace(include))
+                    {
+                        query = query.Include(include);
+                    }
+                }
+            }
+
+            return await Task.FromResult(query.Where(predicate).ToList());
         }
 
-        /// <summary>
-        /// Finds entities matching a predicate with specified navigation properties
-        /// </summary>
-        /// <param name="predicate">The filter predicate</param>
-        /// <param name="includes">The navigation properties to include as expressions</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>A read-only list of matching entities with includes</returns>
+        /// <inheritdoc/>
         public virtual async Task<IReadOnlyList<T>> FindWithIncludesAsync(
             Expression<Func<T, bool>> predicate,
             IEnumerable<Expression<Func<T, object>>> includes,
             CancellationToken cancellationToken = default)
         {
             var query = _dbSet.AsQueryable();
-            query = query.IncludeMultiple(includes);
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
+            }
+
             return await query.Where(predicate).ToListAsync(cancellationToken);
         }
 
-        /// <summary>
-        /// Finds the first entity matching a predicate with specified navigation properties
-        /// </summary>
-        /// <param name="predicate">The filter predicate</param>
-        /// <param name="includes">The navigation properties to include</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>The first matching entity with included navigation properties, or null if not found</returns>
+        /// <inheritdoc/>
         public virtual async Task<T> FindFirstWithIncludesAsync(
             Expression<Func<T, bool>> predicate,
             IEnumerable<string> includes,
             CancellationToken cancellationToken = default)
         {
-            var query = _dbSet.AsQueryable();
-            query = query.IncludeMultiple(includes);
-            return await query.FirstOrDefaultAsync(predicate, cancellationToken);
+            var query = GetQuery();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    if (!string.IsNullOrWhiteSpace(include))
+                    {
+                        query = query.Include(include);
+                    }
+                }
+            }
+
+            return await Task.FromResult(query.Where(predicate).FirstOrDefault());
         }
 
-        /// <summary>
-        /// Finds the first entity matching a predicate with specified navigation properties
-        /// </summary>
-        /// <param name="predicate">The filter predicate</param>
-        /// <param name="includes">The navigation properties to include as expressions</param>
-        /// <param name="cancellationToken">A token to cancel the operation</param>
-        /// <returns>The first matching entity with included navigation properties, or null if not found</returns>
+        /// <inheritdoc/>
         public virtual async Task<T> FindFirstWithIncludesAsync(
             Expression<Func<T, bool>> predicate,
             IEnumerable<Expression<Func<T, object>>> includes,
             CancellationToken cancellationToken = default)
         {
             var query = _dbSet.AsQueryable();
-            query = query.IncludeMultiple(includes);
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
+            }
+
             return await query.FirstOrDefaultAsync(predicate, cancellationToken);
         }
-
-
     }
 }

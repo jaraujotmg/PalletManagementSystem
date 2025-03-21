@@ -37,19 +37,30 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         /// <inheritdoc/>
         public async Task<ItemListDto> GetItemListByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            return await _dbSet
-                .Where(i => i.Id == id)
-                .ProjectToListDto()
-                .FirstOrDefaultAsync(cancellationToken);
+            var query = GetQuery().Where(i => i.Id == id);
+            var item = query.FirstOrDefault();
+
+            if (item == null)
+                return null;
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return mapper(item);
         }
 
         /// <inheritdoc/>
         public async Task<ItemDetailDto> GetItemDetailByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            return await _dbSet
+            // For complex includes like this, we'll use the EF Core version for now
+            var item = await _dbSet
+                .Include(i => i.Pallet)
                 .Where(i => i.Id == id)
-                .ProjectToDetailDto()
                 .FirstOrDefaultAsync(cancellationToken);
+
+            if (item == null)
+                return null;
+
+            var mapper = ItemMapper.ProjectToDetailDto().Compile();
+            return mapper(item);
         }
 
         /// <inheritdoc/>
@@ -60,10 +71,14 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Item number cannot be null or empty", nameof(itemNumber));
             }
 
-            return await _dbSet
-                .Where(i => i.ItemNumber == itemNumber)
-                .ProjectToListDto()
-                .FirstOrDefaultAsync(cancellationToken);
+            var query = GetQuery().Where(i => i.ItemNumber == itemNumber);
+            var item = query.FirstOrDefault();
+
+            if (item == null)
+                return null;
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return mapper(item);
         }
 
         /// <inheritdoc/>
@@ -74,10 +89,17 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Item number cannot be null or empty", nameof(itemNumber));
             }
 
-            return await _dbSet
+            // For complex includes like this, we'll use the EF Core version for now
+            var item = await _dbSet
+                .Include(i => i.Pallet)
                 .Where(i => i.ItemNumber == itemNumber)
-                .ProjectToDetailDto()
                 .FirstOrDefaultAsync(cancellationToken);
+
+            if (item == null)
+                return null;
+
+            var mapper = ItemMapper.ProjectToDetailDto().Compile();
+            return mapper(item);
         }
 
         /// <inheritdoc/>
@@ -90,10 +112,12 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Invalid pallet ID", nameof(palletId));
             }
 
-            return await _dbSet
+            var items = await _dbSet
                 .Where(i => i.PalletId == palletId)
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return items.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -106,10 +130,12 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Client code cannot be null or empty", nameof(clientCode));
             }
 
-            return await _dbSet
+            var items = await _dbSet
                 .Where(i => i.ClientCode == clientCode)
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return items.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -122,10 +148,12 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Manufacturing order cannot be null or empty", nameof(manufacturingOrder));
             }
 
-            return await _dbSet
+            var items = await _dbSet
                 .Where(i => i.ManufacturingOrder == manufacturingOrder)
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return items.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -161,7 +189,7 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
 
             keyword = keyword.Trim();
 
-            return await _dbSet
+            var items = await _dbSet
                 .Where(i =>
                     i.ItemNumber.Contains(keyword) ||
                     i.ManufacturingOrder.Contains(keyword) ||
@@ -172,8 +200,10 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                     i.Reference.Contains(keyword) ||
                     i.Batch.Contains(keyword)
                 )
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return items.Select(mapper).ToList();
         }
 
         /// <inheritdoc/>
@@ -246,11 +276,13 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             }
 
             var skip = (pageNumber - 1) * pageSize;
-            var items = await query
+            var itemEntities = await query
                 .Skip(skip)
                 .Take(pageSize)
-                .ProjectToListDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            var items = itemEntities.Select(mapper).ToList();
 
             return new PagedResultDto<ItemListDto>
             {
@@ -331,11 +363,14 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             }
 
             var skip = (pageNumber - 1) * pageSize;
-            var items = await query
+            var itemEntities = await query
+                .Include(i => i.Pallet)
                 .Skip(skip)
                 .Take(pageSize)
-                .ProjectToDetailDto()
                 .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToDetailDto().Compile();
+            var items = itemEntities.Select(mapper).ToList();
 
             return new PagedResultDto<ItemDetailDto>
             {

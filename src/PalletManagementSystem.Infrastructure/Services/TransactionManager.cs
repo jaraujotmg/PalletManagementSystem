@@ -2,6 +2,7 @@
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
@@ -124,5 +125,13 @@ namespace PalletManagementSystem.Infrastructure.Services
                 throw;
             }
         }
+
+        protected async Task<IReadOnlyList<T>> GetResultsFromQueryAsync<T>(
+    IQuery<T> query,
+    CancellationToken cancellationToken = default) where T : class
+        {
+            return await Task.FromResult(query.ToList());
+        }
+
     }
 }

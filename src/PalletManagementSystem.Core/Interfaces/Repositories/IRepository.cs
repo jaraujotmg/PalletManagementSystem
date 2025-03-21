@@ -155,6 +155,9 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
         /// Gets a queryable for the entity
         /// </summary>
         /// <returns>A queryable for the entity type</returns>
+        IQuery<T> GetQuery();
+
+        // Keep the previous method for backward compatibility
         IQueryable<T> GetQueryable();
 
         /// <summary>
