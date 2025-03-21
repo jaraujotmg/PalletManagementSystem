@@ -16,9 +16,7 @@ namespace PalletManagementSystem.Core.Specifications
         /// <returns>The specification</returns>
         public static ISpecification<T> ById<T>(int id) where T : class
         {
-            // This is a placeholder - in a real application, you would implement a proper specification
-            // that matches entities by ID based on your entity structure
-            throw new NotImplementedException("Implement this method based on your entity structure");
+            return new ByIdSpecification<T>(id);
         }
 
         /// <summary>
