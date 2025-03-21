@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Extensions;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Mappers;
 using PalletManagementSystem.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,6 +17,21 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
     {
         public ItemRepository(ApplicationDbContext context) : base(context)
         {
+        }
+
+        /// <inheritdoc/>
+        public async Task<Item> GetByIdWithPalletAsync(int id, CancellationToken cancellationToken = default)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("Invalid item ID", nameof(id));
+            }
+
+            // Use the standardized approach with expression-based includes
+            return await GetByIdWithIncludesAsync(id, new Expression<Func<Item, object>>[]
+            {
+                i => i.Pallet
+            }, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -327,19 +344,6 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
-        }
-
-        /// <inheritdoc/>
-        public async Task<Item> GetByIdWithPalletAsync(int id, CancellationToken cancellationToken = default)
-        {
-            if (id <= 0)
-            {
-                throw new ArgumentException("Invalid item ID", nameof(id));
-            }
-
-            return await _dbSet
-                .Include(i => i.Pallet)
-                .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
         }
     }
 }

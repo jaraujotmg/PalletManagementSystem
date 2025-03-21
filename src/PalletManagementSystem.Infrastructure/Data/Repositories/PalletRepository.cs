@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Extensions;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Mappers;
 using PalletManagementSystem.Core.Models;
@@ -7,6 +8,7 @@ using PalletManagementSystem.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,9 +28,11 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 throw new ArgumentException("Invalid pallet ID", nameof(id));
             }
 
-            return await _dbSet
-                .Include(p => p.Items)
-                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            // Use the standardized approach with expression-based includes
+            return await GetByIdWithIncludesAsync(id, new Expression<Func<Pallet, object>>[]
+            {
+                p => p.Items
+            }, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -43,6 +47,7 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         /// <inheritdoc/>
         public async Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default)
         {
+            // No need to change the ProjectToDetailDto method as it already handles the includes
             return await _dbSet
                 .Where(p => p.Id == id)
                 .ProjectToDetailDto()
@@ -301,11 +306,6 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             };
         }
 
-
-        // File: src/PalletManagementSystem.Infrastructure/Data/Repositories/PalletRepository.cs
-
-        // Add these method implementations to the existing class:
-
         /// <inheritdoc/>
         public async Task<IEnumerable<SearchResultDto>> GetPalletSearchResultsAsync(
             string keyword,
@@ -373,6 +373,5 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
 
             return await query.ToListAsync(cancellationToken);
         }
-
     }
 }

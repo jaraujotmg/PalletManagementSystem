@@ -156,5 +156,71 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
         /// </summary>
         /// <returns>A queryable for the entity type</returns>
         IQueryable<T> GetQueryable();
+
+        /// <summary>
+        /// Gets an entity by ID with specified navigation properties
+        /// </summary>
+        /// <param name="id">The entity ID</param>
+        /// <param name="includes">The navigation properties to include</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>The entity with included navigation properties</returns>
+        Task<T> GetByIdWithIncludesAsync(int id, IEnumerable<string> includes, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets an entity by ID with specified navigation properties
+        /// </summary>
+        /// <param name="id">The entity ID</param>
+        /// <param name="includes">The navigation properties to include as expressions</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>The entity with included navigation properties</returns>
+        Task<T> GetByIdWithIncludesAsync(int id, IEnumerable<Expression<Func<T, object>>> includes, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Finds entities matching a predicate with specified navigation properties
+        /// </summary>
+        /// <param name="predicate">The filter predicate</param>
+        /// <param name="includes">The navigation properties to include</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>A read-only list of matching entities with includes</returns>
+        Task<IReadOnlyList<T>> FindWithIncludesAsync(
+            Expression<Func<T, bool>> predicate,
+            IEnumerable<string> includes,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Finds entities matching a predicate with specified navigation properties
+        /// </summary>
+        /// <param name="predicate">The filter predicate</param>
+        /// <param name="includes">The navigation properties to include as expressions</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>A read-only list of matching entities with includes</returns>
+        Task<IReadOnlyList<T>> FindWithIncludesAsync(
+            Expression<Func<T, bool>> predicate,
+            IEnumerable<Expression<Func<T, object>>> includes,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Finds the first entity matching a predicate with specified navigation properties
+        /// </summary>
+        /// <param name="predicate">The filter predicate</param>
+        /// <param name="includes">The navigation properties to include</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>The first matching entity with included navigation properties, or null if not found</returns>
+        Task<T> FindFirstWithIncludesAsync(
+            Expression<Func<T, bool>> predicate,
+            IEnumerable<string> includes,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Finds the first entity matching a predicate with specified navigation properties
+        /// </summary>
+        /// <param name="predicate">The filter predicate</param>
+        /// <param name="includes">The navigation properties to include as expressions</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>The first matching entity with included navigation properties, or null if not found</returns>
+        Task<T> FindFirstWithIncludesAsync(
+            Expression<Func<T, bool>> predicate,
+            IEnumerable<Expression<Func<T, object>>> includes,
+            CancellationToken cancellationToken = default);
     }
 }
