@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -149,5 +150,11 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
         /// <param name="cancellationToken">A token to cancel the operation</param>
         /// <returns>The count of matching entities</returns>
         Task<int> CountAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets a queryable for the entity
+        /// </summary>
+        /// <returns>A queryable for the entity type</returns>
+        IQueryable<T> GetQueryable();
     }
 }

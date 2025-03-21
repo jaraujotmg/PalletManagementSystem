@@ -64,6 +64,8 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             services.AddScoped<IPalletService, PalletService>();
             services.AddScoped<IItemService, ItemService>();
             services.AddScoped<IPlatformValidationService, PlatformValidationService>();
+            services.AddScoped<IPalletNumberGenerator, PalletNumberGenerator>();
+
 
             return services;
         }

@@ -16,8 +16,7 @@ namespace PalletManagementSystem.Core.Extensions
         /// <returns>A queryable of the entities</returns>
         public static IQueryable<T> AsQueryable<T>(this IRepository<T> repository) where T : class
         {
-            var queryableRepo = repository as IQueryableRepository<T>;
-            return queryableRepo?.Queryable ?? throw new System.NotSupportedException("Repository does not support queryable operations");
+            return repository.GetQueryable();
         }
     }
 }

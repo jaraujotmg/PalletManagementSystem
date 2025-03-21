@@ -34,14 +34,6 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0)
-        {
-            return await SearchAsync(keyword, maxResults, CancellationToken.None);
-        }
-
-        /// <summary>
-        /// Performs a general search across all entities
-        /// </summary>
         public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
             if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
@@ -54,7 +46,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                 var results = new List<SearchResultDto>();
 
                 // Search for pallets using projections
-                var palletQuery = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                var palletQuery = _unitOfWork.Repository<Pallet>().GetQueryable()
                     .Where(p =>
                         EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
                         p.ManufacturingOrder.Contains(keyword))
@@ -77,7 +69,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                 // Search for items using projections
                 var remainingResults = maxResults > 0 ? maxResults - results.Count : 0;
 
-                var itemQuery = DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                var itemQuery = _unitOfWork.Repository<Item>().GetQueryable()
                     .Where(i =>
                         i.ItemNumber.Contains(keyword) ||
                         i.ManufacturingOrder.Contains(keyword) ||
@@ -159,16 +151,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5)
-        {
-            return await GetSearchSuggestionsAsync(partialKeyword, maxResults, CancellationToken.None);
-        }
-
-        /// <summary>
-        /// Gets search suggestions as the user types
-        /// </summary>
-        public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(
-            string partialKeyword, int maxResults = 5, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5, CancellationToken cancellationToken = default)
         {
             if (!await ValidateSearchKeywordAsync(partialKeyword, cancellationToken) || partialKeyword.Length < 2)
             {
@@ -180,7 +163,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                 var suggestions = new List<SearchSuggestionDto>();
 
                 // Search for pallets using projections
-                var palletSuggestionsQuery = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                var palletSuggestionsQuery = _unitOfWork.Repository<Pallet>().GetQueryable()
                     .Where(p =>
                         EF.Property<string>(p, "_palletNumberValue").Contains(partialKeyword) ||
                         p.ManufacturingOrder.Contains(partialKeyword))
@@ -201,7 +184,7 @@ namespace PalletManagementSystem.Infrastructure.Services
 
                 if (remainingSuggestions > 0)
                 {
-                    var itemSuggestionsQuery = DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                    var itemSuggestionsQuery = _unitOfWork.Repository<Item>().GetQueryable()
                         .Where(i =>
                             i.ItemNumber.Contains(partialKeyword) ||
                             i.ManufacturingOrder.Contains(partialKeyword) ||
@@ -242,7 +225,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
@@ -252,7 +235,7 @@ namespace PalletManagementSystem.Infrastructure.Services
             try
             {
                 // Build query with projection
-                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                var query = _unitOfWork.Repository<Pallet>().GetQueryable()
                     .Where(p =>
                         EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
                         p.ManufacturingOrder.Contains(keyword))
@@ -264,14 +247,14 @@ namespace PalletManagementSystem.Infrastructure.Services
                     query = query.Take(maxResults);
                 }
 
-                return await query.ToListAsync();
+                return await query.ToListAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error searching pallets for '{keyword}'");
 
                 // Fallback to traditional approach
-                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword);
+                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword, cancellationToken);
 
                 // Apply max results limit if specified
                 return maxResults > 0 && palletDtos.Count > maxResults
@@ -281,7 +264,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
@@ -291,7 +274,7 @@ namespace PalletManagementSystem.Infrastructure.Services
             try
             {
                 // Build query with projection
-                var query = DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                var query = _unitOfWork.Repository<Item>().GetQueryable()
                     .Where(i =>
                         i.ItemNumber.Contains(keyword) ||
                         i.ManufacturingOrder.Contains(keyword) ||
@@ -309,14 +292,14 @@ namespace PalletManagementSystem.Infrastructure.Services
                     query = query.Take(maxResults);
                 }
 
-                return await query.ToListAsync();
+                return await query.ToListAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error searching items for '{keyword}'");
 
                 // Fallback to traditional approach
-                var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword);
+                var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword, cancellationToken);
 
                 // Apply max results limit if specified
                 return maxResults > 0 && itemDtos.Count > maxResults
@@ -326,7 +309,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
@@ -336,7 +319,7 @@ namespace PalletManagementSystem.Infrastructure.Services
             try
             {
                 // Build query with projection
-                var query = DbContextAccessor.CreateQuery<Pallet>(_unitOfWork)
+                var query = _unitOfWork.Repository<Pallet>().GetQueryable()
                     .Where(p => p.ManufacturingOrder.Contains(keyword))
                     .Select(p => p.ManufacturingOrder)
                     .Distinct();
@@ -347,7 +330,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                     query = query.Take(maxResults);
                 }
 
-                return await query.ToListAsync();
+                return await query.ToListAsync(cancellationToken);
             }
             catch (Exception ex)
             {
@@ -355,7 +338,7 @@ namespace PalletManagementSystem.Infrastructure.Services
 
                 // Fallback to traditional approach
                 // Get pallet DTOs and extract manufacturing orders
-                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword);
+                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword, cancellationToken);
                 var manufacturingOrders = palletDtos
                     .Select(p => p.ManufacturingOrder)
                     .Distinct();
@@ -368,7 +351,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0)
+        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
@@ -378,12 +361,12 @@ namespace PalletManagementSystem.Infrastructure.Services
             try
             {
                 // Get the matching clients with counts
-                var matchingItems = await DbContextAccessor.CreateQuery<Item>(_unitOfWork)
+                var matchingItems = await _unitOfWork.Repository<Item>().GetQueryable()
                     .Where(i =>
                         i.ClientCode.Contains(keyword) ||
                         i.ClientName.Contains(keyword))
                     .Select(i => new { i.ClientCode, i.ClientName })
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 // Process in memory
                 var groupedClients = matchingItems
@@ -411,7 +394,7 @@ namespace PalletManagementSystem.Infrastructure.Services
                 _logger.LogError(ex, $"Error searching clients for '{keyword}'");
 
                 // Fallback to traditional approach using the item repository
-                var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword);
+                var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword, cancellationToken);
                 var clients = itemDtos
                     .GroupBy(i => new { i.ClientCode, i.ClientName })
                     .Select(g => new ClientDto
@@ -436,14 +419,6 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
-        public Task<bool> ValidateSearchKeywordAsync(string keyword)
-        {
-            return ValidateSearchKeywordAsync(keyword, CancellationToken.None);
-        }
-
-        /// <summary>
-        /// Validates a search keyword
-        /// </summary>
         public async Task<bool> ValidateSearchKeywordAsync(string keyword, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))

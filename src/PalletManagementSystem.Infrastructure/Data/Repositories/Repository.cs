@@ -14,7 +14,7 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
     /// Generic repository implementation
     /// </summary>
     /// <typeparam name="T">The entity type</typeparam>
-    public class Repository<T> : IRepository<T> where T : class
+    public class Repository<T> : IRepository<T>, IQueryableRepository<T> where T : class
     {
         protected readonly ApplicationDbContext _context;
         protected readonly DbSet<T> _dbSet;
@@ -27,6 +27,17 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _dbSet = context.Set<T>();
+        }
+
+        /// <summary>
+        /// Gets a queryable view of the repository
+        /// </summary>
+        public IQueryable<T> Queryable => _dbSet.AsQueryable();
+
+        /// <inheritdoc/>
+        public virtual IQueryable<T> GetQueryable()
+        {
+            return _dbSet.AsQueryable();
         }
 
         /// <inheritdoc/>

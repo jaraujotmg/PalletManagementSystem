@@ -11,27 +11,74 @@ namespace PalletManagementSystem.Infrastructure.Data.ValueConverters
     public class PalletNumberConverter : ValueConverter<PalletNumber, string>
     {
         public PalletNumberConverter() : base(
-            // Convert to string when saving to database - this is an expression lambda
-            v => $"{v.Value}|{v.IsTemporary}|{v.Division}",
+            // Convert to string when saving to database
+            v => Serialize(v),
 
             // Convert from string when reading from database
-            // Use expression lambda (without curly braces) that calls helper method
-            v => CreatePalletNumberFromString(v))
+            v => Deserialize(v))
         {
         }
 
-        // Helper method to create PalletNumber from string
-        private static PalletNumber CreatePalletNumberFromString(string v)
+        private static string Serialize(PalletNumber palletNumber)
         {
-            var parts = v.Split('|');
-            if (parts.Length != 3)
-                throw new ArgumentException("Invalid PalletNumber format");
+            // Escape any pipe characters in the value
+            string escapedValue = palletNumber.Value.Replace("|", "\\|");
+            return $"{escapedValue}|{palletNumber.IsTemporary}|{palletNumber.Division}";
+        }
 
-            var value = parts[0];
-            var isTemporary = bool.Parse(parts[1]);
-            var division = (Division)Enum.Parse(typeof(Division), parts[2]);
+        private static PalletNumber Deserialize(string value)
+        {
+            try
+            {
+                // Split the string, but handle escaped pipes
+                string[] parts = SplitEscaped(value, '|');
 
-            return new PalletNumber(value, isTemporary, division);
+                if (parts.Length != 3)
+                    throw new ArgumentException("Invalid PalletNumber format");
+
+                // Unescape any escaped pipe characters
+                string palletNumberValue = parts[0].Replace("\\|", "|");
+                bool isTemporary = bool.Parse(parts[1]);
+                Division division = (Division)Enum.Parse(typeof(Division), parts[2]);
+
+                return new PalletNumber(palletNumberValue, isTemporary, division);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Error deserializing PalletNumber: {value}", ex);
+            }
+        }
+
+        private static string[] SplitEscaped(string input, char delimiter)
+        {
+            var result = new System.Collections.Generic.List<string>();
+            var current = new System.Text.StringBuilder();
+            bool escaped = false;
+
+            foreach (char c in input)
+            {
+                if (escaped)
+                {
+                    current.Append(c);
+                    escaped = false;
+                }
+                else if (c == '\\')
+                {
+                    escaped = true;
+                }
+                else if (c == delimiter)
+                {
+                    result.Add(current.ToString());
+                    current.Clear();
+                }
+                else
+                {
+                    current.Append(c);
+                }
+            }
+
+            result.Add(current.ToString());
+            return result.ToArray();
         }
     }
 }

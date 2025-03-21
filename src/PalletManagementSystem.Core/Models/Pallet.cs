@@ -17,37 +17,37 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets the pallet ID
         /// </summary>
-        public int Id { get; private set; }
+        public int Id { get; protected set; }
 
         /// <summary>
         /// Gets the pallet number
         /// </summary>
-        public PalletNumber PalletNumber { get; private set; }
+        public PalletNumber PalletNumber { get; protected set; }
 
         /// <summary>
         /// Gets the manufacturing order associated with this pallet
         /// </summary>
-        public string ManufacturingOrder { get; private set; }
+        public string ManufacturingOrder { get; protected set; }
 
         /// <summary>
         /// Gets the division this pallet belongs to
         /// </summary>
-        public Division Division { get; private set; }
+        public Division Division { get; protected set; }
 
         /// <summary>
         /// Gets the platform this pallet is assigned to
         /// </summary>
-        public Platform Platform { get; private set; }
+        public Platform Platform { get; protected set; }
 
         /// <summary>
         /// Gets the unit of measure for this pallet
         /// </summary>
-        public UnitOfMeasure UnitOfMeasure { get; private set; }
+        public UnitOfMeasure UnitOfMeasure { get; protected set; }
 
         /// <summary>
         /// Gets the total quantity on this pallet
         /// </summary>
-        public decimal Quantity { get; private set; }
+        public decimal Quantity { get; protected set; }
 
         /// <summary>
         /// Gets the number of items on this pallet
@@ -57,22 +57,22 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets a value indicating whether this pallet is closed
         /// </summary>
-        public bool IsClosed { get; private set; }
+        public bool IsClosed { get; protected set; }
 
         /// <summary>
         /// Gets the date and time when this pallet was created
         /// </summary>
-        public DateTime CreatedDate { get; private set; }
+        public DateTime CreatedDate { get; protected set; }
 
         /// <summary>
         /// Gets the date and time when this pallet was closed
         /// </summary>
-        public DateTime? ClosedDate { get; private set; }
+        public DateTime? ClosedDate { get; protected set; }
 
         /// <summary>
         /// Gets the username of the person who created this pallet
         /// </summary>
-        public string CreatedBy { get; private set; }
+        public string CreatedBy { get; protected set; }
 
         /// <summary>
         /// Gets a read-only collection of items on this pallet

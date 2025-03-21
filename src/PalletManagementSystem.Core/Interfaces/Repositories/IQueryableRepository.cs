@@ -6,11 +6,11 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
     /// Interface for repositories that support direct queryable access
     /// </summary>
     /// <typeparam name="T">The entity type</typeparam>
-    public interface IQueryableRepository<T> where T : class
+    public interface IQueryableRepository<T> : IRepository<T> where T : class
     {
         /// <summary>
         /// Gets a queryable view of the repository
         /// </summary>
-        IQueryable<T> Queryable { get; }
+        new IQueryable<T> GetQueryable();
     }
 }

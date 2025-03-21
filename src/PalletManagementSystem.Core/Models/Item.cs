@@ -15,12 +15,12 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets the item ID
         /// </summary>
-        public int Id { get; private set; }
+        public int Id { get; protected set; }
 
         /// <summary>
         /// Gets the unique item number
         /// </summary>
-        public string ItemNumber { get; private set; }
+        public string ItemNumber { get; protected set; }
 
         /// <summary>
         /// Gets or sets the pallet ID this item belongs to
@@ -37,32 +37,32 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets the manufacturing order
         /// </summary>
-        public string ManufacturingOrder { get; private set; }
+        public string ManufacturingOrder { get; protected set; }
 
         /// <summary>
         /// Gets the manufacturing order line
         /// </summary>
-        public string ManufacturingOrderLine { get; private set; }
+        public string ManufacturingOrderLine { get; protected set; }
 
         /// <summary>
         /// Gets the service order
         /// </summary>
-        public string ServiceOrder { get; private set; }
+        public string ServiceOrder { get; protected set; }
 
         /// <summary>
         /// Gets the service order line
         /// </summary>
-        public string ServiceOrderLine { get; private set; }
+        public string ServiceOrderLine { get; protected set; }
 
         /// <summary>
         /// Gets the final order
         /// </summary>
-        public string FinalOrder { get; private set; }
+        public string FinalOrder { get; protected set; }
 
         /// <summary>
         /// Gets the final order line
         /// </summary>
-        public string FinalOrderLine { get; private set; }
+        public string FinalOrderLine { get; protected set; }
 
         #endregion
 
@@ -71,12 +71,12 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets the client code
         /// </summary>
-        public string ClientCode { get; private set; }
+        public string ClientCode { get; protected set; }
 
         /// <summary>
         /// Gets the client name
         /// </summary>
-        public string ClientName { get; private set; }
+        public string ClientName { get; protected set; }
 
         #endregion
 
@@ -85,27 +85,27 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets the reference
         /// </summary>
-        public string Reference { get; private set; }
+        public string Reference { get; protected set; }
 
         /// <summary>
         /// Gets the finish
         /// </summary>
-        public string Finish { get; private set; }
+        public string Finish { get; protected set; }
 
         /// <summary>
         /// Gets the color
         /// </summary>
-        public string Color { get; private set; }
+        public string Color { get; protected set; }
 
         /// <summary>
         /// Gets the quantity
         /// </summary>
-        public decimal Quantity { get; private set; }
+        public decimal Quantity { get; protected set; }
 
         /// <summary>
         /// Gets the quantity unit
         /// </summary>
-        public string QuantityUnit { get; private set; }
+        public string QuantityUnit { get; protected set; }
 
         #endregion
 
@@ -114,44 +114,44 @@ namespace PalletManagementSystem.Core.Models
         /// <summary>
         /// Gets or sets the weight (editable)
         /// </summary>
-        public decimal Weight { get; private set; }
+        public decimal Weight { get; protected set; }
 
         /// <summary>
         /// Gets the weight unit
         /// </summary>
-        public string WeightUnit { get; private set; }
+        public string WeightUnit { get; protected set; }
 
         /// <summary>
         /// Gets or sets the width (editable)
         /// </summary>
-        public decimal Width { get; private set; }
+        public decimal Width { get; protected set; }
 
         /// <summary>
         /// Gets the width unit
         /// </summary>
-        public string WidthUnit { get; private set; }
+        public string WidthUnit { get; protected set; }
 
         /// <summary>
         /// Gets or sets the quality (editable)
         /// </summary>
-        public string Quality { get; private set; }
+        public string Quality { get; protected set; }
 
         /// <summary>
         /// Gets or sets the batch (editable)
         /// </summary>
-        public string Batch { get; private set; }
+        public string Batch { get; protected set; }
 
         #endregion
 
         /// <summary>
         /// Gets the created date
         /// </summary>
-        public DateTime CreatedDate { get; private set; }
+        public DateTime CreatedDate { get; protected set; }
 
         /// <summary>
         /// Gets the created by username
         /// </summary>
-        public string CreatedBy { get; private set; }
+        public string CreatedBy { get; protected set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Item"/> class

@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Core.Models.ValueObjects;
 
@@ -10,7 +11,7 @@ namespace PalletManagementSystem.Core.Services
     /// <summary>
     /// Service for generating pallet numbers
     /// </summary>
-    public class PalletNumberGenerator
+    public class PalletNumberGenerator : IPalletNumberGenerator
     {
         private readonly IPalletRepository _palletRepository;
 
@@ -23,33 +24,21 @@ namespace PalletManagementSystem.Core.Services
             _palletRepository = palletRepository ?? throw new ArgumentNullException(nameof(palletRepository));
         }
 
-        /// <summary>
-        /// Generates a new temporary pallet number
-        /// </summary>
-        /// <param name="division">The division</param>
-        /// <returns>The temporary pallet number</returns>
+        /// <inheritdoc/>
         public async Task<PalletNumber> GenerateTemporaryNumberAsync(Division division)
         {
             int sequenceNumber = await _palletRepository.GetNextTemporarySequenceNumberAsync();
             return PalletNumber.CreateTemporary(sequenceNumber, division);
         }
 
-        /// <summary>
-        /// Generates a new permanent pallet number
-        /// </summary>
-        /// <param name="division">The division</param>
-        /// <returns>The permanent pallet number</returns>
+        /// <inheritdoc/>
         public async Task<PalletNumber> GeneratePermanentNumberAsync(Division division)
         {
             int sequenceNumber = await _palletRepository.GetNextPermanentSequenceNumberAsync(division);
             return PalletNumber.CreatePermanent(sequenceNumber, division);
         }
 
-        /// <summary>
-        /// Checks if a pallet number already exists
-        /// </summary>
-        /// <param name="palletNumber">The pallet number to check</param>
-        /// <returns>True if the pallet number exists, false otherwise</returns>
+        /// <inheritdoc/>
         public async Task<bool> PalletNumberExistsAsync(string palletNumber)
         {
             return await _palletRepository.ExistsAsync(p => p.PalletNumber.Value == palletNumber);
