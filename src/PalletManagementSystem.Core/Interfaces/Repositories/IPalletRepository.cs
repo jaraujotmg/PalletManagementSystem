@@ -142,5 +142,31 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
             bool orderByCreatedDate = false,
             bool descending = false,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets search results DTOs for pallets matching the keyword in pallet number or manufacturing order
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <param name="maxResults">Maximum number of results to return (0 for unlimited)</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>A collection of search result DTOs</returns>
+        Task<IEnumerable<SearchResultDto>> GetPalletSearchResultsAsync(
+            string keyword,
+            int maxResults = 0,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets search suggestion DTOs for pallets matching the keyword in pallet number or manufacturing order
+        /// </summary>
+        /// <param name="keyword">The search keyword</param>
+        /// <param name="maxResults">Maximum number of suggestions to return</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>A collection of search suggestion DTOs</returns>
+        Task<IEnumerable<SearchSuggestionDto>> GetPalletSearchSuggestionsAsync(
+            string keyword,
+            int maxResults = 0,
+            CancellationToken cancellationToken = default);
     }
+
+
 }

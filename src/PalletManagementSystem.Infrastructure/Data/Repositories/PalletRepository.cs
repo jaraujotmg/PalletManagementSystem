@@ -300,5 +300,79 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
                 PageSize = pageSize
             };
         }
+
+
+        // File: src/PalletManagementSystem.Infrastructure/Data/Repositories/PalletRepository.cs
+
+        // Add these method implementations to the existing class:
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<SearchResultDto>> GetPalletSearchResultsAsync(
+            string keyword,
+            int maxResults = 0,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Enumerable.Empty<SearchResultDto>();
+            }
+
+            // Build query with direct field access for EF Core compatibility
+            var query = _dbSet.AsQueryable()
+                .Where(p =>
+                    EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword))
+                .Select(p => new SearchResultDto
+                {
+                    Id = p.Id,
+                    EntityType = "Pallet",
+                    Identifier = EF.Property<string>(p, "_palletNumberValue"),
+                    AdditionalInfo = $"MO: {p.ManufacturingOrder}",
+                    ViewUrl = $"/Pallets/Details/{p.Id}"
+                });
+
+            // Apply max results limit if specified
+            if (maxResults > 0)
+            {
+                query = query.Take(maxResults);
+            }
+
+            return await query.ToListAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<SearchSuggestionDto>> GetPalletSearchSuggestionsAsync(
+            string keyword,
+            int maxResults = 0,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Enumerable.Empty<SearchSuggestionDto>();
+            }
+
+            // Build query with direct field access for EF Core compatibility
+            var query = _dbSet.AsQueryable()
+                .Where(p =>
+                    EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword))
+                .Select(p => new SearchSuggestionDto
+                {
+                    Text = EF.Property<string>(p, "_palletNumberValue"),
+                    Type = "Pallet",
+                    Url = $"/Pallets/Details/{p.Id}",
+                    EntityId = p.Id,
+                    IsViewAll = false
+                });
+
+            // Apply max results limit if specified
+            if (maxResults > 0)
+            {
+                query = query.Take(maxResults);
+            }
+
+            return await query.ToListAsync(cancellationToken);
+        }
+
     }
 }

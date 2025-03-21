@@ -45,26 +45,13 @@ namespace PalletManagementSystem.Infrastructure.Services
             {
                 var results = new List<SearchResultDto>();
 
-                // Search for pallets using projections
-                var palletQuery = _unitOfWork.Repository<Pallet>().GetQueryable()
-                    .Where(p =>
-                        EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
-                        p.ManufacturingOrder.Contains(keyword))
-                    .Select(p => new SearchResultDto
-                    {
-                        Id = p.Id,
-                        EntityType = "Pallet",
-                        Identifier = EF.Property<string>(p, "_palletNumberValue"),
-                        AdditionalInfo = $"MO: {p.ManufacturingOrder}",
-                        ViewUrl = $"/Pallets/Details/{p.Id}"
-                    });
+                // Use the new repository method instead of direct field access
+                var palletResults = await _unitOfWork.PalletRepository.GetPalletSearchResultsAsync(
+                    keyword,
+                    maxResults > 0 ? maxResults / 2 : 0,
+                    cancellationToken);
 
-                if (maxResults > 0)
-                {
-                    palletQuery = palletQuery.Take(maxResults / 2); // Take half of the max results for pallets
-                }
-
-                results.AddRange(await palletQuery.ToListAsync(cancellationToken));
+                results.AddRange(palletResults);
 
                 // Search for items using projections
                 var remainingResults = maxResults > 0 ? maxResults - results.Count : 0;
@@ -162,22 +149,14 @@ namespace PalletManagementSystem.Infrastructure.Services
             {
                 var suggestions = new List<SearchSuggestionDto>();
 
-                // Search for pallets using projections
-                var palletSuggestionsQuery = _unitOfWork.Repository<Pallet>().GetQueryable()
-                    .Where(p =>
-                        EF.Property<string>(p, "_palletNumberValue").Contains(partialKeyword) ||
-                        p.ManufacturingOrder.Contains(partialKeyword))
-                    .Select(p => new SearchSuggestionDto
-                    {
-                        Text = EF.Property<string>(p, "_palletNumberValue"),
-                        Type = "Pallet",
-                        Url = $"/Pallets/Details/{p.Id}",
-                        EntityId = p.Id,
-                        IsViewAll = false
-                    });
-
+                // Use the new repository method instead of direct field access
                 int palletsToInclude = maxResults > 0 ? Math.Min(maxResults / 2, 5) : 5;
-                suggestions.AddRange(await palletSuggestionsQuery.Take(palletsToInclude).ToListAsync(cancellationToken));
+                var palletSuggestions = await _unitOfWork.PalletRepository.GetPalletSearchSuggestionsAsync(
+                    partialKeyword,
+                    palletsToInclude,
+                    cancellationToken);
+
+                suggestions.AddRange(palletSuggestions);
 
                 // Search for items using projections
                 var remainingSuggestions = maxResults > 0 ? maxResults - suggestions.Count : 5;
@@ -225,6 +204,7 @@ namespace PalletManagementSystem.Infrastructure.Services
         }
 
         /// <inheritdoc/>
+        /// <inheritdoc/>
         public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(keyword))
@@ -234,32 +214,19 @@ namespace PalletManagementSystem.Infrastructure.Services
 
             try
             {
-                // Build query with projection
-                var query = _unitOfWork.Repository<Pallet>().GetQueryable()
-                    .Where(p =>
-                        EF.Property<string>(p, "_palletNumberValue").Contains(keyword) ||
-                        p.ManufacturingOrder.Contains(keyword))
-                    .ProjectToDto();
+                // Use existing repository method that handles the same search criteria
+                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword, cancellationToken);
+
+                // Convert PalletListDto to PalletDto using the ToDto extension method
+                var palletDtoCollection = palletDtos.ToDto();
 
                 // Apply max results limit if specified
-                if (maxResults > 0)
-                {
-                    query = query.Take(maxResults);
-                }
-
-                return await query.ToListAsync(cancellationToken);
+                return maxResults > 0 ? palletDtoCollection.Take(maxResults) : palletDtoCollection;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error searching pallets for '{keyword}'");
-
-                // Fallback to traditional approach
-                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword, cancellationToken);
-
-                // Apply max results limit if specified
-                return maxResults > 0 && palletDtos.Count > maxResults
-                    ? palletDtos.ToDto().Take(maxResults)
-                    : palletDtos.ToDto();
+                throw;
             }
         }
 
