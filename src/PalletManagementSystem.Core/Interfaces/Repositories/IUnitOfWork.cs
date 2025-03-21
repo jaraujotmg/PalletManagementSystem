@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,6 +40,14 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
         /// <param name="cancellationToken">A token to cancel the operation</param>
         /// <returns>A task representing the asynchronous operation</returns>
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Begins a transaction with specified isolation level
+        /// </summary>
+        /// <param name="isolationLevel">The isolation level</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <returns>A task representing the asynchronous operation</returns>
+        Task BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Commits the transaction

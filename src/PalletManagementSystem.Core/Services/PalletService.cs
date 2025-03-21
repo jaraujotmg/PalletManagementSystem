@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,7 +40,6 @@ namespace PalletManagementSystem.Core.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-       
         public async Task<PalletListDto> GetPalletByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _palletRepository.GetPalletListByIdAsync(id, cancellationToken);
@@ -89,7 +89,8 @@ namespace PalletManagementSystem.Core.Services
             string username,
             CancellationToken cancellationToken = default)
         {
-            return await _transactionManager.ExecuteInTransactionAsync(async (token) =>
+            // Use isolation level ReadCommitted for pallet creation
+            return await _transactionManager.ExecuteInTransactionWithIsolationAsync(async (token) =>
             {
                 bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
                 if (!isValid)
@@ -112,7 +113,7 @@ namespace PalletManagementSystem.Core.Services
 
                 // Return the created pallet
                 return await _palletRepository.GetPalletListByIdAsync(pallet.Id, token);
-            }, cancellationToken);
+            }, cancellationToken, IsolationLevel.ReadCommitted);
         }
 
         public async Task<PalletDetailDto> ClosePalletAsync(
@@ -120,7 +121,8 @@ namespace PalletManagementSystem.Core.Services
             bool autoPrint = true,
             CancellationToken cancellationToken = default)
         {
-            return await _transactionManager.ExecuteInTransactionAsync(async (token) =>
+            // Use serializable isolation level for closing pallets to prevent conflicts
+            return await _transactionManager.ExecuteInTransactionWithIsolationAsync(async (token) =>
             {
                 var pallet = await _unitOfWork.PalletRepository.GetByIdWithItemsAsync(palletId, token);
                 if (pallet == null)
@@ -161,7 +163,7 @@ namespace PalletManagementSystem.Core.Services
                 }
 
                 return updatedPallet;
-            }, cancellationToken);
+            }, cancellationToken, IsolationLevel.Serializable);
         }
 
         public async Task<IEnumerable<PalletListDto>> SearchPalletsAsync(string keyword, CancellationToken cancellationToken = default)

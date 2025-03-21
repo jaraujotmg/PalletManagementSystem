@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -102,6 +103,29 @@ namespace PalletManagementSystem.Infrastructure.Data
         }
 
         /// <inheritdoc/>
+        public async Task BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
+        {
+            // Ensure we don't already have an active transaction
+            if (_transaction != null)
+            {
+                throw new InvalidOperationException("A transaction is already in progress");
+            }
+
+            try
+            {
+                // For .NET Standard 2.0 and EF Core 2.x, we need to use the synchronous method 
+                // and wrap it in a Task.Run to make it async
+                _transaction = await Task.Run(() => _context.Database.BeginTransaction(isolationLevel), cancellationToken);
+                _logger.LogInformation("Database transaction begun with isolation level {IsolationLevel}", isolationLevel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error beginning database transaction with isolation level {IsolationLevel}", isolationLevel);
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
         public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
         {
             if (_transaction == null)
@@ -112,7 +136,7 @@ namespace PalletManagementSystem.Infrastructure.Data
             try
             {
                 await _context.SaveChangesAsync(cancellationToken);
-                _transaction.Commit(); // Changed from CommitAsync to Commit
+                _transaction.Commit(); // Using Commit instead of CommitAsync for EF Core 2.x
                 _logger.LogInformation("Database transaction committed");
             }
             catch (Exception ex)
@@ -138,7 +162,7 @@ namespace PalletManagementSystem.Infrastructure.Data
 
             try
             {
-                _transaction.Rollback(); // Changed from RollbackAsync to Rollback
+                _transaction.Rollback(); // Using Rollback instead of RollbackAsync for EF Core 2.x
                 _logger.LogInformation("Database transaction rolled back");
             }
             catch (Exception ex)

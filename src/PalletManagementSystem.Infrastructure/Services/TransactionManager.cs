@@ -2,6 +2,7 @@
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using System;
+using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -67,6 +68,58 @@ namespace PalletManagementSystem.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error executing transaction");
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<TResult> ExecuteInTransactionWithIsolationAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> action,
+            CancellationToken cancellationToken = default,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
+        {
+            try
+            {
+                await _unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
+                _logger.LogDebug("Transaction started with isolation level {IsolationLevel}", isolationLevel);
+
+                var result = await action(cancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                _logger.LogDebug("Transaction committed successfully");
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing transaction. Rolling back...");
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task ExecuteInTransactionWithIsolationAsync(
+            Func<CancellationToken, Task> action,
+            CancellationToken cancellationToken = default,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
+        {
+            try
+            {
+                await _unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
+                _logger.LogDebug("Transaction started with isolation level {IsolationLevel}", isolationLevel);
+
+                await action(cancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                _logger.LogDebug("Transaction committed successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing transaction. Rolling back...");
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw;
             }

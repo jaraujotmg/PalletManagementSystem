@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -91,7 +92,7 @@ namespace PalletManagementSystem.Core.Services
 
         public async Task<ItemDto> CreateItemAsync(ItemDto itemDto, int palletId, string username, CancellationToken cancellationToken = default)
         {
-            return await _transactionManager.ExecuteInTransactionAsync(async (token) =>
+            return await _transactionManager.ExecuteInTransactionWithIsolationAsync(async (token) =>
             {
                 var pallet = await _unitOfWork.PalletRepository.GetByIdAsync(palletId, token);
                 if (pallet == null)
@@ -140,12 +141,12 @@ namespace PalletManagementSystem.Core.Services
 
                 // Return the DTO
                 return itemDto;
-            }, cancellationToken);
+            }, cancellationToken, IsolationLevel.ReadCommitted);
         }
 
         public async Task<ItemDetailDto> UpdateItemAsync(int itemId, UpdateItemDto updateDto, CancellationToken cancellationToken = default)
         {
-            return await _transactionManager.ExecuteInTransactionAsync(async (token) =>
+            return await _transactionManager.ExecuteInTransactionWithIsolationAsync(async (token) =>
             {
                 var item = await _unitOfWork.ItemRepository.GetByIdWithPalletAsync(itemId, token);
                 if (item == null)
@@ -163,12 +164,13 @@ namespace PalletManagementSystem.Core.Services
 
                 // Return the updated item
                 return await _itemRepository.GetItemDetailByIdAsync(itemId, token);
-            }, cancellationToken);
+            }, cancellationToken, IsolationLevel.ReadCommitted);
         }
 
         public async Task<ItemDetailDto> MoveItemToPalletAsync(int itemId, int targetPalletId, CancellationToken cancellationToken = default)
         {
-            return await _transactionManager.ExecuteInTransactionAsync(async (token) =>
+            // Use serializable isolation level for moving items to prevent conflicts
+            return await _transactionManager.ExecuteInTransactionWithIsolationAsync(async (token) =>
             {
                 bool canMove = await CanMoveItemToPalletAsync(itemId, targetPalletId, token);
                 if (!canMove)
@@ -185,7 +187,7 @@ namespace PalletManagementSystem.Core.Services
 
                 // Return the updated item
                 return await _itemRepository.GetItemDetailByIdAsync(itemId, token);
-            }, cancellationToken);
+            }, cancellationToken, IsolationLevel.Serializable);
         }
 
         public async Task<bool> CanMoveItemToPalletAsync(int itemId, int targetPalletId, CancellationToken cancellationToken = default)
