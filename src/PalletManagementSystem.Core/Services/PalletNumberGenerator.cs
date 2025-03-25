@@ -44,13 +44,19 @@ namespace PalletManagementSystem.Core.Services
             return await _palletRepository.ExistsAsync(p => p.PalletNumber.Value == palletNumber);
         }
 
+        /// <inheritdoc/>
+        public bool ValidatePalletNumberFormat(string palletNumber, Division division)
+        {
+            return ValidatePalletNumberFormatInternal(palletNumber, division);
+        }
+
         /// <summary>
-        /// Validates a pallet number format
+        /// Internal static method for validating pallet number format
         /// </summary>
         /// <param name="palletNumber">The pallet number to validate</param>
         /// <param name="division">The division</param>
         /// <returns>True if the format is valid, false otherwise</returns>
-        public static bool ValidatePalletNumberFormat(string palletNumber, Division division)
+        private static bool ValidatePalletNumberFormatInternal(string palletNumber, Division division)
         {
             if (string.IsNullOrWhiteSpace(palletNumber))
                 return false;

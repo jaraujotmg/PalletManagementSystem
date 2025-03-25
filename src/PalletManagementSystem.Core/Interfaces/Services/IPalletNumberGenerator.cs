@@ -36,6 +36,6 @@ namespace PalletManagementSystem.Core.Interfaces.Services
         /// <param name="palletNumber">The pallet number to validate</param>
         /// <param name="division">The division</param>
         /// <returns>True if the format is valid, false otherwise</returns>
-        static bool ValidatePalletNumberFormat(string palletNumber, Division division) => throw new System.NotImplementedException();
+        bool ValidatePalletNumberFormat(string palletNumber, Division division);
     }
 }

@@ -1,7 +1,8 @@
-﻿using System.Web.Mvc;
+﻿// src/PalletManagementSystem.Web/App_Start/RouteConfig.cs
+using System.Web.Mvc;
 using System.Web.Routing;
 
-namespace PalletManagementSystem.Web
+namespace PalletManagementSystem.Web.App_Start
 {
     public class RouteConfig
     {
@@ -9,36 +10,10 @@ namespace PalletManagementSystem.Web
         {
             routes.IgnoreRoute("{resource}.axd/{*pathInfo}");
 
-            // Default route
             routes.MapRoute(
                 name: "Default",
                 url: "{controller}/{action}/{id}",
-                defaults: new { controller = "Home", action = "Index", id = UrlParameter.Optional },
-                namespaces: new[] { "PalletManagementSystem.Web.Controllers" }
-            );
-
-            // Pallets route
-            routes.MapRoute(
-                name: "Pallets",
-                url: "Pallets/{action}/{id}",
-                defaults: new { controller = "Pallets", action = "Index", id = UrlParameter.Optional },
-                namespaces: new[] { "PalletManagementSystem.Web.Controllers" }
-            );
-
-            // Items route
-            routes.MapRoute(
-                name: "Items",
-                url: "Items/{action}/{id}",
-                defaults: new { controller = "Items", action = "Index", id = UrlParameter.Optional },
-                namespaces: new[] { "PalletManagementSystem.Web.Controllers" }
-            );
-
-            // Search route
-            routes.MapRoute(
-                name: "Search",
-                url: "Search/{action}",
-                defaults: new { controller = "Search", action = "Index" },
-                namespaces: new[] { "PalletManagementSystem.Web.Controllers" }
+                defaults: new { controller = "Home", action = "Index", id = UrlParameter.Optional }
             );
         }
     }
