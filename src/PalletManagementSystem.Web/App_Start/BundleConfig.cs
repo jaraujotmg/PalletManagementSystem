@@ -1,53 +1,38 @@
-﻿using System.Web.Optimization;
+﻿// src/PalletManagementSystem.Web/App_Start/BundleConfig.cs
+using System.Web.Optimization;
 
-namespace PalletManagementSystem.Web
+namespace PalletManagementSystem.Web.App_Start
 {
     public class BundleConfig
     {
-        public static void RegisterBundles(BundleCollection bundles)
+        public static void RegisterBundles(BundleTable bundles)
         {
-            // Disable optimization in debug mode
-            BundleTable.EnableOptimizations = false;
+            // Bootstrap bundles
+            bundles.Add(new StyleBundle("~/Content/bootstrap").Include(
+                      "~/Content/bootstrap.min.css"));
 
-            // jQuery bundle
-            bundles.Add(new ScriptBundle("~/bundles/jquery").Include(
-                "~/Scripts/jquery-{version}.js",
-                "~/Scripts/jquery.validate.js",
-                "~/Scripts/jquery.validate.unobtrusive.js"
-            ));
+            bundles.Add(new StyleBundle("~/Content/fontawesome").Include(
+                      "~/Content/all.min.css"));
 
-            // Bootstrap bundle
-            bundles.Add(new ScriptBundle("~/bundles/bootstrap").Include(
-                "~/Scripts/popper.js",
-                "~/Scripts/bootstrap.js"
-            ));
-
-            // Modernizr bundle for feature detection
-            bundles.Add(new ScriptBundle("~/bundles/modernizr").Include(
-                "~/Scripts/modernizr-*"
-            ));
-
-            // Custom application scripts
-            bundles.Add(new ScriptBundle("~/bundles/app").Include(
-                "~/Scripts/app/core.js",
-                "~/Scripts/app/pallet.js",
-                "~/Scripts/app/search.js",
-                "~/Scripts/app/validation.js"
-            ));
-
-            // CSS bundles
             bundles.Add(new StyleBundle("~/Content/css").Include(
-                "~/Content/bootstrap.css",
-                "~/Content/font-awesome.css",
-                "~/Content/pallet.css",
-                "~/Content/site.css"
-            ));
+                      "~/Content/site.css"));
 
-            // IE11 specific polyfills and compatibility fixes
-            bundles.Add(new ScriptBundle("~/bundles/ie11compat").Include(
-                "~/Scripts/ie11/polyfill.js",
-                "~/Scripts/ie11/ie11-custom-properties.js"
-            ));
+            bundles.Add(new ScriptBundle("~/bundles/jquery").Include(
+                      "~/Scripts/jquery-{version}.min.js"));
+
+            bundles.Add(new ScriptBundle("~/bundles/bootstrap").Include(
+                      "~/Scripts/bootstrap.min.js",
+                      "~/Scripts/popper.min.js"));
+
+            bundles.Add(new ScriptBundle("~/bundles/jqueryval").Include(
+                      "~/Scripts/jquery.validate.min.js",
+                      "~/Scripts/jquery.validate.unobtrusive.min.js"));
+
+            bundles.Add(new ScriptBundle("~/bundles/site").Include(
+                      "~/Scripts/site.js"));
+
+            // IE compatibility settings
+            BundleTable.EnableOptimizations = true;
         }
     }
 }

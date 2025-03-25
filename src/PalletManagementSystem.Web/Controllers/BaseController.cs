@@ -1,99 +1,52 @@
-﻿using System.Web.Mvc;
+﻿// src/PalletManagementSystem.Web/Controllers/BaseController.cs
+using System;
+using System.Web.Mvc;
+using PalletManagementSystem.Core.Models.Enums;
+using PalletManagementSystem.Web.Models;
+using PalletManagementSystem.Web.Services;
 
 namespace PalletManagementSystem.Web.Controllers
 {
-    /// <summary>
-    /// Base controller providing common functionality for all controllers
-    /// </summary>
     public abstract class BaseController : Controller
     {
-        /// <summary>
-        /// Sets a success message to be displayed to the user via TempData
-        /// </summary>
-        /// <param name="message">The success message</param>
-        protected void SetSuccessMessage(string message)
+        protected readonly IUserContextAdapter _userContext;
+        protected readonly ISessionManager _sessionManager;
+
+        protected BaseController(IUserContextAdapter userContext, ISessionManager sessionManager)
         {
-            TempData["SuccessMessage"] = message;
+            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+            _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         }
 
-        /// <summary>
-        /// Sets an error message to be displayed to the user via TempData
-        /// </summary>
-        /// <param name="message">The error message</param>
-        protected void SetErrorMessage(string message)
+        protected void PopulateBaseViewModel(ViewModelBase viewModel)
         {
-            TempData["ErrorMessage"] = message;
+            viewModel.Username = _userContext.GetUsername();
+            viewModel.DisplayName = _userContext.GetDisplayName();
+            viewModel.CanEdit = _userContext.CanEditPallets();
+            viewModel.CurrentDivision = _sessionManager.GetCurrentDivision();
+            viewModel.CurrentPlatform = _sessionManager.GetCurrentPlatform();
+            viewModel.TouchModeEnabled = _sessionManager.IsTouchModeEnabled();
         }
 
-        /// <summary>
-        /// Sets an information message to be displayed to the user via TempData
-        /// </summary>
-        /// <param name="message">The information message</param>
-        protected void SetInfoMessage(string message)
+        [HttpPost]
+        public ActionResult SwitchDivision(Division division)
         {
-            TempData["InfoMessage"] = message;
+            _sessionManager.SetCurrentDivision(division);
+            return RedirectToAction("Index", "Home");
         }
 
-        /// <summary>
-        /// Sets a warning message to be displayed to the user via TempData
-        /// </summary>
-        /// <param name="message">The warning message</param>
-        protected void SetWarningMessage(string message)
+        [HttpPost]
+        public ActionResult SwitchPlatform(Platform platform)
         {
-            TempData["WarningMessage"] = message;
+            _sessionManager.SetCurrentPlatform(platform);
+            return RedirectToAction("Index", "Home");
         }
 
-        /// <summary>
-        /// Prepares common view data for all views
-        /// </summary>
-        protected override void OnActionExecuting(ActionExecutingContext filterContext)
+        [HttpPost]
+        public ActionResult ToggleTouchMode(bool enabled)
         {
-            base.OnActionExecuting(filterContext);
-
-            // Set common ViewBag properties
-            ViewBag.Username = User?.Identity?.Name ?? "Unknown User";
-
-            // Get division and platform from session
-            ViewBag.Division = Session["CurrentDivision"] ?? "MA";
-            ViewBag.Platform = Session["CurrentPlatform"] ?? "TEC1";
-
-            // Get touch mode status
-            ViewBag.TouchModeEnabled = Session["TouchModeEnabled"] != null && (bool)Session["TouchModeEnabled"];
-        }
-
-        /// <summary>
-        /// Global error handling for controllers
-        /// </summary>
-        protected override void OnException(ExceptionContext filterContext)
-        {
-            if (filterContext.ExceptionHandled)
-            {
-                return;
-            }
-
-            // Log the exception - in a real implementation this would use a proper logger
-            System.Diagnostics.Debug.WriteLine($"Exception: {filterContext.Exception.Message}");
-            System.Diagnostics.Debug.WriteLine($"Stack Trace: {filterContext.Exception.StackTrace}");
-
-            // Set error message
-            SetErrorMessage("An error occurred. Please try again or contact support if the problem persists.");
-
-            // Return JSON response for AJAX requests
-            if (filterContext.HttpContext.Request.IsAjaxRequest())
-            {
-                filterContext.Result = new JsonResult
-                {
-                    Data = new { success = false, message = "An error occurred while processing your request." },
-                    JsonRequestBehavior = JsonRequestBehavior.AllowGet
-                };
-            }
-            else
-            {
-                // Redirect to Error page
-                filterContext.Result = new RedirectResult("~/Home/Error");
-            }
-
-            filterContext.ExceptionHandled = true;
+            _sessionManager.SetTouchModeEnabled(enabled);
+            return RedirectToAction(Request.UrlReferrer.ToString());
         }
     }
 }
