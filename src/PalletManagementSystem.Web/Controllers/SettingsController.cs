@@ -1,350 +1,326 @@
-using Microsoft.Extensions.Logging;
+// src/PalletManagementSystem.Web/Controllers/SettingsController.cs
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Web.Mvc;
+using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Extensions;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Infrastructure.Identity;
-using PalletManagementSystem.Web.ViewModels;
-using System;
-using System.Threading.Tasks;
-using System.Web.Mvc;
+using PalletManagementSystem.Web.ViewModels.Settings;
 
 namespace PalletManagementSystem.Web.Controllers
 {
-    /// <summary>
-    /// Controller for user settings
-    /// </summary>
     [Authorize]
     public class SettingsController : BaseController
     {
         private readonly IUserPreferenceService _userPreferenceService;
         private readonly IPrinterService _printerService;
-        private readonly UserContext _userContext;
-        private readonly ILogger<SettingsController> _logger;
+        private readonly IPlatformValidationService _platformValidationService;
 
-        /// <summary>
-        /// Initializes a new instance of SettingsController
-        /// </summary>
         public SettingsController(
+            IUserContext userContext,
             IUserPreferenceService userPreferenceService,
             IPrinterService printerService,
-            UserContext userContext,
-            ILogger<SettingsController> logger)
+            IPlatformValidationService platformValidationService)
+            : base(userContext)
         {
             _userPreferenceService = userPreferenceService ?? throw new ArgumentNullException(nameof(userPreferenceService));
             _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
-            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _platformValidationService = platformValidationService ?? throw new ArgumentNullException(nameof(platformValidationService));
         }
 
-        /// <summary>
-        /// GET: Settings
-        /// Displays the user settings page
-        /// </summary>
+        // GET: Settings
         public async Task<ActionResult> Index()
         {
             try
             {
-                // Get user and preferences
-                var username = _userContext.GetUsername();
-                var preferences = await _userPreferenceService.GetAllPreferencesAsync(username);
+                // Get user preferences
+                var preferences = await _userPreferenceService.GetAllPreferencesAsync(Username);
 
-                // Create the settings view model
-                var viewModel = new SettingsViewModel(
-                    username,
-                    _userContext.GetDivision(),
-                    _userContext.GetPlatform())
+                // Get platform options based on selected division
+                Division division = Enum.Parse<Division>(preferences.PreferredDivision);
+                var platformOptions = await _platformValidationService.GetPlatformsForDivisionAsync(division);
+
+                // Create the view model
+                var viewModel = new UserPreferencesViewModel
                 {
-                    // Display settings
+                    PreferredDivision = Enum.Parse<Division>(preferences.PreferredDivision),
+                    PreferredPlatform = Enum.Parse<Platform>(preferences.PreferredPlatform),
                     ItemsPerPage = preferences.ItemsPerPage,
-                    DefaultView = preferences.DefaultView,
-                    ShowConfirmationPrompts = preferences.ShowConfirmationPrompts,
-                    AutoRefreshPalletList = preferences.AutoRefreshPalletList,
-                    RefreshInterval = preferences.RefreshInterval,
-
-                    // Touch mode settings
+                    DefaultPalletView = preferences.DefaultPalletView,
                     TouchModeEnabled = preferences.TouchModeEnabled,
-                    ShowTouchKeyboard = preferences.ShowTouchKeyboard,
-                    UseLargeButtons = preferences.UseLargeButtons,
-                    ButtonSize = preferences.ButtonSize,
-
-                    // Printer settings
+                    TouchKeyboardEnabled = true, // Default value
+                    LargeButtonsEnabled = true, // Default value
+                    ButtonSize = "large", // Default value
+                    ShowConfirmationPrompts = preferences.ShowConfirmationPrompts,
                     DefaultPalletListPrinter = preferences.DefaultPalletListPrinter,
                     DefaultItemLabelPrinter = preferences.DefaultItemLabelPrinter,
                     AutoPrintPalletList = preferences.AutoPrintPalletList,
-                    UseSpecialClientSettings = preferences.UseSpecialClientSettings,
+                    UseSpecialPrinterForSpecialClients = preferences.UseSpecialPrinterForSpecialClients,
+                    SessionTimeoutMinutes = preferences.SessionTimeoutMinutes,
+                    RememberDivisionAndPlatform = preferences.RememberDivisionAndPlatform,
+                    AutoRefreshPalletList = preferences.AutoRefreshPalletList,
+                    AutoRefreshIntervalSeconds = preferences.AutoRefreshIntervalSeconds,
+                    ShowBrowserNotifications = preferences.ShowBrowserNotifications,
 
-                    // Session settings
-                    SessionTimeout = preferences.SessionTimeout,
-                    ShowNotifications = preferences.ShowNotifications,
-                    RememberDivisionPlatform = preferences.RememberDivisionPlatform
+                    // Additional info for display
+                    ApplicationVersion = "v2.5.1",
+                    DatabaseVersion = "v2.5.0",
+                    LastUpdateDate = "01/02/2025",
+                    ServerName = Environment.MachineName,
+                    AllServicesOperational = true,
+
+                    // Common ViewModel properties
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = preferences.TouchModeEnabled
                 };
+
+                // Populate dropdown options
+                viewModel.DivisionOptions = GetDivisionOptions(viewModel.PreferredDivision);
+                viewModel.PlatformOptions = GetPlatformOptions(platformOptions, viewModel.PreferredPlatform);
+                viewModel.DefaultViewOptions = GetDefaultViewOptions(viewModel.DefaultPalletView);
+                viewModel.ButtonSizeOptions = GetButtonSizeOptions(viewModel.ButtonSize);
+                viewModel.SessionTimeoutOptions = GetSessionTimeoutOptions(viewModel.SessionTimeoutMinutes);
+                viewModel.RefreshIntervalOptions = GetRefreshIntervalOptions(viewModel.AutoRefreshIntervalSeconds);
+
+                // Get printer options
+                var palletListPrinters = await _printerService.GetAvailablePrintersAsync(PrinterType.PalletList);
+                viewModel.PalletListPrinterOptions = palletListPrinters
+                    .Select(p => new SelectListItem { Text = p, Value = p, Selected = p == viewModel.DefaultPalletListPrinter })
+                    .ToList();
+
+                var itemLabelPrinters = await _printerService.GetAvailablePrintersAsync(PrinterType.ItemLabel);
+                viewModel.ItemLabelPrinterOptions = itemLabelPrinters
+                    .Select(p => new SelectListItem { Text = p, Value = p, Selected = p == viewModel.DefaultItemLabelPrinter })
+                    .ToList();
 
                 return View(viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading user settings");
-                SetErrorMessage("An error occurred while loading your settings. Please try again.");
-                return View(new SettingsViewModel());
+                ModelState.AddModelError("", $"Error retrieving settings: {ex.Message}");
+
+                var fallbackViewModel = new UserPreferencesViewModel
+                {
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username)
+                };
+
+                return View(fallbackViewModel);
             }
         }
 
-        /// <summary>
-        /// POST: Settings
-        /// Saves user settings
-        /// </summary>
+        // POST: Settings/Save
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Index(SettingsViewModel model)
+        public async Task<ActionResult> Save(UserPreferencesViewModel viewModel)
         {
             try
             {
-                if (ModelState.IsValid)
-                {
-                    // Get username
-                    var username = _userContext.GetUsername();
-                    model.Username = username;
+                // Update common ViewModel properties
+                viewModel.Username = Username;
+                viewModel.DisplayName = await GetDisplayName();
+                viewModel.CurrentDivision = UserContext.GetDivision();
+                viewModel.CurrentPlatform = UserContext.GetPlatform();
+                viewModel.TouchModeEnabled = viewModel.TouchModeEnabled; // Use the new setting
 
-                    // Parse and validate division and platform
-                    if (Enum.TryParse(model.PreferredDivision, out Division division) &&
-                        Enum.TryParse(model.PreferredPlatform, out Platform platform))
+                // Validate division/platform combination
+                bool isValidPlatform = await _platformValidationService.IsValidPlatformForDivisionAsync(
+                    viewModel.PreferredPlatform,
+                    viewModel.PreferredDivision);
+
+                if (!isValidPlatform)
+                {
+                    ModelState.AddModelError("PreferredPlatform",
+                        $"Platform {viewModel.PreferredPlatform} is not valid for division {viewModel.PreferredDivision}");
+
+                    // Re-populate dropdown options
+                    await RepopulateDropdownOptions(viewModel);
+                    return View("Index", viewModel);
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    // Re-populate dropdown options
+                    await RepopulateDropdownOptions(viewModel);
+                    return View("Index", viewModel);
+                }
+
+                // Create the DTO to save
+                var preferencesDto = new UserPreferencesDto
+                {
+                    Username = Username,
+                    PreferredDivision = viewModel.PreferredDivision.ToString(),
+                    PreferredPlatform = viewModel.PreferredPlatform.ToString(),
+                    ItemsPerPage = viewModel.ItemsPerPage,
+                    DefaultPalletView = viewModel.DefaultPalletView,
+                    TouchModeEnabled = viewModel.TouchModeEnabled,
+                    DefaultPalletListPrinter = viewModel.DefaultPalletListPrinter,
+                    DefaultItemLabelPrinter = viewModel.DefaultItemLabelPrinter,
+                    ShowConfirmationPrompts = viewModel.ShowConfirmationPrompts,
+                    AutoPrintPalletList = viewModel.AutoPrintPalletList,
+                    UseSpecialPrinterForSpecialClients = viewModel.UseSpecialPrinterForSpecialClients,
+                    SessionTimeoutMinutes = viewModel.SessionTimeoutMinutes,
+                    RememberDivisionAndPlatform = viewModel.RememberDivisionAndPlatform,
+                    AutoRefreshPalletList = viewModel.AutoRefreshPalletList,
+                    AutoRefreshIntervalSeconds = viewModel.AutoRefreshIntervalSeconds,
+                    ShowBrowserNotifications = viewModel.ShowBrowserNotifications
+                };
+
+                // Save preferences
+                bool result = await _userPreferenceService.SetAllPreferencesAsync(Username, preferencesDto);
+
+                if (!result)
+                {
+                    ModelState.AddModelError("", "Failed to save preferences");
+
+                    // Re-populate dropdown options
+                    await RepopulateDropdownOptions(viewModel);
+                    return View("Index", viewModel);
+                }
+
+                TempData["SuccessMessage"] = "Settings saved successfully";
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", $"Error saving settings: {ex.Message}");
+
+                // Re-populate dropdown options
+                await RepopulateDropdownOptions(viewModel);
+                return View("Index", viewModel);
+            }
+        }
+
+        // POST: Settings/GetPlatformsForDivision
+        [HttpPost]
+        public async Task<JsonResult> GetPlatformsForDivision(string division)
+        {
+            try
+            {
+                if (!Enum.TryParse<Division>(division, out var divisionEnum))
+                {
+                    return Json(new { success = false, message = "Invalid division" });
+                }
+
+                var platforms = await _platformValidationService.GetPlatformsForDivisionAsync(divisionEnum);
+
+                return Json(new
+                {
+                    success = true,
+                    platforms = platforms.Select(p => new
                     {
-                        // Check if platform is valid for division
-                        if (!IsValidPlatformForDivision(platform, division))
-                        {
-                            ModelState.AddModelError("PreferredPlatform",
-                                $"Platform {platform} is not valid for division {division}.");
-                            return View(model);
-                        }
-
-                        // Store in session
-                        Session["CurrentDivision"] = division.ToString();
-                        Session["CurrentPlatform"] = platform.ToString();
-                    }
-                    else
-                    {
-                        ModelState.AddModelError("", "Invalid division or platform selection.");
-                        return View(model);
-                    }
-
-                    // Store touch mode in session
-                    Session["TouchModeEnabled"] = model.TouchModeEnabled;
-
-                    // Map view model to DTO
-                    var preferencesDto = new Core.DTOs.UserPreferencesDto
-                    {
-                        Username = username,
-                        PreferredDivision = model.PreferredDivision,
-                        PreferredPlatform = model.PreferredPlatform,
-                        RememberDivisionPlatform = model.RememberDivisionPlatform,
-
-                        // Display settings
-                        ItemsPerPage = model.ItemsPerPage,
-                        DefaultView = model.DefaultView,
-                        ShowConfirmationPrompts = model.ShowConfirmationPrompts,
-                        AutoRefreshPalletList = model.AutoRefreshPalletList,
-                        RefreshInterval = model.RefreshInterval,
-
-                        // Touch mode settings
-                        TouchModeEnabled = model.TouchModeEnabled,
-                        ShowTouchKeyboard = model.ShowTouchKeyboard,
-                        UseLargeButtons = model.UseLargeButtons,
-                        ButtonSize = model.ButtonSize,
-
-                        // Printer settings
-                        DefaultPalletListPrinter = model.DefaultPalletListPrinter,
-                        DefaultItemLabelPrinter = model.DefaultItemLabelPrinter,
-                        AutoPrintPalletList = model.AutoPrintPalletList,
-                        UseSpecialClientSettings = model.UseSpecialClientSettings,
-
-                        // Session settings
-                        SessionTimeout = model.SessionTimeout,
-                        ShowNotifications = model.ShowNotifications
-                    };
-
-                    // Save all preferences
-                    await _userPreferenceService.SetAllPreferencesAsync(username, preferencesDto);
-
-                    // Also save printer preferences
-                    await _printerService.SetDefaultPalletListPrinterAsync(username, model.DefaultPalletListPrinter);
-                    await _printerService.SetDefaultItemLabelPrinterAsync(username, model.DefaultItemLabelPrinter);
-
-                    SetSuccessMessage("Your settings have been saved successfully.");
-                    return RedirectToAction("Index");
-                }
-
-                // If we got here, there was a validation error
-                return View(model);
+                        value = p.ToString(),
+                        text = p.GetDescription()
+                    })
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error saving user settings");
-                ModelState.AddModelError("", "An error occurred while saving your settings. Please try again.");
-                return View(model);
+                return Json(new { success = false, message = ex.Message });
             }
         }
 
-        /// <summary>
-        /// GET: Settings/SetDivision/MA
-        /// Quick action to set the current division
-        /// </summary>
-        public async Task<ActionResult> SetDivision(string division)
+        // Helper methods for dropdown options
+        private List<SelectListItem> GetDivisionOptions(Division selectedDivision)
         {
-            try
-            {
-                // Parse division
-                if (!Enum.TryParse(division, out Division selectedDivision))
+            return Enum.GetValues(typeof(Division))
+                .Cast<Division>()
+                .Select(d => new SelectListItem
                 {
-                    SetErrorMessage("Invalid division selected.");
-                    return RedirectToAction("Index", "Home");
-                }
-
-                // Get username
-                var username = _userContext.GetUsername();
-
-                // Save preference
-                await _userPreferenceService.SetPreferredDivisionAsync(username, selectedDivision);
-
-                // Get default platform for this division
-                var defaultPlatform = GetDefaultPlatformForDivision(selectedDivision);
-                await _userPreferenceService.SetPreferredPlatformAsync(username, selectedDivision, defaultPlatform);
-
-                // Store in session
-                Session["CurrentDivision"] = selectedDivision.ToString();
-                Session["CurrentPlatform"] = defaultPlatform.ToString();
-
-                SetSuccessMessage($"Division set to {selectedDivision} and platform set to {defaultPlatform}.");
-
-                // Redirect back to referring page
-                if (Request.UrlReferrer != null)
-                {
-                    return Redirect(Request.UrlReferrer.ToString());
-                }
-
-                return RedirectToAction("Index", "Home");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error setting division to {division}");
-                SetErrorMessage("An error occurred while changing your division. Please try again.");
-                return RedirectToAction("Index", "Home");
-            }
+                    Text = d.GetDescription(),
+                    Value = d.ToString(),
+                    Selected = d == selectedDivision
+                })
+                .ToList();
         }
 
-        /// <summary>
-        /// GET: Settings/SetPlatform/TEC1
-        /// Quick action to set the current platform
-        /// </summary>
-        public async Task<ActionResult> SetPlatform(string platform)
+        private List<SelectListItem> GetPlatformOptions(IEnumerable<Platform> platforms, Platform selectedPlatform)
         {
-            try
-            {
-                // Parse platform
-                if (!Enum.TryParse(platform, out Platform selectedPlatform))
+            return platforms
+                .Select(p => new SelectListItem
                 {
-                    SetErrorMessage("Invalid platform selected.");
-                    return RedirectToAction("Index", "Home");
-                }
-
-                // Get username and current division
-                var username = _userContext.GetUsername();
-                var division = _userContext.GetDivision();
-
-                // Validate platform for division
-                if (!IsValidPlatformForDivision(selectedPlatform, division))
-                {
-                    SetErrorMessage($"Platform {selectedPlatform} is not valid for division {division}.");
-                    return RedirectToAction("Index", "Home");
-                }
-
-                // Save preference
-                await _userPreferenceService.SetPreferredPlatformAsync(username, division, selectedPlatform);
-
-                // Store in session
-                Session["CurrentPlatform"] = selectedPlatform.ToString();
-
-                SetSuccessMessage($"Platform set to {selectedPlatform}.");
-
-                // Redirect back to referring page
-                if (Request.UrlReferrer != null)
-                {
-                    return Redirect(Request.UrlReferrer.ToString());
-                }
-
-                return RedirectToAction("Index", "Home");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error setting platform to {platform}");
-                SetErrorMessage("An error occurred while changing your platform. Please try again.");
-                return RedirectToAction("Index", "Home");
-            }
+                    Text = p.GetDescription(),
+                    Value = p.ToString(),
+                    Selected = p == selectedPlatform
+                })
+                .ToList();
         }
 
-        /// <summary>
-        /// GET: Settings/ToggleTouchMode
-        /// Quick action to toggle touch mode
-        /// </summary>
-        public async Task<ActionResult> ToggleTouchMode(bool enable)
+        private List<SelectListItem> GetDefaultViewOptions(string selectedView)
         {
-            try
+            return new List<SelectListItem>
             {
-                // Get username
-                var username = _userContext.GetUsername();
-
-                // Save preference
-                await _userPreferenceService.SetTouchModeEnabledAsync(username, enable);
-
-                // Store in session
-                Session["TouchModeEnabled"] = enable;
-
-                SetSuccessMessage($"Touch mode {(enable ? "enabled" : "disabled")}.");
-
-                // Redirect back to referring page
-                if (Request.UrlReferrer != null)
-                {
-                    return Redirect(Request.UrlReferrer.ToString());
-                }
-
-                return RedirectToAction("Index", "Home");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error {(enable ? "enabling" : "disabling")} touch mode");
-                SetErrorMessage("An error occurred while changing touch mode. Please try again.");
-                return RedirectToAction("Index", "Home");
-            }
+                new SelectListItem { Text = "All Pallets", Value = "all", Selected = selectedView == "all" },
+                new SelectListItem { Text = "Open Pallets", Value = "open", Selected = selectedView == "open" },
+                new SelectListItem { Text = "Closed Pallets", Value = "closed", Selected = selectedView == "closed" }
+            };
         }
 
-        /// <summary>
-        /// Determines if a platform is valid for a division
-        /// </summary>
-        private bool IsValidPlatformForDivision(Platform platform, Division division)
+        private List<SelectListItem> GetButtonSizeOptions(string selectedSize)
         {
-            switch (division)
+            return new List<SelectListItem>
             {
-                case Division.MA:
-                    return platform == Platform.TEC1 || platform == Platform.TEC2 || platform == Platform.TEC4I;
-                case Division.TC:
-                    return platform == Platform.TEC1 || platform == Platform.TEC3 || platform == Platform.TEC5;
-                default:
-                    return false;
-            }
+                new SelectListItem { Text = "Normal", Value = "normal", Selected = selectedSize == "normal" },
+                new SelectListItem { Text = "Large", Value = "large", Selected = selectedSize == "large" },
+                new SelectListItem { Text = "Extra Large", Value = "extra-large", Selected = selectedSize == "extra-large" }
+            };
         }
 
-        /// <summary>
-        /// Gets the default platform for a division
-        /// </summary>
-        private Platform GetDefaultPlatformForDivision(Division division)
+        private List<SelectListItem> GetSessionTimeoutOptions(int selectedTimeout)
         {
-            switch (division)
+            return new List<SelectListItem>
             {
-                case Division.MA:
-                    return Platform.TEC1;
-                case Division.TC:
-                    return Platform.TEC1;
-                default:
-                    return Platform.TEC1;
-            }
+                new SelectListItem { Text = "15 minutes", Value = "15", Selected = selectedTimeout == 15 },
+                new SelectListItem { Text = "30 minutes", Value = "30", Selected = selectedTimeout == 30 },
+                new SelectListItem { Text = "60 minutes", Value = "60", Selected = selectedTimeout == 60 },
+                new SelectListItem { Text = "120 minutes", Value = "120", Selected = selectedTimeout == 120 }
+            };
+        }
+
+        private List<SelectListItem> GetRefreshIntervalOptions(int selectedInterval)
+        {
+            return new List<SelectListItem>
+            {
+                new SelectListItem { Text = "30 seconds", Value = "30", Selected = selectedInterval == 30 },
+                new SelectListItem { Text = "60 seconds", Value = "60", Selected = selectedInterval == 60 },
+                new SelectListItem { Text = "5 minutes", Value = "300", Selected = selectedInterval == 300 },
+                new SelectListItem { Text = "10 minutes", Value = "600", Selected = selectedInterval == 600 }
+            };
+        }
+
+        // Helper method to re-populate all dropdown options
+        private async Task RepopulateDropdownOptions(UserPreferencesViewModel viewModel)
+        {
+            // Get platforms for selected division
+            var platformOptions = await _platformValidationService.GetPlatformsForDivisionAsync(viewModel.PreferredDivision);
+
+            viewModel.DivisionOptions = GetDivisionOptions(viewModel.PreferredDivision);
+            viewModel.PlatformOptions = GetPlatformOptions(platformOptions, viewModel.PreferredPlatform);
+            viewModel.DefaultViewOptions = GetDefaultViewOptions(viewModel.DefaultPalletView);
+            viewModel.ButtonSizeOptions = GetButtonSizeOptions(viewModel.ButtonSize);
+            viewModel.SessionTimeoutOptions = GetSessionTimeoutOptions(viewModel.SessionTimeoutMinutes);
+            viewModel.RefreshIntervalOptions = GetRefreshIntervalOptions(viewModel.AutoRefreshIntervalSeconds);
+
+            // Get printer options
+            var palletListPrinters = await _printerService.GetAvailablePrintersAsync(PrinterType.PalletList);
+            viewModel.PalletListPrinterOptions = palletListPrinters
+                .Select(p => new SelectListItem { Text = p, Value = p, Selected = p == viewModel.DefaultPalletListPrinter })
+                .ToList();
+
+            var itemLabelPrinters = await _printerService.GetAvailablePrintersAsync(PrinterType.ItemLabel);
+            viewModel.ItemLabelPrinterOptions = itemLabelPrinters
+                .Select(p => new SelectListItem { Text = p, Value = p, Selected = p == viewModel.DefaultItemLabelPrinter })
+                .ToList();
         }
     }
 }

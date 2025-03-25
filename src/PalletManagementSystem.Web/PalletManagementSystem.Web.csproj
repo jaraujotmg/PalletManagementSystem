@@ -69,11 +69,16 @@
 		<Compile Include="App_Start\RouteConfig.cs" />
 		<Compile Include="Controllers\BaseController.cs" />
 		<Compile Include="Controllers\HomeController.cs" />
+		<Compile Include="Controllers\ItemsController.cs" />
 		<Compile Include="Controllers\PalletsController.cs" />
+		<Compile Include="Controllers\SettingsController.cs" />
 		<Compile Include="Global.asax.cs">
 			<DependentUpon>Global.asax</DependentUpon>
 		</Compile>
 		<Compile Include="ViewModels\Home\HomeViewModel.cs" />
+		<Compile Include="ViewModels\Items\CreateItemViewModel.cs" />
+		<Compile Include="ViewModels\Items\ItemDetailViewModel.cs" />
+		<Compile Include="ViewModels\Items\ItemEditViewModel.cs" />
 		<Compile Include="ViewModels\Pallets\ClosePalletViewModel.cs" />
 		<Compile Include="ViewModels\Pallets\CreatePalletViewModel.cs" />
 		<Compile Include="ViewModels\Pallets\MovePalletItemViewModel.cs" />
@@ -82,6 +87,7 @@
 		<Compile Include="ViewModels\Pallets\PalletDetailViewModel.cs" />
 		<Compile Include="ViewModels\Pallets\PrintPalletViewModel.cs" />
 		<Compile Include="ViewModels\Pallets\SearchResultsViewModel.cs" />
+		<Compile Include="ViewModels\Settings\UserPreferencesViewModel.cs" />
 		<Compile Include="ViewModels\Shared\DivisionPlatformSelectorViewModel.cs" />
 		<Compile Include="ViewModels\Shared\SearchSuggestionViewModel.cs" />
 		<Compile Include="ViewModels\Shared\ViewModelBase.cs" />

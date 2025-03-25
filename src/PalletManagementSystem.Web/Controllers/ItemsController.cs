@@ -1,518 +1,719 @@
-using Microsoft.Extensions.Logging;
+// src/PalletManagementSystem.Web/Controllers/ItemsController.cs
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Web.Mvc;
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Exceptions;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Infrastructure.Identity;
-using PalletManagementSystem.Infrastructure.Logging;
-using PalletManagementSystem.Web.ViewModels.ItemViewModels;
-using System;
-using System.Threading.Tasks;
-using System.Web.Mvc;
+using PalletManagementSystem.Web.ViewModels.Items;
+using PalletManagementSystem.Web.ViewModels.Pallets;
+using PalletManagementSystem.Web.ViewModels.Shared;
 
 namespace PalletManagementSystem.Web.Controllers
 {
-    /// <summary>
-    /// Controller for item operations
-    /// </summary>
     [Authorize]
     public class ItemsController : BaseController
     {
         private readonly IItemService _itemService;
         private readonly IPalletService _palletService;
         private readonly IPrinterService _printerService;
-        private readonly UserContext _userContext;
-        private readonly LoggingService _loggingService;
-        private readonly ILogger<ItemsController> _logger;
+        private readonly ISearchService _searchService;
+        private readonly IUserPreferenceService _userPreferenceService;
 
-        /// <summary>
-        /// Initializes a new instance of ItemsController
-        /// </summary>
         public ItemsController(
+            IUserContext userContext,
             IItemService itemService,
             IPalletService palletService,
             IPrinterService printerService,
-            UserContext userContext,
-            LoggingService loggingService,
-            ILogger<ItemsController> logger)
+            ISearchService searchService,
+            IUserPreferenceService userPreferenceService)
+            : base(userContext)
         {
             _itemService = itemService ?? throw new ArgumentNullException(nameof(itemService));
             _palletService = palletService ?? throw new ArgumentNullException(nameof(palletService));
             _printerService = printerService ?? throw new ArgumentNullException(nameof(printerService));
-            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
-            _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+            _userPreferenceService = userPreferenceService ?? throw new ArgumentNullException(nameof(userPreferenceService));
         }
 
-        /// <summary>
-        /// GET: Items/Details/5
-        /// Shows details for a specific item
-        /// </summary>
+        // GET: Items
+        public async Task<ActionResult> Index(int? palletId = null, string clientCode = null, string manufacturingOrder = null,
+            string keyword = null, int page = 1, int pageSize = 20)
+        {
+            try
+            {
+                // If no page size is specified, get the user's preference
+                if (pageSize <= 0)
+                {
+                    pageSize = await _userPreferenceService.GetItemsPerPageAsync(Username);
+                }
+
+                // Get items based on filters
+                var items = await _itemService.GetPagedItemsAsync(
+                    page, pageSize, palletId, clientCode, manufacturingOrder, keyword);
+
+                // Prepare view model
+                var viewModel = new ItemListViewModel
+                {
+                    Items = items,
+                    PalletId = palletId,
+                    ClientCode = clientCode,
+                    ManufacturingOrder = manufacturingOrder,
+                    SearchKeyword = keyword,
+                    PageNumber = page,
+                    PageSize = pageSize,
+                    CanCreate = UserContext.CanEditItems(),
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username)
+                };
+
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", $"Error retrieving items: {ex.Message}");
+                return View(new ItemListViewModel
+                {
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform()
+                });
+            }
+        }
+
+        // GET: Items/Details/5
         public async Task<ActionResult> Details(int id)
         {
             try
             {
-                // Get the item with its associated pallet
-                var item = await _itemService.GetItemWithPalletAsync(id);
+                var item = await _itemService.GetItemDetailByIdAsync(id);
                 if (item == null)
                 {
-                    SetErrorMessage("Item not found.");
-                    return RedirectToAction("Index", "Pallets");
+                    return HttpNotFound();
                 }
 
-                // Create the view model
-                var viewModel = ItemDetailsViewModel.FromItemAndPalletDto(item, item.Pallet);
-
-                // Log the view action
-                _loggingService.LogAudit("View", "Item", item.Id.ToString(),
-                    $"Viewed item {item.ItemNumber}");
+                var viewModel = new ItemDetailViewModel
+                {
+                    Item = item,
+                    CanEdit = UserContext.CanEditItems() && !(item.Pallet?.IsClosed ?? false),
+                    CanMove = UserContext.CanMoveItems() && !(item.Pallet?.IsClosed ?? false),
+                    CanPrint = true,
+                    ReturnUrl = Request.UrlReferrer?.PathAndQuery ?? Url.Action("Index", "Pallets"),
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username)
+                };
 
                 return View(viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error retrieving item details for ID {id}");
-                SetErrorMessage("An error occurred while retrieving the item details. Please try again.");
+                ModelState.AddModelError("", $"Error retrieving item details: {ex.Message}");
                 return RedirectToAction("Index", "Pallets");
             }
         }
 
-        /// <summary>
-        /// GET: Items/CreateItem?palletId=5
-        /// Shows form to create a new item on a pallet
-        /// </summary>
-        public async Task<ActionResult> CreateItem(int palletId)
+        // GET: Items/Create/5 (palletId)
+        public async Task<ActionResult> Create(int palletId)
         {
             try
             {
-                // Check if user has permission to create items
-                if (!_userContext.CanEditItems())
-                {
-                    SetErrorMessage("You do not have permission to create items.");
-                    return RedirectToAction("Details", "Pallets", new { id = palletId });
-                }
-
-                // Get the pallet to verify it exists and is not closed
                 var pallet = await _palletService.GetPalletByIdAsync(palletId);
                 if (pallet == null)
                 {
-                    SetErrorMessage("Pallet not found.");
-                    return RedirectToAction("Index", "Pallets");
+                    return HttpNotFound();
                 }
 
                 if (pallet.IsClosed)
                 {
-                    SetErrorMessage("Cannot add items to a closed pallet.");
+                    ModelState.AddModelError("", "Cannot add items to a closed pallet");
                     return RedirectToAction("Details", "Pallets", new { id = palletId });
                 }
 
-                // Get touch mode status
-                bool touchModeEnabled = Session["TouchModeEnabled"] != null &&
-                                       (bool)Session["TouchModeEnabled"];
+                if (!UserContext.CanEditItems())
+                {
+                    return new HttpStatusCodeResult(System.Net.HttpStatusCode.Forbidden);
+                }
 
-                // Create view model
-                var viewModel = new CreateItemViewModel(palletId, pallet.PalletNumber, touchModeEnabled);
+                var viewModel = new CreateItemViewModel
+                {
+                    PalletId = palletId,
+                    PalletNumber = pallet.PalletNumber,
+                    ManufacturingOrder = pallet.ManufacturingOrder,
+                    QuantityUnit = "PC",
+                    WeightUnit = "KG",
+                    WidthUnit = "CM",
+                    Quality = "Standard",
+                    ReturnUrl = Request.UrlReferrer?.PathAndQuery ?? Url.Action("Details", "Pallets", new { id = palletId }),
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username),
+                    EnableTouchMode = await _userPreferenceService.GetTouchModeEnabledAsync(Username)
+                };
+
+                // Populate dropdown options
+                viewModel.QuantityUnitOptions = GetQuantityUnitOptions();
+                viewModel.WeightUnitOptions = GetWeightUnitOptions();
+                viewModel.WidthUnitOptions = GetWidthUnitOptions();
+                viewModel.QualityOptions = GetQualityOptions();
 
                 return View(viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error loading item creation form for pallet ID {palletId}");
-                SetErrorMessage("An error occurred while loading the item creation form. Please try again.");
+                ModelState.AddModelError("", $"Error preparing item creation: {ex.Message}");
                 return RedirectToAction("Details", "Pallets", new { id = palletId });
             }
         }
 
-        /// <summary>
-        /// POST: Items/CreateItem
-        /// Processes the item creation form
-        /// </summary>
+        // POST: Items/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> CreateItem(CreateItemViewModel model)
+        public async Task<ActionResult> Create(CreateItemViewModel viewModel)
         {
             try
             {
-                // Check if user has permission to create items
-                if (!_userContext.CanEditItems())
+                // Re-populate dropdown options
+                viewModel.QuantityUnitOptions = GetQuantityUnitOptions();
+                viewModel.WeightUnitOptions = GetWeightUnitOptions();
+                viewModel.WidthUnitOptions = GetWidthUnitOptions();
+                viewModel.QualityOptions = GetQualityOptions();
+
+                // Update common ViewModel properties
+                viewModel.Username = Username;
+                viewModel.DisplayName = await GetDisplayName();
+                viewModel.CurrentDivision = UserContext.GetDivision();
+                viewModel.CurrentPlatform = UserContext.GetPlatform();
+                viewModel.TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username);
+
+                if (!ModelState.IsValid)
                 {
-                    SetErrorMessage("You do not have permission to create items.");
-                    return RedirectToAction("Details", "Pallets", new { id = model.PalletId });
+                    return View(viewModel);
                 }
 
-                // Get the pallet to verify it exists and is not closed
-                var pallet = await _palletService.GetPalletByIdAsync(model.PalletId);
+                if (!UserContext.CanEditItems())
+                {
+                    return new HttpStatusCodeResult(System.Net.HttpStatusCode.Forbidden);
+                }
+
+                // Check if pallet exists and is open
+                var pallet = await _palletService.GetPalletByIdAsync(viewModel.PalletId);
                 if (pallet == null)
                 {
-                    SetErrorMessage("Pallet not found.");
-                    return RedirectToAction("Index", "Pallets");
+                    ModelState.AddModelError("", "Pallet not found");
+                    return View(viewModel);
                 }
 
                 if (pallet.IsClosed)
                 {
-                    SetErrorMessage("Cannot add items to a closed pallet.");
-                    return RedirectToAction("Details", "Pallets", new { id = model.PalletId });
+                    ModelState.AddModelError("", "Cannot add items to a closed pallet");
+                    return View(viewModel);
                 }
 
-                if (ModelState.IsValid)
+                // Create the DTO
+                var itemDto = new ItemDto
                 {
-                    // Map view model to DTO
-                    var itemDto = new ItemDto
-                    {
-                        PalletId = model.PalletId,
-                        ManufacturingOrder = model.ManufacturingOrder,
-                        ManufacturingOrderLine = model.ManufacturingOrderLine,
-                        ServiceOrder = model.ServiceOrder,
-                        ServiceOrderLine = model.ServiceOrderLine,
-                        FinalOrder = model.FinalOrder,
-                        FinalOrderLine = model.FinalOrderLine,
-                        ClientCode = model.ClientCode,
-                        ClientName = model.ClientName,
-                        Reference = model.Reference,
-                        Finish = model.Finish,
-                        Color = model.Color,
-                        Quantity = model.Quantity,
-                        QuantityUnit = model.QuantityUnit,
-                        Weight = model.Weight,
-                        WeightUnit = model.WeightUnit,
-                        Width = model.Width,
-                        WidthUnit = model.WidthUnit,
-                        Quality = model.Quality,
-                        Batch = model.Batch
-                    };
+                    ManufacturingOrder = viewModel.ManufacturingOrder,
+                    ManufacturingOrderLine = viewModel.ManufacturingOrderLine,
+                    ServiceOrder = viewModel.ServiceOrder,
+                    ServiceOrderLine = viewModel.ServiceOrderLine,
+                    FinalOrder = viewModel.FinalOrder,
+                    FinalOrderLine = viewModel.FinalOrderLine,
+                    ClientCode = viewModel.ClientCode,
+                    ClientName = viewModel.ClientName,
+                    Reference = viewModel.Reference,
+                    Finish = viewModel.Finish,
+                    Color = viewModel.Color,
+                    Quantity = viewModel.Quantity,
+                    QuantityUnit = viewModel.QuantityUnit,
+                    Weight = viewModel.Weight,
+                    WeightUnit = viewModel.WeightUnit,
+                    Width = viewModel.Width,
+                    WidthUnit = viewModel.WidthUnit,
+                    Quality = viewModel.Quality,
+                    Batch = viewModel.Batch
+                };
 
-                    // Create the item
-                    var item = await _itemService.CreateItemAsync(itemDto, model.PalletId, _userContext.GetUsername());
+                // Create the item
+                var newItem = await _itemService.CreateItemAsync(itemDto, viewModel.PalletId, Username);
 
-                    // Log the creation
-                    _loggingService.LogAudit("Create", "Item", item.Id.ToString(),
-                        $"Created item {item.ItemNumber} on pallet {pallet.PalletNumber}");
-
-                    SetSuccessMessage($"Item {item.ItemNumber} created successfully.");
-                    return RedirectToAction("Details", "Pallets", new { id = model.PalletId });
-                }
-
-                // If we got here, there was a validation error
-                model.PalletNumber = pallet.PalletNumber; // Ensure pallet number is set for display
-                return View(model);
-            }
-            catch (PalletClosedException pcEx)
-            {
-                _logger.LogWarning(pcEx.Message);
-                SetErrorMessage(pcEx.Message);
-                return RedirectToAction("Details", "Pallets", new { id = model.PalletId });
+                TempData["SuccessMessage"] = $"Item created successfully";
+                return RedirectToAction("Details", "Pallets", new { id = viewModel.PalletId });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating item");
-                ModelState.AddModelError("", "An error occurred while creating the item. Please try again.");
-                return View(model);
+                ModelState.AddModelError("", $"Error creating item: {ex.Message}");
+                return View(viewModel);
             }
         }
 
-        /// <summary>
-        /// GET: Items/Edit/5
-        /// Shows form to edit an item
-        /// </summary>
+        // GET: Items/Edit/5
         public async Task<ActionResult> Edit(int id)
         {
             try
             {
-                // Check if user has permission to edit items
-                if (!_userContext.CanEditItems())
-                {
-                    SetErrorMessage("You do not have permission to edit items.");
-                    return RedirectToAction("Details", new { id });
-                }
-
-                // Get the item with its associated pallet
-                var item = await _itemService.GetItemWithPalletAsync(id);
+                var item = await _itemService.GetItemDetailByIdAsync(id);
                 if (item == null)
                 {
-                    SetErrorMessage("Item not found.");
-                    return RedirectToAction("Index", "Pallets");
+                    return HttpNotFound();
                 }
 
-                // Check if pallet is closed
-                if (item.Pallet != null && item.Pallet.IsClosed)
+                if (item.Pallet?.IsClosed ?? false)
                 {
-                    SetErrorMessage("Cannot edit items on a closed pallet.");
+                    ModelState.AddModelError("", "Cannot edit items on a closed pallet");
                     return RedirectToAction("Details", new { id });
                 }
 
-                // Get touch mode status
-                bool touchModeEnabled = Session["TouchModeEnabled"] != null &&
-                                       (bool)Session["TouchModeEnabled"];
+                if (!UserContext.CanEditItems())
+                {
+                    return new HttpStatusCodeResult(System.Net.HttpStatusCode.Forbidden);
+                }
 
-                // Create view model
-                var viewModel = EditItemViewModel.FromItemDto(
-                    item,
-                    item.Pallet?.PalletNumber,
-                    touchModeEnabled);
+                var viewModel = new ItemEditViewModel
+                {
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username),
+                    EnableTouchMode = await _userPreferenceService.GetTouchModeEnabledAsync(Username),
+                    ReturnUrl = Request.UrlReferrer?.PathAndQuery ?? Url.Action("Details", new { id })
+                };
+
+                // Populate the ViewModel from the DTO
+                viewModel.PopulateFromDto(item);
 
                 return View(viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error loading item edit form for ID {id}");
-                SetErrorMessage("An error occurred while loading the item edit form. Please try again.");
-                return RedirectToAction("Details", new { id });
+                ModelState.AddModelError("", $"Error retrieving item for editing: {ex.Message}");
+                return RedirectToAction("Index", "Pallets");
             }
         }
 
-        /// <summary>
-        /// POST: Items/Edit
-        /// Processes the item edit form
-        /// </summary>
+        // POST: Items/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Edit(EditItemViewModel model)
+        public async Task<ActionResult> Edit(ItemEditViewModel viewModel)
         {
             try
             {
-                // Check if user has permission to edit items
-                if (!_userContext.CanEditItems())
+                // Update common ViewModel properties
+                viewModel.Username = Username;
+                viewModel.DisplayName = await GetDisplayName();
+                viewModel.CurrentDivision = UserContext.GetDivision();
+                viewModel.CurrentPlatform = UserContext.GetPlatform();
+                viewModel.TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username);
+
+                if (!ModelState.IsValid)
                 {
-                    SetErrorMessage("You do not have permission to edit items.");
-                    return RedirectToAction("Details", new { id = model.Id });
+                    return View(viewModel);
                 }
 
-                // Get the item to verify it exists
-                var item = await _itemService.GetItemWithPalletAsync(model.Id);
-                if (item == null)
+                if (!UserContext.CanEditItems())
                 {
-                    SetErrorMessage("Item not found.");
-                    return RedirectToAction("Index", "Pallets");
+                    return new HttpStatusCodeResult(System.Net.HttpStatusCode.Forbidden);
                 }
 
-                // Check if pallet is closed
-                if (item.Pallet != null && item.Pallet.IsClosed)
+                // Check if the item is on a closed pallet
+                var existingItem = await _itemService.GetItemDetailByIdAsync(viewModel.ItemId);
+                if (existingItem == null)
                 {
-                    SetErrorMessage("Cannot edit items on a closed pallet.");
-                    return RedirectToAction("Details", new { id = model.Id });
+                    return HttpNotFound();
                 }
 
-                if (ModelState.IsValid)
+                if (existingItem.Pallet?.IsClosed ?? false)
                 {
-                    // Only update the editable fields
-                    var updatedItem = await _itemService.UpdateItemAsync(
-                        model.Id,
-                        model.Weight,
-                        model.Width,
-                        model.Quality,
-                        model.Batch);
-
-                    // Log the update
-                    _loggingService.LogAudit("Update", "Item", updatedItem.Id.ToString(),
-                        $"Updated item {updatedItem.ItemNumber}");
-
-                    SetSuccessMessage($"Item {updatedItem.ItemNumber} updated successfully.");
-                    return RedirectToAction("Details", new { id = model.Id });
+                    ModelState.AddModelError("", "Cannot edit items on a closed pallet");
+                    return View(viewModel);
                 }
 
-                // If we got here, there was a validation error
-                return View(model);
+                // Create the update DTO
+                var updateDto = new UpdateItemDto
+                {
+                    Weight = viewModel.Weight,
+                    Width = viewModel.Width,
+                    Quality = viewModel.Quality,
+                    Batch = viewModel.Batch
+                };
+
+                // Update the item
+                await _itemService.UpdateItemAsync(viewModel.ItemId, updateDto);
+
+                TempData["SuccessMessage"] = "Item updated successfully";
+                return !string.IsNullOrEmpty(viewModel.ReturnUrl)
+                    ? Redirect(viewModel.ReturnUrl)
+                    : RedirectToAction("Details", new { id = viewModel.ItemId });
             }
-            catch (PalletClosedException pcEx)
+            catch (PalletClosedException ex)
             {
-                _logger.LogWarning(pcEx.Message);
-                SetErrorMessage(pcEx.Message);
-                return RedirectToAction("Details", new { id = model.Id });
-            }
-            catch (ItemValidationException ivEx)
-            {
-                _logger.LogWarning(ivEx.Message);
-                ModelState.AddModelError("", ivEx.Message);
-                return View(model);
+                ModelState.AddModelError("", ex.Message);
+                return View(viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error updating item with ID {model.Id}");
-                ModelState.AddModelError("", "An error occurred while updating the item. Please try again.");
-                return View(model);
+                ModelState.AddModelError("", $"Error updating item: {ex.Message}");
+                return View(viewModel);
             }
         }
 
-        /// <summary>
-        /// GET: Items/Move/5
-        /// Shows form to move an item to another pallet
-        /// </summary>
+        // GET: Items/Move/5
         public async Task<ActionResult> Move(int id)
         {
             try
             {
-                // Check if user has permission to move items
-                if (!_userContext.CanMoveItems())
-                {
-                    SetErrorMessage("You do not have permission to move items.");
-                    return RedirectToAction("Details", new { id });
-                }
-
-                // Get the item with its associated pallet
-                var item = await _itemService.GetItemWithPalletAsync(id);
+                var item = await _itemService.GetItemDetailByIdAsync(id);
                 if (item == null)
                 {
-                    SetErrorMessage("Item not found.");
-                    return RedirectToAction("Index", "Pallets");
+                    return HttpNotFound();
                 }
 
-                // Check if source pallet is closed
-                if (item.Pallet != null && item.Pallet.IsClosed)
+                if (item.Pallet?.IsClosed ?? false)
                 {
-                    SetErrorMessage("Cannot move items from a closed pallet.");
+                    ModelState.AddModelError("", "Cannot move items from a closed pallet");
                     return RedirectToAction("Details", new { id });
                 }
 
-                // Get available target pallets (open pallets except the current one)
-                var division = _userContext.GetDivision();
-                var pallets = await _palletService.GetPalletsByDivisionAndStatusAsync(division, false);
+                if (!UserContext.CanMoveItems())
+                {
+                    return new HttpStatusCodeResult(System.Net.HttpStatusCode.Forbidden);
+                }
 
-                // Create view model
-                var viewModel = MoveItemViewModel.FromItemAndPallets(
-                    item,
-                    item.Pallet,
-                    pallets);
+                // Get open pallets to move to
+                var openPallets = await _palletService.GetPalletsByStatusAsync(false);
+                var filteredPallets = openPallets.Where(p => p.Id != item.PalletId).ToList();
+
+                var viewModel = new MovePalletItemViewModel
+                {
+                    ItemId = item.Id,
+                    ItemNumber = item.ItemNumber,
+                    Item = item,
+                    SourcePalletId = item.PalletId,
+                    SourcePalletNumber = item.Pallet?.PalletNumber,
+                    AvailablePallets = filteredPallets.ToList(),
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username)
+                };
 
                 return View(viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error loading move item form for ID {id}");
-                SetErrorMessage("An error occurred while loading the move item form. Please try again.");
-                return RedirectToAction("Details", new { id });
+                ModelState.AddModelError("", $"Error preparing item move: {ex.Message}");
+                return RedirectToAction("Index", "Pallets");
             }
         }
 
-        /// <summary>
-        /// POST: Items/Move
-        /// Processes the move item form
-        /// </summary>
+        // POST: Items/Move
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> MoveConfirm(int itemId, int targetPalletId, bool createNewPallet = false, string newPalletManufacturingOrder = null)
+        public async Task<ActionResult> Move(MovePalletItemViewModel viewModel)
         {
             try
             {
-                // Check if user has permission to move items
-                if (!_userContext.CanMoveItems())
-                {
-                    SetErrorMessage("You do not have permission to move items.");
-                    return RedirectToAction("Details", new { id = itemId });
-                }
+                // Update common ViewModel properties
+                viewModel.Username = Username;
+                viewModel.DisplayName = await GetDisplayName();
+                viewModel.CurrentDivision = UserContext.GetDivision();
+                viewModel.CurrentPlatform = UserContext.GetPlatform();
+                viewModel.TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username);
 
-                // Get the item to verify it exists
-                var item = await _itemService.GetItemWithPalletAsync(itemId);
-                if (item == null)
+                if (viewModel.CreateNewPallet)
                 {
-                    SetErrorMessage("Item not found.");
-                    return RedirectToAction("Index", "Pallets");
-                }
-
-                // Check if source pallet is closed
-                if (item.Pallet != null && item.Pallet.IsClosed)
-                {
-                    SetErrorMessage("Cannot move items from a closed pallet.");
-                    return RedirectToAction("Details", new { id = itemId });
-                }
-
-                int finalTargetPalletId = targetPalletId;
-
-                // If creating a new pallet
-                if (createNewPallet)
-                {
-                    if (string.IsNullOrWhiteSpace(newPalletManufacturingOrder))
+                    // Logic for creating a new pallet and moving the item there
+                    if (string.IsNullOrWhiteSpace(viewModel.NewPalletManufacturingOrder))
                     {
-                        // Redisplay the form with an error
-                        ModelState.AddModelError("NewPalletManufacturingOrder", "Manufacturing order is required when creating a new pallet.");
-                        return RedirectToAction("Move", new { id = itemId });
+                        ModelState.AddModelError("NewPalletManufacturingOrder", "Manufacturing Order is required");
+
+                        // Re-populate available pallets
+                        var openPallets = await _palletService.GetPalletsByStatusAsync(false);
+                        viewModel.AvailablePallets = openPallets.Where(p => p.Id != viewModel.SourcePalletId).ToList();
+
+                        return View(viewModel);
                     }
 
                     // Create the new pallet
-                    var newPallet = await _palletService.CreatePalletAsync(
-                        newPalletManufacturingOrder,
-                        _userContext.GetDivision(),
-                        _userContext.GetPlatform(),
-                        UnitOfMeasure.PC, // Default unit
-                        _userContext.GetUsername());
+                    var division = UserContext.GetDivision();
+                    var platform = UserContext.GetPlatform();
+                    var unitOfMeasure = Enum.Parse<UnitOfMeasure>(viewModel.NewPalletUnitOfMeasure);
 
-                    finalTargetPalletId = newPallet.Id;
+                    var newPallet = await _palletService.CreatePalletAsync(
+                        viewModel.NewPalletManufacturingOrder,
+                        division,
+                        platform,
+                        unitOfMeasure,
+                        Username);
+
+                    if (viewModel.MoveToNewPallet)
+                    {
+                        // Move the item to the new pallet
+                        await _itemService.MoveItemToPalletAsync(viewModel.ItemId, newPallet.Id);
+                        TempData["SuccessMessage"] = $"Item {viewModel.ItemNumber} moved to new pallet {newPallet.PalletNumber}";
+                        return RedirectToAction("Details", "Pallets", new { id = newPallet.Id });
+                    }
+                    else
+                    {
+                        TempData["SuccessMessage"] = $"New pallet {newPallet.PalletNumber} created";
+                        return RedirectToAction("Details", "Pallets", new { id = newPallet.Id });
+                    }
                 }
                 else
                 {
-                    // Verify target pallet exists and is not closed
-                    var targetPallet = await _palletService.GetPalletByIdAsync(targetPalletId);
-                    if (targetPallet == null)
+                    if (!ModelState.IsValid)
                     {
-                        SetErrorMessage("Target pallet not found.");
-                        return RedirectToAction("Move", new { id = itemId });
+                        // Re-populate available pallets
+                        var openPallets = await _palletService.GetPalletsByStatusAsync(false);
+                        viewModel.AvailablePallets = openPallets.Where(p => p.Id != viewModel.SourcePalletId).ToList();
+
+                        return View(viewModel);
                     }
 
-                    if (targetPallet.IsClosed)
+                    if (!UserContext.CanMoveItems())
                     {
-                        SetErrorMessage("Cannot move items to a closed pallet.");
-                        return RedirectToAction("Move", new { id = itemId });
+                        return new HttpStatusCodeResult(System.Net.HttpStatusCode.Forbidden);
                     }
+
+                    // Check if the item can be moved
+                    bool canMove = await _itemService.CanMoveItemToPalletAsync(viewModel.ItemId, viewModel.TargetPalletId);
+                    if (!canMove)
+                    {
+                        ModelState.AddModelError("", "Cannot move item to selected pallet");
+
+                        // Re-populate available pallets
+                        var openPallets = await _palletService.GetPalletsByStatusAsync(false);
+                        viewModel.AvailablePallets = openPallets.Where(p => p.Id != viewModel.SourcePalletId).ToList();
+
+                        return View(viewModel);
+                    }
+
+                    // Move the item
+                    await _itemService.MoveItemToPalletAsync(viewModel.ItemId, viewModel.TargetPalletId);
+
+                    // Get the target pallet number for display
+                    var targetPallet = await _palletService.GetPalletByIdAsync(viewModel.TargetPalletId);
+                    TempData["SuccessMessage"] = $"Item {viewModel.ItemNumber} moved to pallet {targetPallet.PalletNumber}";
+
+                    return RedirectToAction("Details", "Pallets", new { id = viewModel.TargetPalletId });
                 }
-
-                // Move the item
-                var updatedItem = await _itemService.MoveItemToPalletAsync(itemId, finalTargetPalletId);
-
-                // Get target pallet for message
-                var finalPallet = await _palletService.GetPalletByIdAsync(finalTargetPalletId);
-
-                // Log the move
-                _loggingService.LogAudit("Move", "Item", updatedItem.Id.ToString(),
-                    $"Moved item {updatedItem.ItemNumber} to pallet {finalPallet.PalletNumber}");
-
-                SetSuccessMessage($"Item {updatedItem.ItemNumber} moved successfully to pallet {finalPallet.PalletNumber}.");
-                return RedirectToAction("Details", new { id = itemId });
             }
-            catch (PalletClosedException pcEx)
+            catch (PalletClosedException ex)
             {
-                _logger.LogWarning(pcEx.Message);
-                SetErrorMessage(pcEx.Message);
-                return RedirectToAction("Move", new { id = itemId });
+                ModelState.AddModelError("", ex.Message);
+
+                // Re-populate available pallets
+                var openPallets = await _palletService.GetPalletsByStatusAsync(false);
+                viewModel.AvailablePallets = openPallets.Where(p => p.Id != viewModel.SourcePalletId).ToList();
+
+                return View(viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error moving item with ID {itemId} to pallet {targetPalletId}");
-                SetErrorMessage("An error occurred while moving the item. Please try again.");
-                return RedirectToAction("Move", new { id = itemId });
+                ModelState.AddModelError("", $"Error moving item: {ex.Message}");
+
+                // Re-populate available pallets
+                var openPallets = await _palletService.GetPalletsByStatusAsync(false);
+                viewModel.AvailablePallets = openPallets.Where(p => p.Id != viewModel.SourcePalletId).ToList();
+
+                return View(viewModel);
             }
         }
 
-        /// <summary>
-        /// GET: Items/PrintLabel/5
-        /// Prints a label for an item
-        /// </summary>
-        public async Task<ActionResult> PrintLabel(int id)
+        // GET: Items/Print/5
+        public async Task<ActionResult> Print(int id)
         {
             try
             {
-                // Get the item to verify it exists
-                var item = await _itemService.GetItemByIdAsync(id);
+                var item = await _itemService.GetItemDetailByIdAsync(id);
                 if (item == null)
                 {
-                    SetErrorMessage("Item not found.");
-                    return RedirectToAction("Index", "Pallets");
+                    return HttpNotFound();
                 }
 
-                // Print the label
-                await _printerService.PrintItemLabelAsync(id);
+                // Get available printers
+                var printers = await _printerService.GetAvailablePrintersAsync(PrinterType.ItemLabel);
 
-                // Log the print action
-                _loggingService.LogAudit("Print", "Item", item.Id.ToString(),
-                    $"Printed label for item {item.ItemNumber}");
+                // Get user's default printer
+                var defaultPrinter = await _printerService.GetDefaultItemLabelPrinterAsync(Username);
 
-                SetSuccessMessage($"Print job for item {item.ItemNumber} sent successfully.");
-                return RedirectToAction("Details", new { id });
+                var viewModel = new PrintItemViewModel
+                {
+                    ItemId = id,
+                    Item = item,
+                    PrinterName = defaultPrinter,
+                    AvailablePrinters = printers.Select(p => new SelectListItem { Text = p, Value = p }).ToList(),
+                    SaveAsDefault = false,
+                    ShowPreview = true,
+                    Username = Username,
+                    DisplayName = await GetDisplayName(),
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username)
+                };
+
+                return View(viewModel);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error printing label for item ID {id}");
-                SetErrorMessage("An error occurred while printing the item label. Please try again.");
+                ModelState.AddModelError("", $"Error preparing to print item label: {ex.Message}");
                 return RedirectToAction("Details", new { id });
             }
         }
+
+        // POST: Items/Print
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> Print(PrintItemViewModel viewModel)
+        {
+            try
+            {
+                // Update common ViewModel properties
+                viewModel.Username = Username;
+                viewModel.DisplayName = await GetDisplayName();
+                viewModel.CurrentDivision = UserContext.GetDivision();
+                viewModel.CurrentPlatform = UserContext.GetPlatform();
+                viewModel.TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username);
+
+                if (!ModelState.IsValid)
+                {
+                    // Re-populate printer options
+                    var printers = await _printerService.GetAvailablePrintersAsync(PrinterType.ItemLabel);
+                    viewModel.AvailablePrinters = printers.Select(p => new SelectListItem { Text = p, Value = p }).ToList();
+
+                    return View(viewModel);
+                }
+
+                // Get the item to make sure it exists
+                var item = await _itemService.GetItemDetailByIdAsync(viewModel.ItemId);
+                if (item == null)
+                {
+                    return HttpNotFound();
+                }
+
+                // Print the item label
+                bool printResult = await _printerService.PrintItemLabelAsync(viewModel.ItemId);
+
+                if (!printResult)
+                {
+                    ModelState.AddModelError("", "Failed to print item label");
+
+                    // Re-populate printer options
+                    var printers = await _printerService.GetAvailablePrintersAsync(PrinterType.ItemLabel);
+                    viewModel.AvailablePrinters = printers.Select(p => new SelectListItem { Text = p, Value = p }).ToList();
+
+                    return View(viewModel);
+                }
+
+                // Save printer preference if requested
+                if (viewModel.SaveAsDefault)
+                {
+                    await _printerService.SetDefaultItemLabelPrinterAsync(Username, viewModel.PrinterName);
+                }
+
+                TempData["SuccessMessage"] = $"Item label printed successfully to {viewModel.PrinterName}";
+                return RedirectToAction("Details", new { id = viewModel.ItemId });
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", $"Error printing item label: {ex.Message}");
+
+                // Re-populate printer options
+                var printers = await _printerService.GetAvailablePrintersAsync(PrinterType.ItemLabel);
+                viewModel.AvailablePrinters = printers.Select(p => new SelectListItem { Text = p, Value = p }).ToList();
+
+                return View(viewModel);
+            }
+        }
+
+        // Helper methods for dropdown options
+        private List<SelectListItem> GetQuantityUnitOptions()
+        {
+            return new List<SelectListItem>
+            {
+                new SelectListItem { Text = "Piece (PC)", Value = "PC", Selected = true },
+                new SelectListItem { Text = "Kilogram (KG)", Value = "KG" },
+                new SelectListItem { Text = "Box (BOX)", Value = "BOX" },
+                new SelectListItem { Text = "Roll (ROLL)", Value = "ROLL" }
+            };
+        }
+
+        private List<SelectListItem> GetWeightUnitOptions()
+        {
+            return new List<SelectListItem>
+            {
+                new SelectListItem { Text = "Kilogram (KG)", Value = "KG", Selected = true },
+                new SelectListItem { Text = "Gram (G)", Value = "G" },
+                new SelectListItem { Text = "Pound (LB)", Value = "LB" }
+            };
+        }
+
+        private List<SelectListItem> GetWidthUnitOptions()
+        {
+            return new List<SelectListItem>
+            {
+                new SelectListItem { Text = "Centimeter (CM)", Value = "CM", Selected = true },
+                new SelectListItem { Text = "Millimeter (MM)", Value = "MM" },
+                new SelectListItem { Text = "Inch (IN)", Value = "IN" }
+            };
+        }
+
+        private List<SelectListItem> GetQualityOptions()
+        {
+            return new List<SelectListItem>
+            {
+                new SelectListItem { Text = "Premium", Value = "Premium" },
+                new SelectListItem { Text = "Standard", Value = "Standard", Selected = true },
+                new SelectListItem { Text = "Economy", Value = "Economy" },
+                new SelectListItem { Text = "Special", Value = "Special" }
+            };
+        }
+    }
+
+    // This class is needed to support the ItemsController
+    public class ItemListViewModel : ViewModelBase
+    {
+        public PagedResultDto<ItemListDto> Items { get; set; }
+        public int? PalletId { get; set; }
+        public string ClientCode { get; set; }
+        public string ManufacturingOrder { get; set; }
+        public string SearchKeyword { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public bool CanCreate { get; set; }
+    }
+
+    // This class is needed to support the ItemsController
+    public class PrintItemViewModel : ViewModelBase
+    {
+        public int ItemId { get; set; }
+        public ItemDetailDto Item { get; set; }
+
+        [Required(ErrorMessage = "Printer is required")]
+        [Display(Name = "Printer")]
+        public string PrinterName { get; set; }
+
+        public List<SelectListItem> AvailablePrinters { get; set; } = new List<SelectListItem>();
+
+        [Display(Name = "Save as default printer")]
+        public bool SaveAsDefault { get; set; } = false;
+
+        [Display(Name = "Print preview")]
+        public bool ShowPreview { get; set; } = true;
     }
 }
