@@ -1,7 +1,13 @@
 ﻿// src/PalletManagementSystem.Web/Models/ViewModelBase.cs
+
+// src/PalletManagementSystem.Web/Models/ViewModelBase.cs
+
+// src/PalletManagementSystem.Web/Models/ViewModelBase.cs
+
+// src/PalletManagementSystem.Web/Models/ViewModelBase.cs
 using PalletManagementSystem.Core.Models.Enums;
 
-namespace PalletManagementSystem.Web.Models
+namespace PalletManagementSystem.Web.ViewModels.Shared
 {
     public class ViewModelBase
     {

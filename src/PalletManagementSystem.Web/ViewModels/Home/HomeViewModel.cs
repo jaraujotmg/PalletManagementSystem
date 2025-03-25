@@ -1,5 +1,7 @@
 ﻿// src/PalletManagementSystem.Web/Models/HomeViewModel.cs
-namespace PalletManagementSystem.Web.Models
+using PalletManagementSystem.Web.ViewModels.Shared;
+
+namespace PalletManagementSystem.Web.ViewModels.Home
 {
     public class HomeViewModel : ViewModelBase
     {

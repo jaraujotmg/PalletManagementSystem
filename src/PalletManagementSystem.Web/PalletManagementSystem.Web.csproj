@@ -73,9 +73,18 @@
 		<Compile Include="Global.asax.cs">
 			<DependentUpon>Global.asax</DependentUpon>
 		</Compile>
-		<Compile Include="Models\HomeViewModel.cs" />
-		<Compile Include="Models\PalletListViewModel.cs" />
-		<Compile Include="Models\ViewModelBase.cs" />
+		<Compile Include="ViewModels\Home\HomeViewModel.cs" />
+		<Compile Include="ViewModels\Pallets\ClosePalletViewModel.cs" />
+		<Compile Include="ViewModels\Pallets\CreatePalletViewModel.cs" />
+		<Compile Include="ViewModels\Pallets\MovePalletItemViewModel.cs" />
+		<Compile Include="ViewModels\Pallets\PalletFilterViewModel.cs" />
+		<Compile Include="ViewModels\Pallets\PalletListViewModel.cs" />
+		<Compile Include="ViewModels\Pallets\PalletDetailViewModel.cs" />
+		<Compile Include="ViewModels\Pallets\PrintPalletViewModel.cs" />
+		<Compile Include="ViewModels\Pallets\SearchResultsViewModel.cs" />
+		<Compile Include="ViewModels\Shared\DivisionPlatformSelectorViewModel.cs" />
+		<Compile Include="ViewModels\Shared\SearchSuggestionViewModel.cs" />
+		<Compile Include="ViewModels\Shared\ViewModelBase.cs" />
 		<Compile Include="Services\ISessionManager.cs" />
 		<Compile Include="Services\IUserContextAdapter.cs" />
 		<Compile Include="Services\SessionManager.cs" />
@@ -110,6 +119,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="App_Data\" />
+		<Folder Include="Models\" />
 		<Folder Include="Views\Home\" />
 	</ItemGroup>
 	<ItemGroup>

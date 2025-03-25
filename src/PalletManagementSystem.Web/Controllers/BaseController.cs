@@ -2,8 +2,8 @@
 using System;
 using System.Web.Mvc;
 using PalletManagementSystem.Core.Models.Enums;
-using PalletManagementSystem.Web.Models;
 using PalletManagementSystem.Web.Services;
+using PalletManagementSystem.Web.ViewModels.Shared;
 
 namespace PalletManagementSystem.Web.Controllers
 {
