@@ -1,0 +1,357 @@
+@model PalletManagementSystem.Web.ViewModels.Home.HomeViewModel
+
+@{
+    ViewBag.Title = "Welcome - Pallet Management System";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- Welcome Header -->
+<div class="welcome-header">
+    <div class="container">
+        <div class="welcome-title">
+            <i class="fas fa-cubes mr-2"></i>Pallet Management System
+        </div>
+        <div class="welcome-subtitle">
+            Track, manage, and organize pallets across divisions and platforms
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="container mb-5">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Division Selection -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-building mr-2"></i>Select Your Division
+                </div>
+                <div class="card-body">
+                    <div class="login-info">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-circle mr-3" style="font-size: 2rem; color: #003366;"></i>
+                            <div>
+                                <div><strong>Welcome, @Model.DisplayName</strong></div>
+                                <div class="text-muted">Windows Authentication Successful</div>
+                                <div class="text-muted">Last login: @Model.LastLoginDate</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p>Please select the division and platform you want to work with:</p>
+                    
+                    <div class="division-selector">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <a href="@Url.Action("SetDivisionPlatform", "Home", new { division = "MA", platform = "", returnUrl = "/" })" class="division-btn rounded">
+                                    <div class="division-btn-icon">
+                                        <i class="fas fa-industry"></i>
+                                    </div>
+                                    <div class="division-btn-title">Manufacturing (MA)</div>
+                                    <div class="division-btn-subtitle">Production and Assembly</div>
+                                </a>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="@Url.Action("SetDivisionPlatform", "Home", new { division = "TC", platform = "", returnUrl = "/" })" class="division-btn rounded">
+                                    <div class="division-btn-icon">
+                                        <i class="fas fa-flask"></i>
+                                    </div>
+                                    <div class="division-btn-title">Technical Center (TC)</div>
+                                    <div class="division-btn-subtitle">Research and Development</div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="platform-selector mt-4" style="display: none;">
+                        <h5 id="platformSelectorTitle">Select Platform for Manufacturing Division:</h5>
+                        <div class="row" id="platformButtonContainer">
+                            <div class="col-md-4">
+                                <a href="@Url.Action("SetDivisionPlatform", "Home", new { division = "MA", platform = "TEC1", returnUrl = "/Pallets" })" class="division-btn rounded" data-division="MA" data-platform="TEC1">
+                                    <div class="division-btn-icon">
+                                        <i class="fas fa-layer-group"></i>
+                                    </div>
+                                    <div class="division-btn-title">TEC1</div>
+                                    <div class="division-btn-subtitle">Main Production</div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="@Url.Action("SetDivisionPlatform", "Home", new { division = "MA", platform = "TEC2", returnUrl = "/Pallets" })" class="division-btn rounded" data-division="MA" data-platform="TEC2">
+                                    <div class="division-btn-icon">
+                                        <i class="fas fa-layer-group"></i>
+                                    </div>
+                                    <div class="division-btn-title">TEC2</div>
+                                    <div class="division-btn-subtitle">Secondary Line</div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="@Url.Action("SetDivisionPlatform", "Home", new { division = "MA", platform = "TEC4I", returnUrl = "/Pallets" })" class="division-btn rounded" data-division="MA" data-platform="TEC4I">
+                                    <div class="division-btn-icon">
+                                        <i class="fas fa-layer-group"></i>
+                                    </div>
+                                    <div class="division-btn-title">TEC4I</div>
+                                    <div class="division-btn-subtitle">Special Projects</div>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end mt-4">
+                            <button class="btn btn-secondary mr-2" id="backButton">
+                                <i class="fas fa-arrow-left mr-1"></i>Back
+                            </button>
+                            <button class="btn btn-primary" id="continueButton">
+                                <i class="fas fa-check mr-1"></i>Continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-history mr-2"></i>Recent Activity
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                    <th>Division</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Mar 11, 2025</td>
+                                    <td><span class="badge badge-success">Closed Pallet</span></td>
+                                    <td>MA</td>
+                                    <td>P812345 - MO-45678</td>
+                                </tr>
+                                <tr>
+                                    <td>Mar 11, 2025</td>
+                                    <td><span class="badge badge-info">Edited Item</span></td>
+                                    <td>MA</td>
+                                    <td>Item #456788 in P812346</td>
+                                </tr>
+                                <tr>
+                                    <td>Mar 10, 2025</td>
+                                    <td><span class="badge badge-primary">Created Pallet</span></td>
+                                    <td>TC</td>
+                                    <td>TEMP-001 - MO-45680</td>
+                                </tr>
+                                <tr>
+                                    <td>Mar 10, 2025</td>
+                                    <td><span class="badge badge-warning">Moved Item</span></td>
+                                    <td>TC</td>
+                                    <td>Item #456787 to TEMP-002</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- System Info Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle mr-2"></i>System Information
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <div><strong>Application Version:</strong></div>
+                        <div>@Model.ApplicationVersion</div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div><strong>Database Version:</strong></div>
+                        <div>@Model.DatabaseVersion</div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div><strong>Last Update:</strong></div>
+                        <div>@Model.LastUpdateDate</div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div><strong>Server:</strong></div>
+                        <div>@Model.ServerName</div>
+                    </div>
+                    
+                    <div class="alert @(Model.AllServicesOperational ? "alert-success" : "alert-warning") mt-3 mb-0">
+                        @if (Model.AllServicesOperational)
+                        {
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span>All services are operating normally</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <span>Some services are experiencing issues</span>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Links -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-link mr-2"></i>Quick Links
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-book mr-2"></i>User Guide
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-video mr-2"></i>Tutorial Videos
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-headset mr-2"></i>Contact Support
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="fas fa-bell mr-2"></i>Announcements
+                        </a>
+                        <a href="@Url.Action("Index", "Settings")" class="list-group-item list-group-item-action">
+                            <i class="fas fa-cog mr-2"></i>Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Announcements -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-bullhorn mr-2"></i>Announcements
+                </div>
+                <div class="card-body">
+                    <div class="announcement-item mb-3 pb-3 border-bottom">
+                        <div class="d-flex justify-content-between mb-1">
+                            <div class="font-weight-bold">System Maintenance</div>
+                            <div class="text-muted small">Mar 15, 2025</div>
+                        </div>
+                        <p class="mb-0">Scheduled maintenance from 22:00-23:00. System might be temporarily unavailable.</p>
+                    </div>
+                    <div class="announcement-item">
+                        <div class="d-flex justify-content-between mb-1">
+                            <div class="font-weight-bold">New Features</div>
+                            <div class="text-muted small">Mar 01, 2025</div>
+                        </div>
+                        <p class="mb-0">Enhanced search capabilities and touch screen support added in latest update.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // Store the selected division
+            var selectedDivision = "";
+            var selectedPlatform = "";
+            
+            // MA platforms
+            var maPlatforms = [
+                { name: "TEC1", title: "TEC1", subtitle: "Main Production" },
+                { name: "TEC2", title: "TEC2", subtitle: "Secondary Line" },
+                { name: "TEC4I", title: "TEC4I", subtitle: "Special Projects" }
+            ];
+            
+            // TC platforms
+            var tcPlatforms = [
+                { name: "TEC1", title: "TEC1", subtitle: "Research Lab" },
+                { name: "TEC3", title: "TEC3", subtitle: "Development" },
+                { name: "TEC5", title: "TEC5", subtitle: "Testing Facility" }
+            ];
+            
+            // Show platform selector when a division is clicked
+            $('.division-btn').click(function (e) {
+                e.preventDefault();
+                
+                // Get division from data attribute or derive from URL
+                var href = $(this).attr('href');
+                var match = href.match(/division=([^&]+)/);
+                if (match) {
+                    selectedDivision = match[1];
+                }
+                
+                // Update platform selector title
+                $('#platformSelectorTitle').text('Select Platform for ' + 
+                    (selectedDivision === 'MA' ? 'Manufacturing' : 'Technical Center') + ' Division:');
+                
+                // Update platform buttons
+                var platforms = selectedDivision === 'MA' ? maPlatforms : tcPlatforms;
+                var platformContainer = $('#platformButtonContainer');
+                platformContainer.empty();
+                
+                // Generate platform buttons
+                $.each(platforms, function (i, platform) {
+                    var platformBtn = $(
+                        '<div class="col-md-4">' +
+                        '  <a href="' + '@Url.Action("SetDivisionPlatform", "Home")' +
+                        '?division=' + selectedDivision + 
+                        '&platform=' + platform.name + 
+                        '&returnUrl=' + encodeURIComponent('/Pallets') + 
+                        '" class="division-btn rounded" data-division="' + selectedDivision + '" data-platform="' + platform.name + '">' +
+                        '    <div class="division-btn-icon">' +
+                        '      <i class="fas fa-layer-group"></i>' +
+                        '    </div>' +
+                        '    <div class="division-btn-title">' + platform.title + '</div>' +
+                        '    <div class="division-btn-subtitle">' + platform.subtitle + '</div>' +
+                        '  </a>' +
+                        '</div>'
+                    );
+                    platformContainer.append(platformBtn);
+                });
+                
+                // Show platform selector
+                $('.platform-selector').show();
+                
+                // Setup platform selection
+                $('.platform-selector .division-btn').click(function (e) {
+                    e.preventDefault();
+                    
+                    // Remove previous selection
+                    $('.platform-selector .division-btn').removeClass('selected');
+                    
+                    // Add selection to current
+                    $(this).addClass('selected');
+                    
+                    // Store selected platform
+                    selectedPlatform = $(this).data('platform');
+                });
+                
+                // Scroll to platform selector
+                $('html, body').animate({
+                    scrollTop: $('.platform-selector').offset().top - 20
+                }, 500);
+            });
+            
+            // Hide platform selector when "Back" is clicked
+            $('#backButton').click(function () {
+                $('.platform-selector').hide();
+                selectedDivision = "";
+                selectedPlatform = "";
+            });
+            
+            // Handle continue button click
+            $('#continueButton').click(function () {
+                // If a platform is selected, redirect to the corresponding URL
+                if (selectedPlatform) {
+                    var url = '@Url.Action("SetDivisionPlatform", "Home")' +
+                        '?division=' + selectedDivision + 
+                        '&platform=' + selectedPlatform + 
+                        '&returnUrl=' + encodeURIComponent('/Pallets');
+                    
+                    window.location.href = url;
+                } else {
+                    // Show an alert if no platform is selected
+                    alert('Please select a platform to continue.');
+                }
+            });
+        });
+    </script>
+}

@@ -1,119 +1,69 @@
-@model PalletManagementSystem.Core.DTOs.PalletDto
-
+@model PalletManagementSystem.Web.ViewModels.Pallets.CreatePalletViewModel
 @{
     ViewBag.Title = "Create New Pallet";
 }
 
-<!-- Breadcrumb -->
-<nav aria-label="breadcrumb" class="mb-4">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Create New Pallet</li>
-    </ol>
-</nav>
+<!-- Main Content -->
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Create New Pallet</li>
+        </ol>
+    </nav>
 
-<!-- Create Header -->
-<div class="create-header">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <h4><i class="fas fa-plus-circle mr-2"></i>Create New Pallet</h4>
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-plus-circle mr-2"></i>Create New Pallet
         </div>
-        <div class="col-md-4 text-md-right mt-3 mt-md-0">
-            <div class="custom-control custom-switch d-inline-block mr-3">
-                <input type="checkbox" class="custom-control-input" id="touchModeSwitch">
-                <label class="custom-control-label text-dark" for="touchModeSwitch">Touch Mode</label>
-            </div>
-        </div>
-    </div>
-</div>
+        <div class="card-body">
+            @using (Html.BeginForm("Create", "Pallets", FormMethod.Post, new { @class = "needs-validation" }))
+            {
+                @Html.AntiForgeryToken()
+                @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
 
-<!-- Create Form -->
-<div class="card">
-    <div class="card-header">
-        <i class="fas fa-clipboard-list mr-2"></i>Pallet Information
-    </div>
-    <div class="card-body">
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle mr-2"></i>
-            New pallets will be assigned a temporary pallet number. A permanent number will be assigned when the pallet is closed.
-        </div>
-
-        @using (Html.BeginForm("Create", "Pallets", FormMethod.Post, new { id = "createPalletForm" }))
-        {
-            @Html.AntiForgeryToken()
-
-            <div class="form-group row">
-                <label for="manufacturingOrder" class="col-sm-3 col-form-label">Manufacturing Order<span class="text-danger">*</span></label>
-                <div class="col-sm-9">
-                    @Html.TextBoxFor(m => m.ManufacturingOrder, new { @class = "form-control", required = "required", placeholder = "Enter manufacturing order", maxlength = "50" })
-                    @Html.ValidationMessageFor(m => m.ManufacturingOrder, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="form-group row">
-                <label for="Division" class="col-sm-3 col-form-label">Division<span class="text-danger">*</span></label>
-                <div class="col-sm-9">
-                    <select id="Division" name="Division" class="form-control" required onchange="updatePlatformOptions()">
-                        <option value="MA" selected>MA - Manufacturing</option>
-                        <option value="TC">TC - Technical Center</option>
-                    </select>
-                    @Html.ValidationMessageFor(m => m.Division, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="form-group row">
-                <label for="Platform" class="col-sm-3 col-form-label">Platform<span class="text-danger">*</span></label>
-                <div class="col-sm-9">
-                    <select id="Platform" name="Platform" class="form-control" required>
-                        <option value="TEC1" selected>TEC1</option>
-                        <option value="TEC2">TEC2</option>
-                        <option value="TEC4I">TEC4I</option>
-                    </select>
-                    @Html.ValidationMessageFor(m => m.Platform, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <div class="form-group row">
-                <label for="UnitOfMeasure" class="col-sm-3 col-form-label">Unit of Measure<span class="text-danger">*</span></label>
-                <div class="col-sm-9">
-                    <select id="UnitOfMeasure" name="UnitOfMeasure" class="form-control" required>
-                        <option value="PC" selected>PC (Piece)</option>
-                        <option value="KG">KG (Kilogram)</option>
-                        <option value="BOX">BOX</option>
-                        <option value="ROLL">ROLL</option>
-                    </select>
-                    @Html.ValidationMessageFor(m => m.UnitOfMeasure, "", new { @class = "text-danger" })
-                </div>
-            </div>
-
-            <!-- Touch Mode Keyboard (initially hidden) -->
-            <div id="touchKeyboard" class="mt-4" style="display: none;">
-                <div class="card">
-                    <div class="card-header">Numeric Keypad</div>
-                    <div class="card-body">
-                        <div class="num-keypad">
-                            <button type="button" class="btn num-key" data-value="1">1</button>
-                            <button type="button" class="btn num-key" data-value="2">2</button>
-                            <button type="button" class="btn num-key" data-value="3">3</button>
-                            <button type="button" class="btn num-key" data-value="4">4</button>
-                            <button type="button" class="btn num-key" data-value="5">5</button>
-                            <button type="button" class="btn num-key" data-value="6">6</button>
-                            <button type="button" class="btn num-key" data-value="7">7</button>
-                            <button type="button" class="btn num-key" data-value="8">8</button>
-                            <button type="button" class="btn num-key" data-value="9">9</button>
-                            <button type="button" class="btn num-key" data-value="-">-</button>
-                            <button type="button" class="btn num-key" data-value="0">0</button>
-                            <button type="button" class="btn num-key btn-danger" data-value="del">
-                                <i class="fas fa-backspace"></i>
-                            </button>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.ManufacturingOrder, new { @class = "form-label" })
+                            @Html.TextBoxFor(m => m.ManufacturingOrder, new { @class = "form-control" })
+                            @Html.ValidationMessageFor(m => m.ManufacturingOrder, "", new { @class = "text-danger" })
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="form-group row mt-4">
-                <div class="col-sm-9 offset-sm-3">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.Division, new { @class = "form-label" })
+                            @Html.DropDownListFor(m => m.Division, Model.DivisionOptions, new { @class = "form-control", id = "divisionSelect" })
+                            @Html.ValidationMessageFor(m => m.Division, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.Platform, new { @class = "form-label" })
+                            @Html.DropDownListFor(m => m.Platform, Model.PlatformOptions, new { @class = "form-control", id = "platformSelect" })
+                            @Html.ValidationMessageFor(m => m.Platform, "", new { @class = "text-danger" })
+                            <small class="form-text text-muted">Available platforms depend on selected division</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.UnitOfMeasure, new { @class = "form-label" })
+                            @Html.DropDownListFor(m => m.UnitOfMeasure, Model.UnitOfMeasureOptions, new { @class = "form-control" })
+                            @Html.ValidationMessageFor(m => m.UnitOfMeasure, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle mr-2"></i>The pallet will be created with a temporary number. A permanent number will be assigned when the pallet is closed.
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
                     <a href="@Url.Action("Index", "Pallets")" class="btn btn-secondary mr-2">
                         <i class="fas fa-times mr-1"></i>Cancel
                     </a>
@@ -121,162 +71,50 @@
                         <i class="fas fa-save mr-1"></i>Create Pallet
                     </button>
                 </div>
-            </div>
-        }
+            }
+        </div>
     </div>
 </div>
 
-@section scripts {
+@section Scripts {
     <script>
-        $(function () {
-            // Toggle touch mode
-            $('#touchModeSwitch').on('change', function() {
-                var inputs = $('input[type="text"], input[type="number"], select');
-                var touchKeyboard = $('#touchKeyboard');
+        // Handle division change to update platforms
+        document.getElementById('divisionSelect').addEventListener('change', function() {
+            var divisionValue = this.value;
 
-                if (this.checked) {
-                    // Enable touch mode
-                    inputs.addClass('touch-input');
-                    touchKeyboard.show();
-                } else {
-                    // Disable touch mode
-                    inputs.removeClass('touch-input');
-                    touchKeyboard.hide();
-                }
-            });
+            // Call server to get updated platform options
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '@Url.Action("GetPlatformsForDivision", "Settings")', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            // Update platform dropdown
+                            var platformSelect = document.getElementById('platformSelect');
 
-            // Touch keyboard functionality
-            var numKeys = $('.num-key');
-            var activeInput = null;
+                            // Clear existing options
+                            while (platformSelect.firstChild) {
+                                platformSelect.removeChild(platformSelect.firstChild);
+                            }
 
-            // Set focus event for text inputs
-            var textInputs = $('input[type="text"]');
-            textInputs.on('focus', function() {
-                activeInput = this;
-            });
-
-            // Handle numeric keypad clicks
-            numKeys.on('click', function() {
-                if (!activeInput) return;
-
-                var value = $(this).data('value');
-
-                if (value === 'del') {
-                    // Delete last character
-                    activeInput.value = activeInput.value.slice(0, -1);
-                } else {
-                    // Add character
-                    activeInput.value += value;
-                }
-
-                // Trigger change event
-                $(activeInput).trigger('change');
-            });
-
-            // Set up form validation
-            $('#createPalletForm').validate({
-                rules: {
-                    ManufacturingOrder: {
-                        required: true,
-                        maxlength: 50
+                            // Add new options
+                            for (var i = 0; i < response.platforms.length; i++) {
+                                var option = document.createElement('option');
+                                option.value = response.platforms[i].value;
+                                option.text = response.platforms[i].text;
+                                platformSelect.appendChild(option);
+                            }
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    } catch (e) {
+                        alert('Error parsing response');
                     }
-                },
-                errorClass: 'text-danger',
-                errorElement: 'div',
-                highlight: function(element) {
-                    $(element).addClass('is-invalid');
-                },
-                unhighlight: function(element) {
-                    $(element).removeClass('is-invalid');
                 }
-            });
+            };
+            xhr.send('division=' + encodeURIComponent(divisionValue));
         });
-
-        // Function to update platform options based on selected division
-        function updatePlatformOptions() {
-            var division = $('#Division').val();
-            var platformSelect = $('#Platform');
-
-            // Clear existing options
-            platformSelect.empty();
-
-            if (division === 'MA') {
-                // Add Manufacturing platforms
-                platformSelect.append('<option value="TEC1">TEC1</option>');
-                platformSelect.append('<option value="TEC2">TEC2</option>');
-                platformSelect.append('<option value="TEC4I">TEC4I</option>');
-            } else {
-                // Add Technical Center platforms
-                platformSelect.append('<option value="TEC1">TEC1</option>');
-                platformSelect.append('<option value="TEC3">TEC3</option>');
-                platformSelect.append('<option value="TEC5">TEC5</option>');
-            }
-        }
     </script>
 }
-
-<style>
-    /* Header styles */
-    .create-header {
-        background-color: #e6eef5;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-
-        .create-header h4 {
-            color: #003366;
-            margin-bottom: 0;
-        }
-
-    /* Touch input styles */
-    .touch-input {
-        height: 50px;
-        font-size: 1.1rem;
-    }
-
-    /* Numeric keypad styles */
-    .num-keypad {
-        display: -ms-grid;
-        display: grid;
-        -ms-grid-columns: 1fr 10px 1fr 10px 1fr;
-        grid-template-columns: repeat(3, 1fr);
-        grid-gap: 10px;
-        max-width: 300px;
-        margin-top: 10px;
-    }
-
-    .num-key {
-        width: 100%;
-        height: 50px;
-        font-size: 1.2rem;
-        background-color: #f8f9fa;
-    }
-
-    /* IE11 Grid fallback for num-keypad */
-    @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
-        .num-keypad
-
-    {
-        display: block;
-        overflow: hidden;
-    }
-
-    .num-key {
-        float: left;
-        width: 30%;
-        margin: 1.66%;
-    }
-
-    }
-
-    /* Validation styles */
-    .is-invalid {
-        border-color: #c62828 !important;
-    }
-
-    .text-danger {
-        color: #c62828;
-        font-size: 0.875rem;
-    }
-</style>

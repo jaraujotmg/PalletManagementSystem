@@ -1,0 +1,131 @@
+@model PalletManagementSystem.Web.ViewModels.Pallets.PrintPalletViewModel
+@{
+    ViewBag.Title = "Print Pallet List - " + Model.Pallet.PalletNumber;
+}
+
+<!-- Main Content -->
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Details", "Pallets", new { id = Model.PalletId })">@Model.Pallet.PalletNumber</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Print Pallet List</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-print mr-2"></i>Print Settings
+                </div>
+                <div class="card-body">
+                    @using (Html.BeginForm("Print", "Pallets", FormMethod.Post))
+                    {
+                        @Html.AntiForgeryToken()
+                        @Html.HiddenFor(m => m.PalletId)
+                        @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.PrinterName)
+                            @Html.DropDownListFor(m => m.PrinterName, Model.AvailablePrinters, new { @class = "form-control" })
+                            @Html.ValidationMessageFor(m => m.PrinterName, "", new { @class = "text-danger" })
+                        </div>
+
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.SaveAsDefault, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.SaveAsDefault, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.ShowPreview, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.ShowPreview, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="@Url.Action("Details", "Pallets", new { id = Model.PalletId })" class="btn btn-secondary mr-2">
+                                <i class="fas fa-times mr-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-print mr-1"></i>Print
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-file-alt mr-2"></i>Print Preview
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <h4>Pallet List</h4>
+                        <h5>@Model.Pallet.PalletNumber</h5>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p><strong>Manufacturing Order:</strong> @Model.Pallet.ManufacturingOrder</p>
+                            <p><strong>Division:</strong> @Model.Pallet.Division</p>
+                            <p><strong>Platform:</strong> @Model.Pallet.Platform</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p>
+                                <strong>Status:</strong>
+                                @if (Model.Pallet.IsClosed)
+                                {
+                                    <span class="badge badge-success">Closed</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-orange">Open</span>
+                                }
+                            </p>
+                            <p><strong>Created Date:</strong> @Model.Pallet.CreatedDate.ToString("MM/dd/yyyy HH:mm")</p>
+                            <p><strong>Created By:</strong> @Model.Pallet.CreatedBy</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Item Number</th>
+                                    <th>Client</th>
+                                    <th>Reference</th>
+                                    <th>Manufacturing Order</th>
+                                    <th>Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Pallet.Items)
+                                {
+                                    <tr>
+                                        <td>@item.ItemNumber</td>
+                                        <td>@item.ClientName</td>
+                                        <td>@item.Reference</td>
+                                        <td>@item.ManufacturingOrder</td>
+                                        <td>@item.Quantity @item.QuantityUnit</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4">
+                        <p><strong>Total Items:</strong> @Model.Pallet.ItemCount</p>
+                        <p><strong>Total Quantity:</strong> @Model.Pallet.Quantity @Model.Pallet.UnitOfMeasure</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
