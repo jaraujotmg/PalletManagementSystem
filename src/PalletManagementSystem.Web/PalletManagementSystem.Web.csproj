@@ -68,13 +68,17 @@
 		<Compile Include="App_Start\FilterConfig.cs" />
 		<Compile Include="App_Start\RouteConfig.cs" />
 		<Compile Include="Controllers\BaseController.cs" />
+		<Compile Include="Controllers\ErrorController.cs" />
 		<Compile Include="Controllers\HomeController.cs" />
 		<Compile Include="Controllers\ItemsController.cs" />
 		<Compile Include="Controllers\PalletsController.cs" />
+		<Compile Include="Controllers\SearchController.cs" />
 		<Compile Include="Controllers\SettingsController.cs" />
 		<Compile Include="Global.asax.cs">
 			<DependentUpon>Global.asax</DependentUpon>
 		</Compile>
+		<Compile Include="Program.cs" />
+		<Compile Include="Startup.cs" />
 		<Compile Include="ViewModels\Home\HomeViewModel.cs" />
 		<Compile Include="ViewModels\Items\CreateItemViewModel.cs" />
 		<Compile Include="ViewModels\Items\ItemDetailViewModel.cs" />
@@ -89,6 +93,7 @@
 		<Compile Include="ViewModels\Pallets\SearchResultsViewModel.cs" />
 		<Compile Include="ViewModels\Settings\UserPreferencesViewModel.cs" />
 		<Compile Include="ViewModels\Shared\DivisionPlatformSelectorViewModel.cs" />
+		<Compile Include="ViewModels\Shared\ErrorViewModel.cs" />
 		<Compile Include="ViewModels\Shared\SearchSuggestionViewModel.cs" />
 		<Compile Include="ViewModels\Shared\ViewModelBase.cs" />
 		<Compile Include="Services\ISessionManager.cs" />
@@ -128,6 +133,9 @@
 		<Folder Include="App_Data\" />
 		<Folder Include="Models\" />
 		<Folder Include="Views\Items\" />
+		<Folder Include="Views\Error\" />
+		<Folder Include="Views\Search\" />
+		<Folder Include="Views\Settings\" />
 	</ItemGroup>
 	<ItemGroup>
 		<Content Include="packages.config" />
@@ -137,6 +145,7 @@
 	  <None Include="Scripts\ie11-polyfills.js" />
 	  <None Include="Scripts\modal-helpers.js" />
 	  <None Include="Scripts\pallet-management.js" />
+	  <None Include="views\error\Error.cshtml" />
 	  <None Include="Views\Home\Index.cshtml" />
 	  <None Include="views\items\Create.cshtml" />
 	  <None Include="views\items\Details.cshtml" />
@@ -148,6 +157,8 @@
 	  <None Include="Views\Pallets\Index.cshtml" />
 	  <None Include="views\pallets\Move.cshtml" />
 	  <None Include="views\pallets\Print.cshtml" />
+	  <None Include="views\search\Results.cshtml" />
+	  <None Include="views\settings\Index.cshtml" />
 	  <None Include="Views\Shared\_Layout.cshtml" />
 	  <None Include="Views\_ViewImports.cshtml" />
 	  <None Include="Views\_ViewStart.cshtml" />
