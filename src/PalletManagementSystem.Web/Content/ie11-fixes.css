@@ -1,0 +1,144 @@
+﻿/* IE11 specific fixes */
+
+/* Fix for flexbox in IE11 */
+@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+    /* Flex container fixes */
+    .d-flex {
+        display: -ms-flexbox;
+        display: flex;
+    }
+
+    /* Alignment fixes */
+    .align-items-center {
+        -ms-flex-align: center;
+        align-items: center;
+    }
+
+    .align-items-start {
+        -ms-flex-align: start;
+        align-items: flex-start;
+    }
+
+    .justify-content-between {
+        -ms-flex-pack: justify;
+        justify-content: space-between;
+    }
+
+    .justify-content-center {
+        -ms-flex-pack: center;
+        justify-content: center;
+    }
+
+    .justify-content-end {
+        -ms-flex-pack: end;
+        justify-content: flex-end;
+    }
+
+    /* Text alignment fixes */
+    .text-md-right {
+        text-align: right;
+    }
+
+    .mt-md-0 {
+        margin-top: 0;
+    }
+
+    /* Grid fallback for numeric keypad */
+    .num-keypad {
+        display: block;
+        overflow: hidden;
+    }
+
+    .num-key {
+        float: left;
+        width: 30%;
+        margin: 1.66%;
+    }
+
+    /* Fix for touch mode larger buttons */
+    .touch-mode .btn {
+        min-height: 44px;
+        padding: 10px 15px;
+    }
+
+    .touch-mode input,
+    .touch-mode select,
+    .touch-mode textarea {
+        min-height: 44px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    /* Fix for badges in tables */
+    .table td .badge {
+        display: inline-block;
+        white-space: nowrap;
+    }
+
+    /* Fix for source-dest container */
+    .source-dest-container {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .source-dest-box {
+        display: table-cell;
+        width: 45%;
+        vertical-align: middle;
+    }
+
+    .arrow-container {
+        display: table-cell;
+        width: 10%;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    /* Fix for info rows */
+    .info-row {
+        display: table;
+        width: 100%;
+    }
+
+    .info-label {
+        display: table-cell;
+        min-width: 150px;
+    }
+
+    .info-value {
+        display: table-cell;
+        vertical-align: top;
+    }
+}
+
+/* Additional IE11 fixes for modals */
+@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+    .modal {
+        -ms-overflow-style: -ms-autohiding-scrollbar;
+    }
+
+    .modal-content {
+        border: 1px solid rgba(0,0,0,.2);
+    }
+}
+
+/* Touch mode specific styles */
+.touch-mode .form-control,
+.touch-mode .btn,
+.touch-mode .dropdown-item {
+    min-height: 44px;
+}
+
+.touch-mode .table td,
+.touch-mode .table th {
+    padding: 12px 8px;
+}
+
+.touch-mode .card-body {
+    padding: 1.5rem;
+}
+
+.touch-input {
+    height: 50px !important;
+    font-size: 1.1rem !important;
+}
