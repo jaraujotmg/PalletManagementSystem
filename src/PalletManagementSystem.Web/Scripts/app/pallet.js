@@ -1,225 +1,318 @@
-﻿/* Common Styles for Pallet Management System
- * Designed for IE11 compatibility
- */
+﻿// Main Application JavaScript for Pallet Management System
+(function () {
+    'use strict';
 
-/* General Styles */
-body {
-    font - family: 'Segoe UI', sans - serif;
-}
+    // Initialize the application when DOM is ready
+    document.addEventListener('DOMContentLoaded', function () {
+        initializePalletManagement();
+    });
 
-.navbar {
-    background - color: #003366;
-}
-
-.navbar - brand {
-    font - weight: bold;
-}
-
-/* Card Styles */
-.card {
-    border - radius: 8px;
-    -webkit - box - shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    box - shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin - bottom: 20px;
-}
-
-.card - header {
-    background - color: #e6eef5;
-    color: #003366;
-    font - weight: bold;
-}
-
-/* Button Styles */
-.btn - primary {
-    background - color: #003366;
-    border - color: #003366;
-}
-
-.btn - primary:hover {
-    background - color: #5e87b0;
-    border - color: #5e87b0;
-}
-
-/* Badge Styles */
-.badge - success {
-    background - color: #2e7d32;
-}
-
-.badge - orange {
-    background - color: #f57c00;
-    color: white;
-}
-
-/* Header Styles */
-.pallet - header, .create - header, .edit - header {
-    background - color: #e6eef5;
-    border - radius: 8px;
-    padding: 20px;
-    margin - bottom: 20px;
-}
-
-.pallet - header h4, .create - header h4, .edit - header h4 {
-    color: #003366;
-    margin - bottom: 0;
-}
-
-/* Table Styles */
-.table th {
-    background - color: #e6eef5;
-    color: #003366;
-}
-
-/* Search Styles */
-.search - container {
-    position: relative;
-}
-
-.search - results {
-    position: absolute;
-    top: 100 %;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #ddd;
-    border - radius: 0 0 4px 4px;
-    z - index: 1000;
-    display: none;
-}
-
-.search - results.show {
-    display: block;
-}
-
-.search - item {
-    padding: 8px 12px;
-    border - bottom: 1px solid #eee;
-    cursor: pointer;
-}
-
-.search - item:hover {
-    background - color: #e6eef5;
-}
-
-/* Info Item Styles */
-.pallet - info - item {
-    display: table;
-    width: 100 %;
-    margin - bottom: 10px;
-}
-
-.pallet - info - label {
-    display: table - cell;
-    min - width: 150px;
-    font - weight: 600;
-    color: #003366;
-}
-
-.pallet - info - value {
-    display: table - cell;
-}
-
-/* Activity Log Styles */
-.activity - item {
-    margin - bottom: 15px;
-    position: relative;
-    padding - left: 40px;
-}
-
-.activity - icon {
-    position: absolute;
-    left: 0;
-    top: 0;
-}
-
-.activity - content {
-    padding - left: 10px;
-}
-
-.activity - title {
-    font - weight: 600;
-}
-
-.activity - subtitle {
-    color: #555;
-}
-
-/* Touch Mode Styles */
-.touch - input {
-    height: 50px;
-    font - size: 1.1rem;
-}
-
-.num - keypad {
-    display: -ms - grid;
-    display: grid;
-    -ms - grid - columns: 1fr 10px 1fr 10px 1fr;
-    grid - template - columns: repeat(3, 1fr);
-    grid - gap: 10px;
-    max - width: 300px;
-    margin - top: 10px;
-}
-
-.num - key {
-    width: 100 %;
-    height: 50px;
-    font - size: 1.2rem;
-    background - color: #f8f9fa;
-}
-
-/* IE11 Grid fallback for num-keypad */
-@media all and(-ms - high - contrast: none), (-ms - high - contrast: active) {
-    .num - keypad {
-        display: block;
-        overflow: hidden;
+    function initializePalletManagement() {
+        setupTouchMode();
+        setupFilterControls();
+        setupSearchInputs();
+        setupConfirmPrompts();
+        setupTableSorting();
+        setupAutoRefresh();
     }
-    
-    .num - key {
-        float: left;
-        width: 30 %;
-        margin: 1.66 %;
+
+    // Set up touch mode functionality
+    function setupTouchMode() {
+        var touchModeSwitch = document.getElementById('touchModeSwitch');
+        if (touchModeSwitch) {
+            touchModeSwitch.addEventListener('change', function () {
+                var isEnabled = this.checked;
+                toggleTouchMode(isEnabled);
+
+                // Save preference via AJAX
+                saveUserPreference('TouchModeEnabled', isEnabled);
+            });
+
+            // Initialize from current state
+            toggleTouchMode(touchModeSwitch.checked);
+        }
     }
-}
 
-/* Validation Styles */
-.is - invalid {
-    border - color: #c62828!important;
-}
+    // Toggle touch mode elements
+    function toggleTouchMode(enabled) {
+        document.body.classList.toggle('touch-mode', enabled);
 
-.text - danger {
-    color: #c62828;
-    font - size: 0.875rem;
-}
+        var inputs = document.querySelectorAll('input, select, button:not(.num-key)');
+        for (var i = 0; i < inputs.length; i++) {
+            if (enabled) {
+                inputs[i].classList.add('touch-input');
+            } else {
+                inputs[i].classList.remove('touch-input');
+            }
+        }
 
-/* Modal Styles */
-.modal - header {
-    background - color: #003366;
-    color: white;
-}
+        // Show/hide numeric keypad
+        var keypad = document.getElementById('touchKeyboard');
+        if (keypad) {
+            keypad.style.display = enabled ? 'block' : 'none';
+        }
 
-.modal - footer {
-    background - color: #e6eef5;
-}
+        // Setup numeric inputs if touch mode is enabled
+        if (enabled) {
+            setupNumericKeypad();
+        }
+    }
 
-/* IE11 Flexbox fixes */
-.d - flex {
-    display: -ms - flexbox;
-    display: flex;
-}
+    // Set up numeric keypad functionality
+    function setupNumericKeypad() {
+        var numKeys = document.querySelectorAll('.num-key');
+        var numericInputs = document.querySelectorAll('input[type="number"], input[type="text"].numeric');
+        var activeInput = null;
 
-.align - items - center {
-    -ms - flex - align: center;
-    align - items: center;
-}
+        // Set active input on focus
+        for (var i = 0; i < numericInputs.length; i++) {
+            numericInputs[i].addEventListener('focus', function () {
+                activeInput = this;
+            });
+        }
 
-.justify - content - between {
-    -ms - flex - pack: justify;
-    justify - content: space - between;
-}
+        // Handle keypad button clicks
+        for (var j = 0; j < numKeys.length; j++) {
+            numKeys[j].addEventListener('click', function () {
+                if (!activeInput) return;
 
-.text - md - right {
-    text - align: right;
-}
+                var value = this.getAttribute('data-value');
 
-.mt - md - 0 {
-    margin - top: 0;
-}
+                if (value === 'del') {
+                    // Delete last character
+                    activeInput.value = activeInput.value.slice(0, -1);
+                } else {
+                    // Add character
+                    activeInput.value += value;
+                }
+
+                // Trigger change event for validation
+                var event = document.createEvent('Event');
+                event.initEvent('change', true, true);
+                activeInput.dispatchEvent(event);
+            });
+        }
+    }
+
+    // Set up filter controls
+    function setupFilterControls() {
+        var filterButtons = document.querySelectorAll('.filter-btn');
+        for (var i = 0; i < filterButtons.length; i++) {
+            filterButtons[i].addEventListener('click', function () {
+                var target = this.getAttribute('data-target');
+                var value = this.getAttribute('data-value');
+
+                // Update hidden input
+                var input = document.getElementById(target);
+                if (input) {
+                    input.value = value;
+
+                    // Submit the form
+                    var form = input.closest('form');
+                    if (form) form.submit();
+                }
+
+                // Update active class
+                var buttons = document.querySelectorAll('.filter-btn[data-target="' + target + '"]');
+                for (var j = 0; j < buttons.length; j++) {
+                    buttons[j].classList.remove('active');
+                }
+                this.classList.add('active');
+            });
+        }
+    }
+
+    // Set up search inputs with autocomplete
+    function setupSearchInputs() {
+        var searchInputs = document.querySelectorAll('.search-input');
+
+        for (var i = 0; i < searchInputs.length; i++) {
+            var input = searchInputs[i];
+            var url = input.getAttribute('data-search-url');
+            if (!url) continue;
+
+            // Debounce input for performance
+            var timer;
+            input.addEventListener('input', function () {
+                var inputValue = this.value.trim();
+                var resultsContainer = this.parentNode.querySelector('.search-results');
+
+                // Clear previous timer
+                clearTimeout(timer);
+
+                // Don't search for short terms
+                if (inputValue.length < 2) {
+                    if (resultsContainer) {
+                        resultsContainer.innerHTML = '';
+                        resultsContainer.classList.remove('show');
+                    }
+                    return;
+                }
+
+                // Set a new timer
+                var self = this;
+                timer = setTimeout(function () {
+                    // Make AJAX request
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', url + '?term=' + encodeURIComponent(inputValue), true);
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState === 4 && xhr.status === 200) {
+                            try {
+                                var response = JSON.parse(xhr.responseText);
+                                updateSearchResults(self, response, resultsContainer);
+                            } catch (e) {
+                                console.error('Error parsing search results:', e);
+                            }
+                        }
+                    };
+                    xhr.send();
+                }, 300); // 300ms debounce time
+            });
+
+            // Show results on focus
+            input.addEventListener('focus', function () {
+                var resultsContainer = this.parentNode.querySelector('.search-results');
+                if (resultsContainer && resultsContainer.innerHTML !== '') {
+                    resultsContainer.classList.add('show');
+                }
+            });
+
+            // Hide results when clicking outside
+            document.addEventListener('click', function (e) {
+                var searchContainers = document.querySelectorAll('.search-container');
+                for (var j = 0; j < searchContainers.length; j++) {
+                    var container = searchContainers[j];
+                    if (!container.contains(e.target)) {
+                        var resultsContainer = container.querySelector('.search-results');
+                        if (resultsContainer) {
+                            resultsContainer.classList.remove('show');
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // Update search results container
+    function updateSearchResults(inputElement, response, resultsContainer) {
+        if (!resultsContainer) return;
+
+        if (!response.success || response.results.length === 0) {
+            resultsContainer.innerHTML = '<div class="search-item">No results found</div>';
+        } else {
+            var html = '';
+            for (var i = 0; i < response.results.length; i++) {
+                var result = response.results[i];
+                html += '<div class="search-item" data-id="' + result.id + '" data-url="' + result.url + '">';
+                html += '<strong>' + result.text + '</strong>';
+                if (result.info) {
+                    html += '<br><small class="text-muted">' + result.info + '</small>';
+                }
+                html += '</div>';
+            }
+            resultsContainer.innerHTML = html;
+
+            // Add click handlers to search items
+            var searchItems = resultsContainer.querySelectorAll('.search-item');
+            for (var j = 0; j < searchItems.length; j++) {
+                searchItems[j].addEventListener('click', function () {
+                    var url = this.getAttribute('data-url');
+                    if (url) {
+                        window.location.href = url;
+                    }
+                });
+            }
+        }
+
+        resultsContainer.classList.add('show');
+    }
+
+    // Set up confirmation prompts
+    function setupConfirmPrompts() {
+        var confirmButtons = document.querySelectorAll('[data-confirm]');
+
+        for (var i = 0; i < confirmButtons.length; i++) {
+            confirmButtons[i].addEventListener('click', function (e) {
+                var message = this.getAttribute('data-confirm');
+                if (!confirm(message)) {
+                    e.preventDefault();
+                }
+            });
+        }
+    }
+
+    // Set up table sorting
+    function setupTableSorting() {
+        var sortHeaders = document.querySelectorAll('th[data-sort]');
+
+        for (var i = 0; i < sortHeaders.length; i++) {
+            sortHeaders[i].addEventListener('click', function () {
+                var sortBy = this.getAttribute('data-sort');
+                var currentSort = getUrlParameter('sortBy');
+                var currentDirection = getUrlParameter('sortDescending');
+
+                // Toggle sort direction if same column
+                var sortDescending = sortBy === currentSort ?
+                    (currentDirection === 'true' ? 'false' : 'true') : 'false';
+
+                // Redirect with new sort parameters
+                var url = updateQueryStringParameter(window.location.href, 'sortBy', sortBy);
+                url = updateQueryStringParameter(url, 'sortDescending', sortDescending);
+                window.location.href = url;
+            });
+        }
+    }
+
+    // Set up auto-refresh for pallet lists
+    function setupAutoRefresh() {
+        var autoRefreshEnabled = document.getElementById('autoRefreshEnabled');
+        var refreshInterval = document.getElementById('refreshInterval');
+
+        if (autoRefreshEnabled && autoRefreshEnabled.value === 'true' && refreshInterval) {
+            var interval = parseInt(refreshInterval.value, 10) * 1000; // Convert to milliseconds
+
+            if (!isNaN(interval) && interval > 0) {
+                setInterval(function () {
+                    // Reload the page without POST data
+                    window.location.reload();
+                }, interval);
+            }
+        }
+    }
+
+    // Helper: Get URL parameter
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        var results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    }
+
+    // Helper: Update query string parameter
+    function updateQueryStringParameter(uri, key, value) {
+        var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+        var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+
+        if (uri.match(re)) {
+            return uri.replace(re, '$1' + key + "=" + value + '$2');
+        } else {
+            return uri + separator + key + "=" + value;
+        }
+    }
+
+    // Helper: Save user preference via AJAX
+    function saveUserPreference(key, value) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/Settings/SavePreference', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        // Get the anti-forgery token
+        var token = document.querySelector('input[name="__RequestVerificationToken"]');
+        var tokenValue = token ? token.value : '';
+
+        xhr.send('key=' + encodeURIComponent(key) +
+            '&value=' + encodeURIComponent(value) +
+            '&__RequestVerificationToken=' + encodeURIComponent(tokenValue));
+    }
+})();

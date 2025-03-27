@@ -1,4 +1,5 @@
 ﻿// src/PalletManagementSystem.Web/App_Start/DependencyConfig.cs
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Configuration;
@@ -104,12 +105,12 @@ namespace PalletManagementSystem.Web.App_Start
 
         public IConfigurationSection GetSection(string key)
         {
-            throw new System.NotImplementedException("GetSection is not implemented in this adapter");
+            throw new NotImplementedException("GetSection is not implemented in this adapter");
         }
 
         public IEnumerable<IConfigurationSection> GetChildren()
         {
-            throw new System.NotImplementedException("GetChildren is not implemented in this adapter");
+            throw new NotImplementedException("GetChildren is not implemented in this adapter");
         }
     }
 }

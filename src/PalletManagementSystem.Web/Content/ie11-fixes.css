@@ -142,3 +142,94 @@
     height: 50px !important;
     font-size: 1.1rem !important;
 }
+
+/* Additional IE11 fixes */
+
+@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+    /* Fix layout issues with form groups in IE11 */
+    .form-group {
+        width: 100%;
+    }
+
+    /* Fix modal issues in IE11 */
+    .modal-dialog {
+        margin: 30px auto !important;
+    }
+
+    /* Fix content alignment */
+    .container-fluid {
+        width: 100%;
+    }
+
+    /* Fix card alignment */
+    .card {
+        display: block;
+        width: 100%;
+    }
+
+    /* Fix for nested flexbox items */
+    .d-flex > .d-flex {
+        flex: 0 0 auto;
+    }
+
+    /* Fix checkbox alignment */
+    .custom-control-label::before,
+    .custom-control-label::after {
+        top: 0.15rem;
+    }
+
+    /* Fix for icon alignment */
+    .fa, .fas, .far, .fab {
+        vertical-align: middle;
+    }
+
+    /* Fix for long table content */
+    .table {
+        table-layout: fixed;
+    }
+
+    /* Fix for alert positioning */
+    .alert {
+        width: 100%;
+    }
+
+    /* Fix pagination in IE11 */
+    .pagination {
+        display: inline-block;
+    }
+
+    .page-item {
+        display: inline-block;
+    }
+
+    /* Fix for row spacing in IE11 */
+    .row {
+        width: 100%;
+        display: block;
+    }
+
+        .row:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+}
+
+/* Fix for badge and button alignment regardless of browser */
+.badge {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.btn i {
+    vertical-align: middle;
+}
+
+/* Ensure form validation works consistently */
+.is-invalid {
+    border-color: #dc3545 !important;
+}
+
+.invalid-feedback {
+    display: block;
+}

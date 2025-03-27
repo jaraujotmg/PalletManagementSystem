@@ -77,8 +77,6 @@
 		<Compile Include="Global.asax.cs">
 			<DependentUpon>Global.asax</DependentUpon>
 		</Compile>
-		<Compile Include="Program.cs" />
-		<Compile Include="Startup.cs" />
 		<Compile Include="ViewModels\Home\HomeViewModel.cs" />
 		<Compile Include="ViewModels\Items\CreateItemViewModel.cs" />
 		<Compile Include="ViewModels\Items\ItemDetailViewModel.cs" />
@@ -141,6 +139,7 @@
 		<Content Include="packages.config" />
 	</ItemGroup>
 	<ItemGroup>
+	  <None Include="Scripts\app\pallet.js" />
 	  <None Include="Scripts\form-validation.js" />
 	  <None Include="Scripts\ie11-polyfills.js" />
 	  <None Include="Scripts\modal-helpers.js" />
@@ -151,12 +150,12 @@
 	  <None Include="views\items\Details.cshtml" />
 	  <None Include="views\items\Edit.cshtml" />
 	  <None Include="views\items\Move.cshtml" />
-	  <None Include="views\pallets\Close.cshtml" />
+	  <None Include="Views\Pallets\Close.cshtml" />
 	  <None Include="Views\Pallets\Create.cshtml" />
 	  <None Include="Views\Pallets\Details.cshtml" />
 	  <None Include="Views\Pallets\Index.cshtml" />
-	  <None Include="views\pallets\Move.cshtml" />
-	  <None Include="views\pallets\Print.cshtml" />
+	  <None Include="Views\Pallets\Move.cshtml" />
+	  <None Include="Views\Pallets\Print.cshtml" />
 	  <None Include="views\search\Results.cshtml" />
 	  <None Include="views\settings\Index.cshtml" />
 	  <None Include="Views\Shared\_Layout.cshtml" />
