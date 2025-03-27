@@ -25,10 +25,10 @@ namespace PalletManagementSystem.Web
                       "~/Scripts/bootstrap.js"));
 
             bundles.Add(new StyleBundle("~/Content/css").Include(
-                      "~/Content/bootstrap.css",
-                      "~/Content/font-awesome.css",
-                      "~/Content/pallet.css",
-                      "~/Content/site.css"));
+      "~/Content/bootstrap.css",
+      "~/Content/all.min.css",
+      "~/Content/pallet.css",
+      "~/Content/site.css"));
 
             // Custom bundle for Pallet Management System
             bundles.Add(new ScriptBundle("~/bundles/pms").Include(
