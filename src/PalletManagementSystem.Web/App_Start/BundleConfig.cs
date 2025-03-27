@@ -1,4 +1,5 @@
-﻿using System.Web;
+﻿// src/PalletManagementSystem.Web/App_Start/BundleConfig.cs
+using System.Web;
 using System.Web.Optimization;
 
 namespace PalletManagementSystem.Web
@@ -26,6 +27,7 @@ namespace PalletManagementSystem.Web
             bundles.Add(new StyleBundle("~/Content/css").Include(
                       "~/Content/bootstrap.css",
                       "~/Content/font-awesome.css",
+                      "~/Content/pallet.css",
                       "~/Content/site.css"));
 
             // Custom bundle for Pallet Management System
@@ -35,7 +37,10 @@ namespace PalletManagementSystem.Web
                       "~/Scripts/form-validation.js",
                       "~/Scripts/pallet-management.js"));
 
-            // Add custom CSS for IE11 specific fixes
+            // IE11 specific bundles - used via conditional comment in _Layout.cshtml
+            bundles.Add(new ScriptBundle("~/bundles/ie11compat").Include(
+                      "~/Scripts/ie11/ie11-custom-properties.js"));
+
             bundles.Add(new StyleBundle("~/Content/ie11-fixes").Include(
                       "~/Content/ie11-fixes.css"));
 

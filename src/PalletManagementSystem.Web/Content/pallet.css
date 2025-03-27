@@ -1,4 +1,5 @@
-﻿/* Common Styles for Pallet Management System
+﻿/* src/PalletManagementSystem.Web/Content/pallet.css */
+/* Common Styles for Pallet Management System
  * Designed for IE11 compatibility
  */
 
@@ -166,20 +167,6 @@ body {
     background-color: #f8f9fa;
 }
 
-/* IE11 Grid fallback for num-keypad */
-@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
-    .num-keypad {
-        display: block;
-        overflow: hidden;
-    }
-
-    .num-key {
-        float: left;
-        width: 30%;
-        margin: 1.66%;
-    }
-}
-
 /* Validation Styles */
 .is-invalid {
     border-color: #c62828 !important;
@@ -200,7 +187,7 @@ body {
     background-color: #e6eef5;
 }
 
-/* IE11 Flexbox fixes */
+/* Standard Flexbox Classes */
 .d-flex {
     display: -ms-flexbox;
     display: flex;

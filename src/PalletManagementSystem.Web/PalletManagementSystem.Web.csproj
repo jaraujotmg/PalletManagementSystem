@@ -105,6 +105,7 @@
 		<Content Include="Content\bootstrap.min.css" />
 		<Content Include="Content\all.min.css" />
 		<Content Include="Content\ie11-fixes.css" />
+		<Content Include="Content\pallet.css" />
 		<Content Include="favicon.ico" />
 		<Content Include="fonts\**\*.*" />
 		<Content Include="Global.asax" />
@@ -139,9 +140,9 @@
 		<Content Include="packages.config" />
 	</ItemGroup>
 	<ItemGroup>
-	  <None Include="Scripts\app\pallet.js" />
 	  <None Include="Scripts\form-validation.js" />
 	  <None Include="Scripts\ie11-polyfills.js" />
+	  <None Include="Scripts\ie11\ie11-custom-properties.js" />
 	  <None Include="Scripts\modal-helpers.js" />
 	  <None Include="Scripts\pallet-management.js" />
 	  <None Include="views\error\Error.cshtml" />
