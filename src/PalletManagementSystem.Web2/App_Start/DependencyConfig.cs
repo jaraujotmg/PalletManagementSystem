@@ -1,7 +1,6 @@
-﻿// src/PalletManagementSystem.Web/App_Start/DependencyConfig.cs
+﻿// src/PalletManagementSystem.Web2/App_Start/DependencyConfig.cs
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Configuration;
 using System.Linq;
 using System.Reflection;
@@ -9,8 +8,6 @@ using System.Web.Mvc;
 using Autofac;
 using Autofac.Integration.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Infrastructure.Data;
@@ -34,17 +31,13 @@ namespace PalletManagementSystem.Web2.App_Start
         {
             var builder = new ContainerBuilder();
 
-            // Create and register enhanced configuration
-            var configuration = new ConfigManagerConfiguration();
-            builder.RegisterInstance(configuration).As<IConfiguration>().SingleInstance();
-
-            // Register logger factory and loggers (used by multiple layers)
-            builder.RegisterType<LoggerFactory>().As<ILoggerFactory>().SingleInstance();
-            builder.RegisterGeneric(typeof(Logger<>)).As(typeof(ILogger<>)).SingleInstance();
+            // Register configuration wrapper
+            var appSettings = new AppSettingsWrapper();
+            builder.RegisterInstance(appSettings).As<IAppSettings>().SingleInstance();
 
             // Register components from each project layer
             builder.RegisterCoreComponents();
-            builder.RegisterInfrastructureComponents(configuration);
+            builder.RegisterInfrastructureComponents(appSettings);
             builder.RegisterWebComponents();
 
             return builder.Build();
@@ -89,12 +82,12 @@ namespace PalletManagementSystem.Web2.App_Start
         /// <summary>
         /// Registers components from the Infrastructure project
         /// </summary>
-        public static void RegisterInfrastructureComponents(this ContainerBuilder builder, IConfiguration configuration)
+        public static void RegisterInfrastructureComponents(this ContainerBuilder builder, IAppSettings appSettings)
         {
             // Register DbContext
             builder.Register(c => {
                 var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-                var connectionString = configuration.GetSection("ConnectionStrings")["DefaultConnection"];
+                var connectionString = appSettings.GetConnectionString("DefaultConnection");
                 optionsBuilder.UseSqlServer(connectionString);
                 return new ApplicationDbContext(optionsBuilder.Options);
             })
@@ -107,7 +100,7 @@ namespace PalletManagementSystem.Web2.App_Start
 
             // External service integrations - per request lifetime as they
             // may contain request-specific configuration
-            RegisterExternalServiceComponents(builder, configuration);
+            RegisterExternalServiceComponents(builder, appSettings);
 
             // Identity services - per request lifetime as they contain
             // user-specific information
@@ -151,12 +144,12 @@ namespace PalletManagementSystem.Web2.App_Start
         /// <summary>
         /// Registers external service integrations from the Infrastructure project
         /// </summary>
-        private static void RegisterExternalServiceComponents(ContainerBuilder builder, IConfiguration configuration)
+        private static void RegisterExternalServiceComponents(ContainerBuilder builder, IAppSettings appSettings)
         {
             // Printer service - per request as it may use request-specific settings
             builder.RegisterType<PrinterService>()
                 .As<IPrinterService>()
-                .WithParameter(TypedParameter.From(configuration))
+                .WithParameter(TypedParameter.From(appSettings))
                 .InstancePerRequest()
                 .PropertiesAutowired();
 
@@ -175,13 +168,13 @@ namespace PalletManagementSystem.Web2.App_Start
             // SSRS integration services
             builder.RegisterType<ReportingService>()
                 .As<IReportingService>()
-                .WithParameter(TypedParameter.From(configuration))
+                .WithParameter(TypedParameter.From(appSettings))
                 .InstancePerRequest()
                 .PropertiesAutowired();
 
             builder.RegisterType<SSRSClient>()
                 .As<ISSRSClient>()
-                .WithParameter(TypedParameter.From(configuration))
+                .WithParameter(TypedParameter.From(appSettings))
                 .InstancePerRequest()
                 .PropertiesAutowired();
         }
@@ -227,132 +220,48 @@ namespace PalletManagementSystem.Web2.App_Start
     }
 
     /// <summary>
-    /// Enhanced Configuration Adapter that bridges ASP.NET configuration and .NET Core configuration
+    /// Simple wrapper for application settings
     /// </summary>
-    public class ConfigManagerConfiguration : IConfiguration
+    public interface IAppSettings
     {
-        private readonly Dictionary<string, string> _settings;
-        private readonly Dictionary<string, ConfigSection> _sections;
+        string GetSetting(string key);
+        string GetConnectionString(string name);
+        bool GetBoolSetting(string key, bool defaultValue = false);
+        int GetIntSetting(string key, int defaultValue = 0);
+    }
 
-        public ConfigManagerConfiguration()
+    /// <summary>
+    /// Implementation of IAppSettings that uses ConfigurationManager
+    /// </summary>
+    public class AppSettingsWrapper : IAppSettings
+    {
+        public string GetSetting(string key)
         {
-            // Initialize dictionaries
-            _settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            _sections = new Dictionary<string, ConfigSection>(StringComparer.OrdinalIgnoreCase);
-
-            // Determine environment
-            var environment = ConfigurationManager.AppSettings["Environment"]
-                            ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-                            ?? "Production";
-
-            // Load app settings
-            foreach (string key in ConfigurationManager.AppSettings.AllKeys)
-            {
-                _settings[key] = ConfigurationManager.AppSettings[key];
-            }
-
-            // Add environment setting
-            _settings["Environment"] = environment;
-
-            // Create ConnectionStrings section
-            var connectionStringsSection = new ConfigSection("ConnectionStrings");
-            foreach (ConnectionStringSettings connection in ConfigurationManager.ConnectionStrings)
-            {
-                connectionStringsSection.SetValue(connection.Name, connection.ConnectionString);
-            }
-            _sections["ConnectionStrings"] = connectionStringsSection;
-
-            // Create AppSettings section
-            var appSettingsSection = new ConfigSection("AppSettings");
-            foreach (var key in _settings.Keys)
-            {
-                appSettingsSection.SetValue(key, _settings[key]);
-            }
-            _sections["AppSettings"] = appSettingsSection;
+            return ConfigurationManager.AppSettings[key];
         }
 
-        public string this[string key]
+        public string GetConnectionString(string name)
         {
-            get => _settings.TryGetValue(key, out var value) ? value : null;
-            set => _settings[key] = value;
+            var connectionString = ConfigurationManager.ConnectionStrings[name];
+            return connectionString?.ConnectionString;
         }
 
-        public IConfigurationSection GetSection(string key)
+        public bool GetBoolSetting(string key, bool defaultValue = false)
         {
-            if (_sections.TryGetValue(key, out var section))
-            {
-                return section;
-            }
+            var setting = GetSetting(key);
+            if (string.IsNullOrEmpty(setting))
+                return defaultValue;
 
-            // Create and return a new empty section
-            var newSection = new ConfigSection(key);
-            _sections[key] = newSection;
-            return newSection;
+            return bool.TryParse(setting, out bool result) ? result : defaultValue;
         }
 
-        public IEnumerable<IConfigurationSection> GetChildren()
+        public int GetIntSetting(string key, int defaultValue = 0)
         {
-            return _sections.Values;
-        }
+            var setting = GetSetting(key);
+            if (string.IsNullOrEmpty(setting))
+                return defaultValue;
 
-        /// <summary>
-        /// Configuration section implementation for the ConfigManagerConfiguration
-        /// </summary>
-        public class ConfigSection : IConfigurationSection
-        {
-            private readonly Dictionary<string, string> _values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            private readonly Dictionary<string, ConfigSection> _children = new Dictionary<string, ConfigSection>(StringComparer.OrdinalIgnoreCase);
-
-            public ConfigSection(string path)
-            {
-                Path = path;
-                Key = path.Contains(":") ? path.Substring(path.LastIndexOf(':') + 1) : path;
-            }
-
-            public string this[string key]
-            {
-                get => _values.TryGetValue(key, out var value) ? value : null;
-                set => _values[key] = value;
-            }
-
-            public string Key { get; }
-            public string Path { get; }
-            public string Value { get; set; }
-
-            public void SetValue(string key, string value)
-            {
-                _values[key] = value;
-            }
-
-            public IConfigurationSection GetSection(string key)
-            {
-                if (_children.TryGetValue(key, out var section))
-                {
-                    return section;
-                }
-
-                var childPath = string.IsNullOrEmpty(Path) ? key : $"{Path}:{key}";
-                var child = new ConfigSection(childPath);
-                _children[key] = child;
-                return child;
-            }
-
-            public IEnumerable<IConfigurationSection> GetChildren()
-            {
-                // First return child sections
-                foreach (var child in _children.Values)
-                {
-                    yield return child;
-                }
-
-                // Then return value entries as sections
-                foreach (var entry in _values)
-                {
-                    var childPath = string.IsNullOrEmpty(Path) ? entry.Key : $"{Path}:{entry.Key}";
-                    var valueSection = new ConfigSection(childPath) { Value = entry.Value };
-                    yield return valueSection;
-                }
-            }
+            return int.TryParse(setting, out int result) ? result : defaultValue;
         }
     }
 }

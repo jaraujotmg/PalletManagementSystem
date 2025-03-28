@@ -1,15 +1,14 @@
-// src/PalletManagementSystem.Web/Global.asax.cs
+// src/PalletManagementSystem.Web2/Global.asax.cs
 using System;
 using System.Web;
 using System.Web.Mvc;
+using System.Web.Optimization;
 using System.Web.Routing;
-using System.Web2.Optimization;
-using System.Web2.Routing;
 using Autofac;
 using Autofac.Integration.Mvc;
-using PalletManagementSystem.Web.App_Start;
+using PalletManagementSystem.Web2.App_Start;
 
-namespace PalletManagementSystem.Web
+namespace PalletManagementSystem.Web2
 {
     public class MvcApplication : HttpApplication
     {

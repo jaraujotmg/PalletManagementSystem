@@ -2,7 +2,7 @@
 using System.Web;
 using System.Web.Optimization;
 
-namespace PalletManagementSystem.Web
+namespace PalletManagementSystem.Web2
 {
     public class BundleConfig
     {
