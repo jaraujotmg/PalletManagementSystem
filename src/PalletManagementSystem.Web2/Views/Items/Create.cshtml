@@ -1,0 +1,515 @@
+<!-- src/PalletManagementSystem.Web/Views/Items/Create.cshtml -->
+@model PalletManagementSystem.Web2.ViewModels.Items.CreateItemViewModel
+
+@{
+    ViewBag.Title = "Create New Item";
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Details", "Pallets", new { id = Model.PalletId })">@Model.PalletNumber</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Create New Item</li>
+    </ol>
+</nav>
+
+<!-- Create Header -->
+<div class="create-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h4><i class="fas fa-plus-circle mr-2"></i>Create New Item</h4>
+            <div class="mt-2">
+                <span class="badge badge-secondary mr-2">Pallet: @Model.PalletNumber</span>
+                <span class="badge badge-orange">Open</span>
+            </div>
+        </div>
+        <div class="col-md-4 text-md-right mt-3 mt-md-0">
+            <div class="custom-control custom-switch d-inline-block mr-3">
+                <input type="checkbox" class="custom-control-input" id="touchModeSwitch" @(Model.EnableTouchMode ? "checked" : "")>
+                <label class="custom-control-label text-dark" for="touchModeSwitch">Touch Mode</label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Form -->
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-edit mr-2"></i>Item Information
+    </div>
+    <div class="card-body">
+        @using (Html.BeginForm("Create", "Items", FormMethod.Post, new { id = "createItemForm" }))
+        {
+            @Html.AntiForgeryToken()
+            @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+            @Html.HiddenFor(m => m.PalletId)
+            @Html.HiddenFor(m => m.PalletNumber)
+            @Html.HiddenFor(m => m.ReturnUrl)
+            
+            <div class="row">
+                <!-- Order Information -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Order Information</div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="ManufacturingOrder" class="form-label required">Manufacturing Order</label>
+                                @Html.TextBoxFor(m => m.ManufacturingOrder, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Manufacturing Order" })
+                                @Html.ValidationMessageFor(m => m.ManufacturingOrder, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="ManufacturingOrderLine" class="form-label">Manufacturing Order Line</label>
+                                @Html.TextBoxFor(m => m.ManufacturingOrderLine, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Line number" })
+                                @Html.ValidationMessageFor(m => m.ManufacturingOrderLine, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="ServiceOrder" class="form-label">Service Order</label>
+                                @Html.TextBoxFor(m => m.ServiceOrder, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Service Order" })
+                                @Html.ValidationMessageFor(m => m.ServiceOrder, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="ServiceOrderLine" class="form-label">Service Order Line</label>
+                                @Html.TextBoxFor(m => m.ServiceOrderLine, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Line number" })
+                                @Html.ValidationMessageFor(m => m.ServiceOrderLine, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="FinalOrder" class="form-label">Final Order</label>
+                                @Html.TextBoxFor(m => m.FinalOrder, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Final Order" })
+                                @Html.ValidationMessageFor(m => m.FinalOrder, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="FinalOrderLine" class="form-label">Final Order Line</label>
+                                @Html.TextBoxFor(m => m.FinalOrderLine, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Line number" })
+                                @Html.ValidationMessageFor(m => m.FinalOrderLine, "", new { @class = "text-danger" })
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-4">
+                        <div class="card-header">Client Information</div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="ClientCode" class="form-label required">Client Code</label>
+                                @Html.TextBoxFor(m => m.ClientCode, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Client Code" })
+                                @Html.ValidationMessageFor(m => m.ClientCode, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="ClientName" class="form-label required">Client Name</label>
+                                @Html.TextBoxFor(m => m.ClientName, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Client Name" })
+                                @Html.ValidationMessageFor(m => m.ClientName, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleClientSearch">
+                                    <i class="fas fa-search mr-1"></i>Search Client
+                                </button>
+                            </div>
+                            
+                            <!-- Client Search (Initially Hidden) -->
+                            <div id="clientSearchPanel" style="display: none;" class="mt-3 p-3 border rounded bg-light">
+                                <div class="form-group">
+                                    <label>Search Client</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="clientSearchKeyword" placeholder="Enter client code or name">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-secondary" type="button" id="clientSearchButton">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="clientSearchResults" class="mt-2" style="max-height: 200px; overflow-y: auto;">
+                                    <!-- Results will be populated via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Product and Physical Properties -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Product Details</div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="Reference" class="form-label">Reference</label>
+                                @Html.TextBoxFor(m => m.Reference, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Reference" })
+                                @Html.ValidationMessageFor(m => m.Reference, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="Finish" class="form-label">Finish</label>
+                                @Html.TextBoxFor(m => m.Finish, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Finish" })
+                                @Html.ValidationMessageFor(m => m.Finish, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="Color" class="form-label">Color</label>
+                                @Html.TextBoxFor(m => m.Color, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Color" })
+                                @Html.ValidationMessageFor(m => m.Color, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="Quantity" class="form-label required">Quantity</label>
+                                <div class="input-group">
+                                    @Html.TextBoxFor(m => m.Quantity, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), type = "number", min = "0.01", step = "0.01", placeholder = "0.00" })
+                                    @Html.DropDownListFor(m => m.QuantityUnit, Model.QuantityUnitOptions, new { @class = "form-control custom-select" + (Model.EnableTouchMode ? " touch-input" : "") })
+                                </div>
+                                @Html.ValidationMessageFor(m => m.Quantity, "", new { @class = "text-danger" })
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-4">
+                        <div class="card-header">Physical Properties</div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="Weight" class="form-label required">Weight</label>
+                                <div class="input-group">
+                                    @Html.TextBoxFor(m => m.Weight, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), type = "number", min = "0.01", step = "0.01", placeholder = "0.00" })
+                                    @Html.DropDownListFor(m => m.WeightUnit, Model.WeightUnitOptions, new { @class = "form-control custom-select" + (Model.EnableTouchMode ? " touch-input" : "") })
+                                </div>
+                                @Html.ValidationMessageFor(m => m.Weight, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="Width" class="form-label required">Width</label>
+                                <div class="input-group">
+                                    @Html.TextBoxFor(m => m.Width, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), type = "number", min = "0.01", step = "0.01", placeholder = "0.00" })
+                                    @Html.DropDownListFor(m => m.WidthUnit, Model.WidthUnitOptions, new { @class = "form-control custom-select" + (Model.EnableTouchMode ? " touch-input" : "") })
+                                </div>
+                                @Html.ValidationMessageFor(m => m.Width, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="Quality" class="form-label required">Quality</label>
+                                @Html.DropDownListFor(m => m.Quality, Model.QualityOptions, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : "") })
+                                @Html.ValidationMessageFor(m => m.Quality, "", new { @class = "text-danger" })
+                            </div>
+                            <div class="form-group">
+                                <label for="Batch" class="form-label required">Batch</label>
+                                @Html.TextBoxFor(m => m.Batch, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : ""), placeholder = "Batch number" })
+                                @Html.ValidationMessageFor(m => m.Batch, "", new { @class = "text-danger" })
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Touch Mode Keyboard (initially hidden) -->
+                    <div id="touchKeyboard" class="mt-4" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">Numeric Keypad</div>
+                            <div class="card-body">
+                                <div class="num-keypad">
+                                    <button type="button" class="btn num-key" data-value="1">1</button>
+                                    <button type="button" class="btn num-key" data-value="2">2</button>
+                                    <button type="button" class="btn num-key" data-value="3">3</button>
+                                    <button type="button" class="btn num-key" data-value="4">4</button>
+                                    <button type="button" class="btn num-key" data-value="5">5</button>
+                                    <button type="button" class="btn num-key" data-value="6">6</button>
+                                    <button type="button" class="btn num-key" data-value="7">7</button>
+                                    <button type="button" class="btn num-key" data-value="8">8</button>
+                                    <button type="button" class="btn num-key" data-value="9">9</button>
+                                    <button type="button" class="btn num-key" data-value=".">.</button>
+                                    <button type="button" class="btn num-key" data-value="0">0</button>
+                                    <button type="button" class="btn num-key btn-danger" data-value="del">
+                                        <i class="fas fa-backspace"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-4">
+                <a href="@Model.ReturnUrl" class="btn btn-secondary mr-2" id="cancelButton">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save mr-1"></i>Create Item
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Unsaved Changes Modal -->
+<div class="modal fade" id="unsavedChangesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Unsaved Changes</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>You have unsaved changes. Are you sure you want to leave this page?</p>
+                <p>Any unsaved changes will be lost.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Stay on Page</button>
+                <button type="button" class="btn btn-danger" id="confirmLeave">Leave Page</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        // Toggle touch mode - IE11 compatible
+        document.getElementById('touchModeSwitch').addEventListener('click', function() {
+            var inputs = document.querySelectorAll('input, select');
+            var touchKeyboard = document.getElementById('touchKeyboard');
+            
+            if (this.checked) {
+                // Enable touch mode
+                for (var i = 0; i < inputs.length; i++) {
+                    inputs[i].classList.add('touch-input');
+                }
+                touchKeyboard.style.display = 'block';
+            } else {
+                // Disable touch mode
+                for (var i = 0; i < inputs.length; i++) {
+                    inputs[i].classList.remove('touch-input');
+                }
+                touchKeyboard.style.display = 'none';
+            }
+        });
+        
+        // Initialize touch mode on page load
+        (function() {
+            var touchModeSwitch = document.getElementById('touchModeSwitch');
+            if (touchModeSwitch.checked) {
+                var inputs = document.querySelectorAll('input, select');
+                var touchKeyboard = document.getElementById('touchKeyboard');
+                
+                for (var i = 0; i < inputs.length; i++) {
+                    inputs[i].classList.add('touch-input');
+                }
+                touchKeyboard.style.display = 'block';
+            }
+        })();
+        
+        // Toggle client search panel
+        document.getElementById('toggleClientSearch').addEventListener('click', function() {
+            var panel = document.getElementById('clientSearchPanel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                document.getElementById('clientSearchKeyword').focus();
+            } else {
+                panel.style.display = 'none';
+            }
+        });
+        
+        // Client search functionality 
+        document.getElementById('clientSearchButton').addEventListener('click', function() {
+            var keyword = document.getElementById('clientSearchKeyword').value;
+            if (keyword.length < 2) {
+                alert('Please enter at least 2 characters to search.');
+                return;
+            }
+            
+            // In a real app, this would be an AJAX call to search clients
+            // For this example, we'll just simulate some results
+            var resultsContainer = document.getElementById('clientSearchResults');
+            resultsContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+            
+            // Simulate network delay
+            setTimeout(function() {
+                // Sample results
+                var results = [
+                    { code: '101567', name: 'Standard Manufacturing Inc.' },
+                    { code: '280898', name: 'Special Client HB' },
+                    { code: '123456', name: 'Global Industries Ltd.' }
+                ];
+                <!-- Continuing src/PalletManagementSystem.Web/Views/Items/Create.cshtml -->
+                // Filter results by keyword (case-insensitive)
+                results = results.filter(function(client) {
+                    return client.code.toLowerCase().indexOf(keyword.toLowerCase()) !== -1 ||
+                           client.name.toLowerCase().indexOf(keyword.toLowerCase()) !== -1;
+                });
+
+                if (results.length === 0) {
+                    resultsContainer.innerHTML = '<div class="alert alert-info">No clients found matching your search.</div>';
+                    return;
+                }
+
+                // Create results HTML
+                var html = '<div class="list-group">';
+                for (var i = 0; i < results.length; i++) {
+                    html += '<button type="button" class="list-group-item list-group-item-action client-result" ' +
+                            'data-code="' + results[i].code + '" ' +
+                            'data-name="' + results[i].name + '">' +
+                            '<strong>' + results[i].code + '</strong> - ' + results[i].name +
+                            '</button>';
+                }
+                html += '</div>';
+
+                resultsContainer.innerHTML = html;
+
+                // Add click handlers to results
+                var resultButtons = document.querySelectorAll('.client-result');
+                for (var j = 0; j < resultButtons.length; j++) {
+                    resultButtons[j].addEventListener('click', function() {
+                        var code = this.getAttribute('data-code');
+                        var name = this.getAttribute('data-name');
+
+                        document.getElementById('ClientCode').value = code;
+                        document.getElementById('ClientName').value = name;
+
+                        // Hide the search panel
+                        document.getElementById('clientSearchPanel').style.display = 'none';
+                    });
+                }
+            }, 500);
+        });
+
+        // Track form changes
+        var formChanged = false;
+        var form = document.getElementById('createItemForm');
+        var inputs = form.querySelectorAll('input, select');
+
+        for (var i = 0; i < inputs.length; i++) {
+            inputs[i].addEventListener('change', function() {
+                formChanged = true;
+            });
+
+            // Also track keyup for text inputs
+            if (this.type === 'text' || this.type === 'number') {
+                inputs[i].addEventListener('keyup', function() {
+                    formChanged = true;
+                });
+            }
+        }
+
+        // Cancel button handling
+        document.getElementById('cancelButton').addEventListener('click', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                // Show confirmation modal using jQuery for IE11 compatibility
+                $('#unsavedChangesModal').modal('show');
+            }
+        });
+
+        // Confirm leave button
+        document.getElementById('confirmLeave').addEventListener('click', function() {
+            window.location.href = document.getElementById('cancelButton').getAttribute('href');
+        });
+
+        // Touch keyboard functionality
+        var numKeys = document.querySelectorAll('.num-key');
+        var activeInput = null;
+
+        // Set focus event for numeric inputs
+        var numericInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+        for (var i = 0; i < numericInputs.length; i++) {
+            numericInputs[i].addEventListener('focus', function() {
+                activeInput = this;
+            });
+        }
+
+        // Handle numeric keypad clicks
+        for (var i = 0; i < numKeys.length; i++) {
+            numKeys[i].addEventListener('click', function() {
+                if (!activeInput) return;
+
+                var value = this.getAttribute('data-value');
+
+                if (value === 'del') {
+                    // Delete last character
+                    activeInput.value = activeInput.value.slice(0, -1);
+                } else {
+                    // Add character
+                    activeInput.value += value;
+                }
+
+                // Trigger change event to track form changes
+                var event = document.createEvent('Event');
+                event.initEvent('change', true, true);
+                activeInput.dispatchEvent(event);
+            });
+        }
+    </script>
+}
+
+@section styles {
+    <style>
+        .badge-orange {
+            background-color: #f57c00;
+            color: white;
+        }
+
+        .create-header {
+            background-color: #e6eef5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+            .create-header h4 {
+                color: #003366;
+                margin-bottom: 0;
+            }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #003366;
+        }
+
+        .required:after {
+            content: " *";
+            color: #c62828;
+        }
+
+        .form-control:focus, .custom-select:focus {
+            border-color: #5e87b0;
+            -webkit-box-shadow: 0 0 0 0.25rem rgba(94, 135, 176, 0.25);
+            box-shadow: 0 0 0 0.25rem rgba(94, 135, 176, 0.25);
+        }
+
+        .field-info {
+            color: #555;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .touch-input {
+            height: 50px;
+            font-size: 1.1rem;
+        }
+
+        .num-keypad {
+            display: -ms-grid;
+            display: grid;
+            -ms-grid-columns: 1fr 10px 1fr 10px 1fr;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 10px;
+            max-width: 300px;
+            margin-top: 10px;
+        }
+
+        .num-key {
+            width: 100%;
+            height: 50px;
+            font-size: 1.2rem;
+            background-color: #f8f9fa;
+        }
+
+        /* IE11 Grid fallback for num-keypad */
+        @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+            .num-keypad
+
+        {
+            display: block;
+            overflow: hidden;
+        }
+
+        .num-key {
+            float: left;
+            width: 30%;
+            margin: 1.66%;
+        }
+
+        }
+    </style>
+}

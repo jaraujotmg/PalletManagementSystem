@@ -18,9 +18,9 @@ using PalletManagementSystem.Infrastructure.Data.Repositories;
 using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Infrastructure.Services;
 using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
-using PalletManagementSystem.Web.Services;
+using PalletManagementSystem.Web2.Services;
 
-namespace PalletManagementSystem.Web.App_Start
+namespace PalletManagementSystem.Web2.App_Start
 {
     /// <summary>
     /// Manages dependency registration for the application

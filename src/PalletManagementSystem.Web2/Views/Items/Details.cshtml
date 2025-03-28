@@ -1,0 +1,321 @@
+<!-- src/PalletManagementSystem.Web/Views/Items/Details.cshtml -->
+@model PalletManagementSystem.Web2.ViewModels.Items.ItemDetailViewModel
+
+@{
+    ViewBag.Title = "Item Details - " + Model.Item.ItemNumber;
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Details", "Pallets", new { id = Model.Item.PalletId })">@Model.Item.Pallet.PalletNumber</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Item #@Model.Item.ItemNumber</li>
+    </ol>
+</nav>
+
+<!-- Success, error and warning messages -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle mr-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-circle mr-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle mr-2"></i>@TempData["WarningMessage"]
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+}
+
+<!-- Item Header -->
+<div class="item-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h4><i class="fas fa-box mr-2"></i>Item #@Model.Item.ItemNumber</h4>
+            <div class="mt-2">
+                <span class="badge badge-secondary mr-2">Pallet: @Model.Item.Pallet.PalletNumber</span>
+                @if (Model.Item.Pallet.IsClosed)
+                {
+                    <span class="badge badge-success">Closed</span>
+                }
+                else
+                {
+                    <span class="badge badge-orange">Open</span>
+                }
+            </div>
+        </div>
+        <div class="col-md-4 text-md-right mt-3 mt-md-0">
+            @if (Model.CanEdit)
+            {
+                <a href="@Url.Action("Edit", new { id = Model.Item.Id })" class="btn btn-warning mr-2">
+                    <i class="fas fa-edit mr-1"></i>Edit
+                </a>
+            }
+            @if (Model.CanMove)
+            {
+                <a href="@Url.Action("Move", new { id = Model.Item.Id })" class="btn btn-info mr-2">
+                    <i class="fas fa-exchange-alt mr-1"></i>Move
+                </a>
+            }
+            @if (Model.CanPrint)
+            {
+                using (Html.BeginForm("Print", "Items", FormMethod.Post, new { style = "display:inline" }))
+                {
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Item.Id" />
+                    <button type="submit" class="btn btn-primary mr-2">
+                        <i class="fas fa-print mr-1"></i>Print Label
+                    </button>
+                }
+            }
+            <a href="@Model.ReturnUrl" class="btn btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i>Back
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Item Details -->
+<div class="row">
+    <div class="col-lg-6">
+        <!-- Orders Information -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-file-alt mr-2"></i>Orders Information
+            </div>
+            <div class="card-body">
+                @if (Model.HasManufacturingOrder)
+                {
+                    <div class="info-section">
+                        <h6 class="info-section-title">
+                            <i class="fas fa-industry mr-2"></i>Manufacturing Order
+                        </h6>
+                        <div class="info-row">
+                            <div class="info-label">Order Number:</div>
+                            <div class="info-value">@Model.Item.ManufacturingOrder</div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.Item.ManufacturingOrderLine))
+                        {
+                            <div class="info-row">
+                                <div class="info-label">Line Number:</div>
+                                <div class="info-value">@Model.Item.ManufacturingOrderLine</div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (Model.HasServiceOrder)
+                {
+                    <div class="info-section">
+                        <h6 class="info-section-title">
+                            <i class="fas fa-tools mr-2"></i>Service Order
+                        </h6>
+                        <div class="info-row">
+                            <div class="info-label">Order Number:</div>
+                            <div class="info-value">@Model.Item.ServiceOrder</div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.Item.ServiceOrderLine))
+                        {
+                            <div class="info-row">
+                                <div class="info-label">Line Number:</div>
+                                <div class="info-value">@Model.Item.ServiceOrderLine</div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (Model.HasFinalOrder)
+                {
+                    <div class="info-section">
+                        <h6 class="info-section-title">
+                            <i class="fas fa-clipboard-check mr-2"></i>Final Order
+                        </h6>
+                        <div class="info-row">
+                            <div class="info-label">Order Number:</div>
+                            <div class="info-value">@Model.Item.FinalOrder</div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.Item.FinalOrderLine))
+                        {
+                            <div class="info-row">
+                                <div class="info-label">Line Number:</div>
+                                <div class="info-value">@Model.Item.FinalOrderLine</div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Client Information -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-building mr-2"></i>Client Information
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <div class="info-label">Client Code:</div>
+                    <div class="info-value">@Model.Item.ClientCode</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Client Name:</div>
+                    <div class="info-value">@Model.Item.ClientName</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <!-- Product Details -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-tag mr-2"></i>Product Details
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(Model.Item.Reference))
+                {
+                    <div class="info-row">
+                        <div class="info-label">Reference:</div>
+                        <div class="info-value">@Model.Item.Reference</div>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Model.Item.Finish))
+                {
+                    <div class="info-row">
+                        <div class="info-label">Finish:</div>
+                        <div class="info-value">@Model.Item.Finish</div>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Model.Item.Color))
+                {
+                    <div class="info-row">
+                        <div class="info-label">Color:</div>
+                        <div class="info-value">@Model.Item.Color</div>
+                    </div>
+                }
+                <div class="info-row">
+                    <div class="info-label">Quantity:</div>
+                    <div class="info-value">@Model.Item.Quantity @Model.Item.QuantityUnit</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Physical Properties -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-weight mr-2"></i>Physical Properties
+                @if (Model.CanEdit)
+                {
+                    <span class="badge badge-info float-right">Editable Fields</span>
+                }
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <div class="info-label">Weight:</div>
+                    <div class="info-value @(Model.CanEdit ? "editable" : "")">@Model.Item.Weight @Model.Item.WeightUnit</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Width:</div>
+                    <div class="info-value @(Model.CanEdit ? "editable" : "")">@Model.Item.Width @Model.Item.WidthUnit</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Quality:</div>
+                    <div class="info-value @(Model.CanEdit ? "editable" : "")">@Model.Item.Quality</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Batch:</div>
+                    <div class="info-value @(Model.CanEdit ? "editable" : "")">@Model.Item.Batch</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Creation Info -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-history mr-2"></i>Creation Information
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <div class="info-label">Created Date:</div>
+                    <div class="info-value">@Model.Item.CreatedDate.ToString("MM/dd/yyyy HH:mm")</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Created By:</div>
+                    <div class="info-value">@Model.Item.CreatedBy</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section styles {
+    <style>
+        .info-section {
+            margin-bottom: 15px;
+        }
+
+        .info-section-title {
+            font-weight: 600;
+            color: #003366;
+            border-bottom: 2px solid #e6eef5;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        .info-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .info-label {
+            display: table-cell;
+            min-width: 150px;
+            font-weight: 500;
+        }
+
+        .info-value {
+            display: table-cell;
+            vertical-align: top;
+        }
+
+        .editable {
+            color: #003366;
+            font-weight: 500;
+        }
+
+        .item-header {
+            background-color: #e6eef5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+            .item-header h4 {
+                color: #003366;
+                margin-bottom: 0;
+            }
+
+        .badge-orange {
+            background-color: #f57c00;
+            color: white;
+        }
+    </style>
+}

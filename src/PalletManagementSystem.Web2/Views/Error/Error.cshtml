@@ -1,0 +1,50 @@
+@model PalletManagementSystem.Web2.ViewModels.Shared.ErrorViewModel
+@{
+    ViewBag.Title = "Error";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <i class="fas fa-exclamation-circle mr-2"></i>Error
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-exclamation-triangle text-danger" style="font-size: 4rem;"></i>
+                    </div>
+
+                    <h4 class="text-center mb-4">@Model.ErrorMessage</h4>
+
+                    <div class="alert alert-light">
+                        <strong>Requested URL:</strong> @Model.RequestedUrl
+                        @if (!string.IsNullOrEmpty(Model.ReferrerUrl))
+                        {
+                            <br />
+                            <strong>Referrer URL:</strong> @Model.ReferrerUrl
+                        }
+                        @if (!string.IsNullOrEmpty(Model.ErrorCode))
+                        {
+                            <br />
+                            <strong>Error Code:</strong> @Model.ErrorCode
+                        }
+                    </div>
+
+                    <p class="text-center">
+                        Please try again or contact support if the problem persists.
+                    </p>
+
+                    <div class="d-flex justify-content-center mt-4">
+                        <a href="@Url.Action("Index", "Home")" class="btn btn-primary mr-2">
+                            <i class="fas fa-home mr-1"></i>Go to Home
+                        </a>
+                        <a href="javascript:history.back()" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left mr-1"></i>Go Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

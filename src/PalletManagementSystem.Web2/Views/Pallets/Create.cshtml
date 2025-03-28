@@ -1,0 +1,120 @@
+@model PalletManagementSystem.Web2.ViewModels.Pallets.CreatePalletViewModel
+@{
+    ViewBag.Title = "Create New Pallet";
+}
+
+<!-- Main Content -->
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Create New Pallet</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-plus-circle mr-2"></i>Create New Pallet
+        </div>
+        <div class="card-body">
+            @using (Html.BeginForm("Create", "Pallets", FormMethod.Post, new { @class = "needs-validation" }))
+            {
+                @Html.AntiForgeryToken()
+                @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.ManufacturingOrder, new { @class = "form-label" })
+                            @Html.TextBoxFor(m => m.ManufacturingOrder, new { @class = "form-control" })
+                            @Html.ValidationMessageFor(m => m.ManufacturingOrder, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.Division, new { @class = "form-label" })
+                            @Html.DropDownListFor(m => m.Division, Model.DivisionOptions, new { @class = "form-control", id = "divisionSelect" })
+                            @Html.ValidationMessageFor(m => m.Division, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.Platform, new { @class = "form-label" })
+                            @Html.DropDownListFor(m => m.Platform, Model.PlatformOptions, new { @class = "form-control", id = "platformSelect" })
+                            @Html.ValidationMessageFor(m => m.Platform, "", new { @class = "text-danger" })
+                            <small class="form-text text-muted">Available platforms depend on selected division</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.UnitOfMeasure, new { @class = "form-label" })
+                            @Html.DropDownListFor(m => m.UnitOfMeasure, Model.UnitOfMeasureOptions, new { @class = "form-control" })
+                            @Html.ValidationMessageFor(m => m.UnitOfMeasure, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle mr-2"></i>The pallet will be created with a temporary number. A permanent number will be assigned when the pallet is closed.
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
+                    <a href="@Url.Action("Index", "Pallets")" class="btn btn-secondary mr-2">
+                        <i class="fas fa-times mr-1"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-1"></i>Create Pallet
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Handle division change to update platforms
+        document.getElementById('divisionSelect').addEventListener('change', function() {
+            var divisionValue = this.value;
+
+            // Call server to get updated platform options
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '@Url.Action("GetPlatformsForDivision", "Settings")', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            // Update platform dropdown
+                            var platformSelect = document.getElementById('platformSelect');
+
+                            // Clear existing options
+                            while (platformSelect.firstChild) {
+                                platformSelect.removeChild(platformSelect.firstChild);
+                            }
+
+                            // Add new options
+                            for (var i = 0; i < response.platforms.length; i++) {
+                                var option = document.createElement('option');
+                                option.value = response.platforms[i].value;
+                                option.text = response.platforms[i].text;
+                                platformSelect.appendChild(option);
+                            }
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    } catch (e) {
+                        alert('Error parsing response');
+                    }
+                }
+            };
+            xhr.send('division=' + encodeURIComponent(divisionValue));
+        });
+    </script>
+}

@@ -1,0 +1,388 @@
+@model PalletManagementSystem.Web2.ViewModels.Settings.UserPreferencesViewModel
+@{
+    ViewBag.Title = "Settings";
+}
+
+<!-- Main Content -->
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Settings</li>
+        </ol>
+    </nav>
+
+    <!-- Success, error and warning messages -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle mr-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle mr-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+
+    @if (TempData["WarningMessage"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle mr-2"></i>@TempData["WarningMessage"]
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+
+    <!-- Settings Header -->
+    <div class="pallet-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4><i class="fas fa-cog mr-2"></i>User Settings</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Form -->
+    @using (Html.BeginForm("Save", "Settings", FormMethod.Post, new { @class = "needs-validation" }))
+    {
+        @Html.AntiForgeryToken()
+        @Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+
+        <div class="row">
+            <!-- Left Column - User Preferences -->
+            <div class="col-lg-8">
+                <!-- Division and Platform Settings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-building mr-2"></i>Division and Platform Settings
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    @Html.LabelFor(m => m.PreferredDivision, new { @class = "form-label" })
+                                    @Html.DropDownListFor(m => m.PreferredDivision, Model.DivisionOptions, new { @class = "form-control", id = "divisionSelect" })
+                                    @Html.ValidationMessageFor(m => m.PreferredDivision, "", new { @class = "text-danger" })
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    @Html.LabelFor(m => m.PreferredPlatform, new { @class = "form-label" })
+                                    @Html.DropDownListFor(m => m.PreferredPlatform, Model.PlatformOptions, new { @class = "form-control", id = "platformSelect" })
+                                    @Html.ValidationMessageFor(m => m.PreferredPlatform, "", new { @class = "text-danger" })
+                                    <small class="form-text text-muted">Available platforms depend on selected division</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.RememberDivisionAndPlatform, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.RememberDivisionAndPlatform, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Display and Interface Settings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-desktop mr-2"></i>Display and Interface Settings
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    @Html.LabelFor(m => m.ItemsPerPage, new { @class = "form-label" })
+                                    @Html.TextBoxFor(m => m.ItemsPerPage, new { @class = "form-control", type = "number", min = "10", max = "100", step = "5" })
+                                    @Html.ValidationMessageFor(m => m.ItemsPerPage, "", new { @class = "text-danger" })
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    @Html.LabelFor(m => m.DefaultPalletView, new { @class = "form-label" })
+                                    @Html.DropDownListFor(m => m.DefaultPalletView, Model.DefaultViewOptions, new { @class = "form-control" })
+                                    @Html.ValidationMessageFor(m => m.DefaultPalletView, "", new { @class = "text-danger" })
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.TouchModeEnabled, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.TouchModeEnabled, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+
+                        <div class="touch-mode-settings @(Model.TouchModeEnabled ? "" : "d-none")">
+                            <div class="form-group ml-4">
+                                <div class="custom-control custom-checkbox">
+                                    @Html.CheckBoxFor(m => m.TouchKeyboardEnabled, new { @class = "custom-control-input" })
+                                    @Html.LabelFor(m => m.TouchKeyboardEnabled, new { @class = "custom-control-label" })
+                                </div>
+                            </div>
+                            <div class="form-group ml-4">
+                                <div class="custom-control custom-checkbox">
+                                    @Html.CheckBoxFor(m => m.LargeButtonsEnabled, new { @class = "custom-control-input" })
+                                    @Html.LabelFor(m => m.LargeButtonsEnabled, new { @class = "custom-control-label" })
+                                </div>
+                            </div>
+                            <div class="form-group ml-4">
+                                @Html.LabelFor(m => m.ButtonSize, new { @class = "form-label" })
+                                @Html.DropDownListFor(m => m.ButtonSize, Model.ButtonSizeOptions, new { @class = "form-control" })
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.ShowConfirmationPrompts, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.ShowConfirmationPrompts, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Printer Settings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-print mr-2"></i>Printer Settings
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    @Html.LabelFor(m => m.DefaultPalletListPrinter, new { @class = "form-label" })
+                                    @Html.DropDownListFor(m => m.DefaultPalletListPrinter, Model.PalletListPrinterOptions, new { @class = "form-control" })
+                                    @Html.ValidationMessageFor(m => m.DefaultPalletListPrinter, "", new { @class = "text-danger" })
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    @Html.LabelFor(m => m.DefaultItemLabelPrinter, new { @class = "form-label" })
+                                    @Html.DropDownListFor(m => m.DefaultItemLabelPrinter, Model.ItemLabelPrinterOptions, new { @class = "form-control" })
+                                    @Html.ValidationMessageFor(m => m.DefaultItemLabelPrinter, "", new { @class = "text-danger" })
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.AutoPrintPalletList, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.AutoPrintPalletList, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.UseSpecialPrinterForSpecialClients, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.UseSpecialPrinterForSpecialClients, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Session Settings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-clock mr-2"></i>Session and Refresh Settings
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            @Html.LabelFor(m => m.SessionTimeoutMinutes, new { @class = "form-label" })
+                            @Html.DropDownListFor(m => m.SessionTimeoutMinutes, Model.SessionTimeoutOptions, new { @class = "form-control" })
+                            @Html.ValidationMessageFor(m => m.SessionTimeoutMinutes, "", new { @class = "text-danger" })
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.AutoRefreshPalletList, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.AutoRefreshPalletList, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+
+                        <div class="refresh-interval-settings @(Model.AutoRefreshPalletList ? "" : "d-none")">
+                            <div class="form-group ml-4">
+                                @Html.LabelFor(m => m.AutoRefreshIntervalSeconds, new { @class = "form-label" })
+                                @Html.DropDownListFor(m => m.AutoRefreshIntervalSeconds, Model.RefreshIntervalOptions, new { @class = "form-control" })
+                                @Html.ValidationMessageFor(m => m.AutoRefreshIntervalSeconds, "", new { @class = "text-danger" })
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <div class="custom-control custom-checkbox">
+                                @Html.CheckBoxFor(m => m.ShowBrowserNotifications, new { @class = "custom-control-input" })
+                                @Html.LabelFor(m => m.ShowBrowserNotifications, new { @class = "custom-control-label" })
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-4 mb-4">
+                    <a href="@Url.Action("Index", "Home")" class="btn btn-secondary mr-2">
+                        <i class="fas fa-times mr-1"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-1"></i>Save Settings
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Column - System Information -->
+            <div class="col-lg-4">
+                <!-- System Info Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle mr-2"></i>System Information
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <div><strong>Application Version:</strong></div>
+                            <div>@Model.ApplicationVersion</div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <div><strong>Database Version:</strong></div>
+                            <div>@Model.DatabaseVersion</div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <div><strong>Last Update:</strong></div>
+                            <div>@Model.LastUpdateDate</div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <div><strong>Server:</strong></div>
+                            <div>@Model.ServerName</div>
+                        </div>
+
+                        <div class="alert @(Model.AllServicesOperational ? "alert-success" : "alert-warning") mt-3 mb-0">
+                            @if (Model.AllServicesOperational)
+                            {
+                                <i class="fas fa-check-circle mr-2"></i>
+                                <span>All services are operating normally</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <span>Some services are experiencing issues</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help & Support -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-question-circle mr-2"></i>Help & Support
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-book mr-2"></i>User Guide
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-video mr-2"></i>Tutorial Videos
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-headset mr-2"></i>Contact Support
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <i class="fas fa-keyboard mr-2"></i>Keyboard Shortcuts
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section scripts {
+    <script>
+        // Handle division change to update platforms
+        document.getElementById('divisionSelect').addEventListener('change', function() {
+            var divisionValue = this.value;
+            var platformSelect = document.getElementById('platformSelect');
+
+            // Call server to get updated platform options
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '@Url.Action("GetPlatformsForDivision", "Settings")', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            // Clear existing options
+                            while (platformSelect.firstChild) {
+                                platformSelect.removeChild(platformSelect.firstChild);
+                            }
+
+                            // Add new options
+                            for (var i = 0; i < response.platforms.length; i++) {
+                                var option = document.createElement('option');
+                                option.value = response.platforms[i].value;
+                                option.text = response.platforms[i].text;
+                                platformSelect.appendChild(option);
+                            }
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    } catch (e) {
+                        alert('Error parsing response');
+                    }
+                }
+            };
+            xhr.send('division=' + encodeURIComponent(divisionValue));
+        });
+
+        // Handle touch mode checkbox
+        document.getElementById('TouchModeEnabled').addEventListener('change', function() {
+            var touchModeSettings = document.querySelector('.touch-mode-settings');
+            if (this.checked) {
+                touchModeSettings.classList.remove('d-none');
+            } else {
+                touchModeSettings.classList.add('d-none');
+            }
+        });
+
+        // Handle auto refresh checkbox
+        document.getElementById('AutoRefreshPalletList').addEventListener('change', function() {
+            var refreshIntervalSettings = document.querySelector('.refresh-interval-settings');
+            if (this.checked) {
+                refreshIntervalSettings.classList.remove('d-none');
+            } else {
+                refreshIntervalSettings.classList.add('d-none');
+            }
+        });
+    </script>
+}
+
+@section styles {
+    <style>
+        .form-label {
+            font-weight: 500;
+            color: #003366;
+        }
+
+        .custom-control-label {
+            font-weight: normal;
+        }
+
+        .card {
+            margin-bottom: 20px;
+        }
+
+        .list-group-item i {
+            width: 20px;
+            text-align: center;
+        }
+    </style>
+}
