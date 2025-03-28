@@ -1,4 +1,4 @@
-// src/PalletManagementSystem.Web/Controllers/SettingsController.cs
+// src/PalletManagementSystem.Web2/Controllers/SettingsController.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,14 +41,14 @@ namespace PalletManagementSystem.Web2.Controllers
                 var preferences = await _userPreferenceService.GetAllPreferencesAsync(Username);
 
                 // Get platform options based on selected division
-                Division division = Enum.Parse<Division>(preferences.PreferredDivision);
+                Division division = (Division)Enum.Parse(typeof(Division), preferences.PreferredDivision);
                 var platformOptions = await _platformValidationService.GetPlatformsForDivisionAsync(division);
 
                 // Create the view model
                 var viewModel = new UserPreferencesViewModel
                 {
-                    PreferredDivision = Enum.Parse<Division>(preferences.PreferredDivision),
-                    PreferredPlatform = Enum.Parse<Platform>(preferences.PreferredPlatform),
+                    PreferredDivision = (Division)Enum.Parse(typeof(Division), preferences.PreferredDivision),
+                    PreferredPlatform = (Platform)Enum.Parse(typeof(Platform), preferences.PreferredPlatform),
                     ItemsPerPage = preferences.ItemsPerPage,
                     DefaultPalletView = preferences.DefaultPalletView,
                     TouchModeEnabled = preferences.TouchModeEnabled,
@@ -77,8 +77,8 @@ namespace PalletManagementSystem.Web2.Controllers
                     Username = Username,
                     DisplayName = await GetDisplayName(),
                     CurrentDivision = UserContext.GetDivision(),
-                    CurrentPlatform = UserContext.GetPlatform(),
-                    TouchModeEnabled = preferences.TouchModeEnabled
+                    CurrentPlatform = UserContext.GetPlatform()
+                    // Note: TouchModeEnabled is already set above
                 };
 
                 // Populate dropdown options
@@ -131,7 +131,7 @@ namespace PalletManagementSystem.Web2.Controllers
                 viewModel.DisplayName = await GetDisplayName();
                 viewModel.CurrentDivision = UserContext.GetDivision();
                 viewModel.CurrentPlatform = UserContext.GetPlatform();
-                viewModel.TouchModeEnabled = viewModel.TouchModeEnabled; // Use the new setting
+                // Remove duplicate initialization of TouchModeEnabled
 
                 // Validate division/platform combination
                 bool isValidPlatform = await _platformValidationService.IsValidPlatformForDivisionAsync(
@@ -207,7 +207,8 @@ namespace PalletManagementSystem.Web2.Controllers
         {
             try
             {
-                if (!Enum.TryParse<Division>(division, out var divisionEnum))
+                Division divisionEnum;
+                if (!Enum.TryParse(division, out divisionEnum))
                 {
                     return Json(new { success = false, message = "Invalid division" });
                 }
