@@ -154,7 +154,7 @@ namespace PalletManagementSystem.Web2.Controllers
                         ActivityType = "Item Added",
                         Description = $"Item {item.ItemNumber} added to pallet",
                         Timestamp = item.CreatedDate,
-                        Username = item.CreatedBy,
+                        Username = Username, // Use the current user as fallback since ItemListDto doesn't contain CreatedBy
                         BadgeClass = "badge-info",
                         IconClass = "fas fa-box"
                     });
