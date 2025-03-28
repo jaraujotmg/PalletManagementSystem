@@ -8,6 +8,7 @@ using System.Web.Mvc;
 using Autofac;
 using Autofac.Integration.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Infrastructure.Data;
@@ -35,12 +36,47 @@ namespace PalletManagementSystem.Web2.App_Start
             var appSettings = new AppSettingsWrapper();
             builder.RegisterInstance(appSettings).As<IAppSettings>().SingleInstance();
 
+            // --- Register Logging ---
+
+            // 1. Ensure you have the necessary NuGet packages installed, e.g.,
+            //    Install-Package Microsoft.Extensions.Logging
+            //    Install-Package Microsoft.Extensions.Logging.Debug
+            //    Install-Package Microsoft.Extensions.Logging.Console (if using Console)
+
+            // 2. Create a LoggerFactory instance directly (suitable for .NET Framework)
+            var loggerFactory = new LoggerFactory();
+
+            // 3. Add providers using extension methods.
+            //    The specific methods might vary slightly based on provider package versions.
+            //    You might need to specify a minimum LogLevel here.
+            loggerFactory.AddDebug(LogLevel.Trace); // Add Debug provider (logs to Output window)
+
+            // Example: Add Console provider (ensure Microsoft.Extensions.Logging.Console is installed)
+            // loggerFactory.AddConsole(LogLevel.Information);
+
+            // Add other providers as needed (e.g., file logging)
+
+            // 4. Register the configured factory as a singleton
+            builder.RegisterInstance<ILoggerFactory>(loggerFactory).SingleInstance();
+
+            // 5. Register a way to create generic ILogger<T> instances (this remains the same)
+            //    Autofac will use the registered ILoggerFactory to create these
+            builder.RegisterGeneric(typeof(Logger<>))
+                   .As(typeof(ILogger<>))
+                   .InstancePerDependency(); // Loggers are typically lightweight
+
+            // --- End Logging Registration ---
+
             // Register components from each project layer
             builder.RegisterCoreComponents();
-            builder.RegisterInfrastructureComponents(appSettings);
+            builder.RegisterInfrastructureComponents(appSettings); // Pass builder here if needed, but logging is already registered
             builder.RegisterWebComponents();
 
-            return builder.Build();
+            // Important: Set the dependency resolver for MVC
+            var container = builder.Build();
+            DependencyResolver.SetResolver(new AutofacDependencyResolver(container)); // Make sure this line exists in your Global.asax Application_Start or here
+
+            return container;
         }
     }
 
@@ -89,9 +125,12 @@ namespace PalletManagementSystem.Web2.App_Start
                 var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
                 var connectionString = appSettings.GetConnectionString("DefaultConnection");
                 optionsBuilder.UseSqlServer(connectionString);
+                // Optional: Inject ILoggerFactory into DbContext if needed for EF Core logging
+                // var loggerFactory = c.Resolve<ILoggerFactory>();
+                // optionsBuilder.UseLoggerFactory(loggerFactory);
                 return new ApplicationDbContext(optionsBuilder.Options);
             })
-            .InstancePerRequest() // Database context should be scoped to the request
+                       .InstancePerRequest() // Database context should be scoped to the request
             .PropertiesAutowired();
 
             // Data access components - per request lifetime to ensure
@@ -184,17 +223,28 @@ namespace PalletManagementSystem.Web2.App_Start
         /// </summary>
         private static void RegisterIdentityComponents(ContainerBuilder builder)
         {
-            // Windows authentication service - per request as it processes the current user
-            builder.RegisterType<WindowsAuthenticationService>()
-                .AsSelf()
-                .InstancePerRequest()
-                .PropertiesAutowired();
+            // --- REMOVE THIS - It's now handled by the generic registration ---
+            // builder.Register(c =>
+            // {
+            //     var loggerFactory = c.Resolve<ILoggerFactory>();
+            //     return loggerFactory.CreateLogger<UserContext>();
+            // }).As<ILogger<UserContext>>().InstancePerRequest();
+            // --- END REMOVAL ---
 
-            // User context - per request as it contains user-specific data
+            // Windows authentication service
+            // Autofac will now automatically inject ILogger<WindowsAuthenticationService>
+            // into the constructor because ILoggerFactory and ILogger<> are registered.
+            builder.RegisterType<WindowsAuthenticationService>()
+                   .AsSelf() // Keeps registration as the concrete type
+                   .InstancePerRequest()
+                   .PropertiesAutowired(); // Keep if you also need property injection
+
+            // User context
+            // Autofac will also inject ILogger<UserContext> here automatically if its constructor requires it
             builder.RegisterType<UserContext>()
-                .As<IUserContext>()
-                .InstancePerRequest()
-                .PropertiesAutowired();
+                   .As<IUserContext>()
+                   .InstancePerRequest()
+                   .PropertiesAutowired();
         }
 
         /// <summary>
@@ -203,7 +253,8 @@ namespace PalletManagementSystem.Web2.App_Start
         public static void RegisterWebComponents(this ContainerBuilder builder)
         {
             // Register MVC controllers
-            builder.RegisterControllers(Assembly.GetExecutingAssembly());
+            builder.RegisterControllers(Assembly.GetExecutingAssembly()).PropertiesAutowired(); // Add PropertiesAutowired here if controllers need property injection
+
 
             // Session manager - per request as it manages session state
             builder.RegisterType<SessionManager>()

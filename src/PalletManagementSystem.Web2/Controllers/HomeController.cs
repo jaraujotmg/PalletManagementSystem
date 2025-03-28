@@ -23,7 +23,8 @@ namespace PalletManagementSystem.Web2.Controllers
 
             // Set common properties
             viewModel.Username = Username;
-            viewModel.DisplayName = GetDisplayName().Result;
+            //viewModel.DisplayName = GetDisplayName().Result; //NOT WORKING
+            viewModel.DisplayName = Username;
             viewModel.CurrentDivision = UserContext.GetDivision();
             viewModel.CurrentPlatform = UserContext.GetPlatform();
             viewModel.TouchModeEnabled = _sessionManager.IsTouchModeEnabled();

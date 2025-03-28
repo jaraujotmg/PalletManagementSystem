@@ -14,6 +14,11 @@ namespace PalletManagementSystem.Web2
     {
         protected void Application_Start()
         {
+            try
+            {
+
+           
+           
             AreaRegistration.RegisterAllAreas();
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
@@ -22,6 +27,20 @@ namespace PalletManagementSystem.Web2
             // Set up dependency injection
             var container = DependencyConfig.RegisterDependencies();
             DependencyResolver.SetResolver(new AutofacDependencyResolver(container));
+            }
+            catch (Exception ex)
+            {
+
+                // Log detailed exception
+                System.Diagnostics.Debug.WriteLine($"Startup Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack Trace: {ex.StackTrace}");
+
+                // Optionally, you could write to a log file
+                System.IO.File.WriteAllText("startup_error_log.txt",
+                    $"Startup Error: {ex.Message}\n{ex.StackTrace}");
+
+                throw; // Re-throw to ensure startup failure is visible
+            }
         }
     }
 }
