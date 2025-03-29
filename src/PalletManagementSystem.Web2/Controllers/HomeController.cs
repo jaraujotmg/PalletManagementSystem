@@ -1,6 +1,7 @@
 // src/PalletManagementSystem.Web2/Controllers/HomeController.cs
 using System;
 using System.Web.Mvc;
+using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Web2.Services;
 using PalletManagementSystem.Web2.ViewModels.Home;
@@ -23,8 +24,7 @@ namespace PalletManagementSystem.Web2.Controllers
 
             // Set common properties
             viewModel.Username = Username;
-            //viewModel.DisplayName = GetDisplayName().Result; //NOT WORKING
-            viewModel.DisplayName = Username;
+            viewModel.DisplayName = Username; // GetDisplayName().Result;
             viewModel.CurrentDivision = UserContext.GetDivision();
             viewModel.CurrentPlatform = UserContext.GetPlatform();
             viewModel.TouchModeEnabled = _sessionManager.IsTouchModeEnabled();
@@ -37,6 +37,32 @@ namespace PalletManagementSystem.Web2.Controllers
             viewModel.AllServicesOperational = true;
 
             return View(viewModel);
+        }
+
+        // Add the missing SetDivisionPlatform action method
+        public ActionResult SetDivisionPlatform(string division, string platform, string returnUrl)
+        {
+            // Validate and parse division
+            if (!string.IsNullOrEmpty(division) && Enum.TryParse<Division>(division, out Division divisionEnum))
+            {
+                _sessionManager.SetCurrentDivision(divisionEnum);
+            }
+
+            // Validate and parse platform
+            if (!string.IsNullOrEmpty(platform) && Enum.TryParse<Platform>(platform, out Platform platformEnum))
+            {
+                _sessionManager.SetCurrentPlatform(platformEnum);
+            }
+
+            // Redirect to the provided return URL or to the home page if not specified
+            if (!string.IsNullOrEmpty(returnUrl))
+            {
+                return Redirect(returnUrl);
+            }
+            else
+            {
+                return RedirectToAction("Index", "Home");
+            }
         }
     }
 }

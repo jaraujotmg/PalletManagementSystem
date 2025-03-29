@@ -42,48 +42,27 @@ namespace PalletManagementSystem.Web2.Controllers
         // GET: Pallets
         public async Task<ActionResult> Index(string keyword = null, bool? isClosed = null, int page = 1, int pageSize = 20)
         {
-            // Use correct Enum types
-            Division division = Division.MA; // Default value if needed
-            Platform? platform = null;      // Nullable Platform from context
-            Platform defaultPlatform = Platform.TEC1; // *** DEFINE YOUR DEFAULT PLATFORM HERE ***
-
-            List<Platform> availablePlatforms = new List<Platform>();
-            PagedResultDto<PalletListDto> pallets = null;
-
             try
             {
-                division = UserContext.GetDivision();
-                platform = UserContext.GetPlatform();
+                var division = UserContext.GetDivision();
+                var platform = UserContext.GetPlatform();
 
+                // Get user preferences for page size if not specified
                 if (pageSize <= 0)
                 {
                     pageSize = await _userPreferenceService.GetItemsPerPageAsync(Username);
                 }
 
-                availablePlatforms = (await _platformValidationService.GetPlatformsForDivisionAsync(division)).ToList();
+                // Get available platforms for the current division
+                var availablePlatforms = await _platformValidationService.GetPlatformsForDivisionAsync(division);
 
-                pallets = await _palletService.GetPagedPalletsAsync(
+                var pallets = await _palletService.GetPagedPalletsAsync(
                     page,
                     pageSize,
                     division,
-                    platform, // Service likely handles nullable platform? correctly
+                    platform,
                     isClosed,
                     keyword);
-
-                if (pallets == null)
-                {
-                    pallets = new PagedResultDto<PalletListDto>
-                    {
-                        Items = new List<PalletListDto>(),
-                        PageNumber = page,
-                        PageSize = pageSize,
-                        TotalCount = 0
-                    };
-                }
-                if (pallets.Items == null)
-                {
-                    pallets.Items = new List<PalletListDto>();
-                }
 
                 var viewModel = new PalletListViewModel
                 {
@@ -93,16 +72,14 @@ namespace PalletManagementSystem.Web2.Controllers
                     PageNumber = page,
                     PageSize = pageSize,
                     SelectedDivision = division,
-                    // *** Assign non-nullable using ?? default ***
-                    SelectedPlatform = platform ?? defaultPlatform, // Line ~105 corrected
-                    AvailablePlatforms = availablePlatforms,
+                    SelectedPlatform = platform,
+                    AvailablePlatforms = availablePlatforms.ToList(),
 
                     // Common ViewModel properties
                     Username = Username,
                     DisplayName = await GetDisplayName(),
                     CurrentDivision = division,
-                    // *** Assign non-nullable using ?? default ***
-                    CurrentPlatform = platform ?? defaultPlatform, // Line ~113 corrected
+                    CurrentPlatform = platform,
                     TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username),
                     CanCreatePallet = UserContext.CanEditPallets()
                 };
@@ -111,37 +88,17 @@ namespace PalletManagementSystem.Web2.Controllers
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error retrieving pallets: {ex}");
-                ModelState.AddModelError("", $"An error occurred while retrieving pallets. Please try again.");
+                // Log the error
+                ModelState.AddModelError("", $"Error retrieving pallets: {ex.Message}");
 
-                var errorViewModel = new PalletListViewModel
+                return View(new PalletListViewModel
                 {
-                    Pallets = new PagedResultDto<PalletListDto>
-                    {
-                        Items = new List<PalletListDto>(),
-                        PageNumber = page,
-                        PageSize = pageSize,
-                        TotalCount = 0
-                    },
-                    SearchKeyword = keyword,
-                    IsClosed = isClosed,
-                    PageNumber = page,
-                    PageSize = pageSize,
-                    SelectedDivision = division,
-                    // *** Assign non-nullable using ?? default ***
-                    SelectedPlatform = platform ?? defaultPlatform, // Line ~143 corrected
-                    AvailablePlatforms = availablePlatforms, // Use potentially retrieved list
-
                     Username = Username,
                     DisplayName = await GetDisplayName(),
-                    CurrentDivision = division,
-                    // *** Assign non-nullable using ?? default ***
-                    CurrentPlatform = platform ?? defaultPlatform, // Line ~151 corrected
-                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username),
-                    CanCreatePallet = UserContext.CanEditPallets()
-                };
-
-                return View(errorViewModel);
+                    CurrentDivision = UserContext.GetDivision(),
+                    CurrentPlatform = UserContext.GetPlatform(),
+                    TouchModeEnabled = await _userPreferenceService.GetTouchModeEnabledAsync(Username)
+                });
             }
         }
 

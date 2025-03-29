@@ -15,7 +15,7 @@ using PalletManagementSystem.Infrastructure.Data;
 using PalletManagementSystem.Infrastructure.Data.Repositories;
 using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Infrastructure.Services;
-using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
+//using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
 using PalletManagementSystem.Web2.Services;
 
 namespace PalletManagementSystem.Web2.App_Start
@@ -185,12 +185,17 @@ namespace PalletManagementSystem.Web2.App_Start
         /// </summary>
         private static void RegisterExternalServiceComponents(ContainerBuilder builder, IAppSettings appSettings)
         {
-            // Printer service - per request as it may use request-specific settings
-            builder.RegisterType<PrinterService>()
+            //// Printer service - per request as it may use request-specific settings
+            //builder.RegisterType<PrinterService>()
+            //    .As<IPrinterService>()
+            //    .WithParameter(TypedParameter.From(appSettings))
+            //    .InstancePerRequest()
+            //    .PropertiesAutowired();
+
+            // Register mock printer service instead of the real one
+            builder.RegisterType<MockPrinterService>()
                 .As<IPrinterService>()
-                .WithParameter(TypedParameter.From(appSettings))
-                .InstancePerRequest()
-                .PropertiesAutowired();
+                .InstancePerRequest();
 
             // Search service
             builder.RegisterType<SearchService>()
@@ -204,18 +209,18 @@ namespace PalletManagementSystem.Web2.App_Start
                 .InstancePerRequest()
                 .PropertiesAutowired();
 
-            // SSRS integration services
-            builder.RegisterType<ReportingService>()
-                .As<IReportingService>()
-                .WithParameter(TypedParameter.From(appSettings))
-                .InstancePerRequest()
-                .PropertiesAutowired();
+            //// SSRS integration services
+            //builder.RegisterType<ReportingService>()
+            //    .As<IReportingService>()
+            //    .WithParameter(TypedParameter.From(appSettings))
+            //    .InstancePerRequest()
+            //    .PropertiesAutowired();
 
-            builder.RegisterType<SSRSClient>()
-                .As<ISSRSClient>()
-                .WithParameter(TypedParameter.From(appSettings))
-                .InstancePerRequest()
-                .PropertiesAutowired();
+            //builder.RegisterType<SSRSClient>()
+            //    .As<ISSRSClient>()
+            //    .WithParameter(TypedParameter.From(appSettings))
+            //    .InstancePerRequest()
+            //    .PropertiesAutowired();
         }
 
         /// <summary>

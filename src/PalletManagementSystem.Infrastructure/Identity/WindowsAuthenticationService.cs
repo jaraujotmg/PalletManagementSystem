@@ -44,7 +44,7 @@ namespace PalletManagementSystem.Infrastructure.Identity
                     : identity.Name;
 
                 // Simulate an async operation
-                await Task.Delay(1);
+                await Task.Delay(1).ConfigureAwait(false); ;
 
                 // Try to get user details from Active Directory
                 using (var context = new PrincipalContext(ContextType.Domain))
@@ -102,8 +102,8 @@ namespace PalletManagementSystem.Infrastructure.Identity
             try
             {
                 // Simulate an async operation
-                await Task.Delay(1);
-
+                await Task.Delay(1).ConfigureAwait(false); 
+                    
                 // Check if the identity is in the specified group
                 var isInGroup = identity.Groups != null &&
                     identity.Groups.OfType<SecurityIdentifier>()

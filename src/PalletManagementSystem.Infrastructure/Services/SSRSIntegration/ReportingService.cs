@@ -1,70 +1,86 @@
-﻿using Microsoft.Extensions.Logging;
+﻿// src/PalletManagementSystem.Infrastructure/Services/SSRSIntegration/ReportingService.cs
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces.Services;
 
 namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
 {
-    /// <summary>
-    /// Implementation of the reporting service
-    /// </summary>
     public class ReportingService : IReportingService
     {
         private readonly ISSRSClient _ssrsClient;
+        private readonly IAppSettings _appSettings;
         private readonly ILogger<ReportingService> _logger;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ReportingService"/> class
-        /// </summary>
-        /// <param name="ssrsClient">The SSRS client</param>
-        /// <param name="logger">The logger</param>
-        public ReportingService(ISSRSClient ssrsClient, ILogger<ReportingService> logger)
+        public ReportingService(
+            ISSRSClient ssrsClient,
+            IAppSettings appSettings,
+            ILogger<ReportingService> logger = null)
         {
             _ssrsClient = ssrsClient ?? throw new ArgumentNullException(nameof(ssrsClient));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
+            _logger = logger;
         }
 
-        /// <inheritdoc/>
-        public async Task<byte[]> GetReportAsync(string reportPath, object parameters)
+        public async Task<bool> GenerateAndPrintReportAsync(
+            string reportName,
+            Dictionary<string, string> parameters,
+            string printerName)
         {
             try
             {
-                var paramDict = _ssrsClient.ConvertParametersToDict(parameters);
-                return await _ssrsClient.GetReportAsync(reportPath, paramDict);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error getting report {reportPath}");
-                throw;
-            }
-        }
+                // Get report server URL and path from configuration
+                string reportServerUrl = _appSettings.GetSetting("ReportServer:Url");
+                string reportPath = _appSettings.GetSetting($"ReportServer:Reports:{reportName}");
 
-        /// <inheritdoc/>
-        public async Task<bool> PrintReportAsync(string reportPath, object parameters, string printerName)
-        {
-            try
-            {
-                var paramDict = _ssrsClient.ConvertParametersToDict(parameters);
-                return await _ssrsClient.PrintReportAsync(reportPath, paramDict, printerName);
+                if (string.IsNullOrEmpty(reportServerUrl) || string.IsNullOrEmpty(reportPath))
+                {
+                    _logger?.LogWarning($"ReportingService: Missing configuration for report {reportName}");
+                    return false;
+                }
+
+                // Add the printer name to the parameters
+                parameters["PrinterName"] = printerName;
+
+                // Call SSRS client to generate and print the report
+                bool result = await _ssrsClient.PrintReportAsync(reportServerUrl, reportPath, parameters);
+
+                return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error printing report {reportPath} to printer {printerName}");
+                _logger?.LogError(ex, $"ReportingService: Error generating report {reportName}");
                 return false;
             }
         }
 
-        /// <inheritdoc/>
-        public async Task<byte[]> ExportReportAsync(string reportPath, object parameters, string format)
+        public async Task<byte[]> GenerateReportAsync(
+            string reportName,
+            Dictionary<string, string> parameters,
+            string format = "PDF")
         {
             try
             {
-                var paramDict = _ssrsClient.ConvertParametersToDict(parameters);
-                return await _ssrsClient.ExportReportAsync(reportPath, paramDict, format);
+                // Get report server URL and path from configuration
+                string reportServerUrl = _appSettings.GetSetting("ReportServer:Url");
+                string reportPath = _appSettings.GetSetting($"ReportServer:Reports:{reportName}");
+
+                if (string.IsNullOrEmpty(reportServerUrl) || string.IsNullOrEmpty(reportPath))
+                {
+                    _logger?.LogWarning($"ReportingService: Missing configuration for report {reportName}");
+                    return null;
+                }
+
+                // Call SSRS client to generate the report
+                byte[] reportData = await _ssrsClient.GenerateReportAsync(reportServerUrl, reportPath, parameters, format);
+
+                return reportData;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error exporting report {reportPath} to {format}");
-                throw;
+                _logger?.LogError(ex, $"ReportingService: Error generating report {reportName}");
+                return null;
             }
         }
     }

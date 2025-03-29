@@ -8,7 +8,7 @@ using PalletManagementSystem.Infrastructure.Data.Repositories;
 using PalletManagementSystem.Infrastructure.Data;
 using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Infrastructure.Services;
-using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
+//using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
 
 namespace PalletManagementSystem.Infrastructure.Extensions
 {
@@ -38,13 +38,13 @@ namespace PalletManagementSystem.Infrastructure.Extensions
             services.AddScoped<ITransactionManager, TransactionManager>();
 
             // Infrastructure Services
-            services.AddScoped<IPrinterService, PrinterService>();
+            //services.AddScoped<IPrinterService, PrinterService>();
             services.AddScoped<ISearchService, SearchService>();
             services.AddScoped<IUserPreferenceService, UserPreferenceService>();
 
             // SSRS Integration
-            services.AddHttpClient<ISSRSClient, SSRSClient>();
-            services.AddScoped<IReportingService, ReportingService>();
+            //services.AddHttpClient<ISSRSClient, SSRSClient>();
+            //services.AddScoped<IReportingService, ReportingService>();
 
             // Identity and Authentication
             services.AddScoped<WindowsAuthenticationService>();

@@ -1,9 +1,10 @@
-﻿using System;
+﻿// src/PalletManagementSystem.Infrastructure/Services/PrinterService.cs
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models.Enums;
@@ -11,344 +12,264 @@ using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
 
 namespace PalletManagementSystem.Infrastructure.Services
 {
-    /// <summary>
-    /// Implementation of the printer service
-    /// </summary>
     public class PrinterService : IPrinterService
     {
         private readonly IPalletRepository _palletRepository;
         private readonly IItemRepository _itemRepository;
         private readonly IReportingService _reportingService;
-        private readonly IConfiguration _configuration;
+        private readonly IAppSettings _appSettings;
         private readonly ILogger<PrinterService> _logger;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PrinterService"/> class
-        /// </summary>
         public PrinterService(
             IPalletRepository palletRepository,
             IItemRepository itemRepository,
             IReportingService reportingService,
-            IConfiguration configuration,
-            ILogger<PrinterService> logger)
+            IAppSettings appSettings,
+            ILogger<PrinterService> logger = null)
         {
             _palletRepository = palletRepository ?? throw new ArgumentNullException(nameof(palletRepository));
             _itemRepository = itemRepository ?? throw new ArgumentNullException(nameof(itemRepository));
             _reportingService = reportingService ?? throw new ArgumentNullException(nameof(reportingService));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
+            _logger = logger;
         }
 
-        /// <inheritdoc/>
         public async Task<bool> PrintPalletListAsync(int palletId)
         {
             try
             {
-                // Get the pallet with items
-                var pallet = await _palletRepository.GetByIdWithItemsAsync(palletId);
+                var pallet = await _palletRepository.GetByIdWithIncludesAsync(palletId, new[] { "Items" });
                 if (pallet == null)
                 {
-                    _logger.LogWarning($"Cannot print pallet list: Pallet with ID {palletId} not found");
+                    _logger?.LogWarning($"PrinterService: Pallet with ID {palletId} not found.");
                     return false;
                 }
 
-                // Determine if the pallet has special client items
-                bool hasSpecialClient = pallet.Items.Any(i => i.IsSpecialClient());
+                // Determine which printer to use based on division and platform
+                string printerName = GetPalletListPrinterAsync(
+                    pallet.Division,
+                    pallet.Platform,
+                    pallet.Items.Any(i => i.IsSpecialClient())).Result;
 
-                // Get the appropriate printer
-                string printerName = await GetPalletListPrinterAsync(pallet.Division, pallet.Platform, hasSpecialClient);
-
-                // Print the report
-                var reportPath = _configuration["Reports:PalletListReport"];
-                var parameters = new { PalletId = palletId };
-
-                bool result = await _reportingService.PrintReportAsync(reportPath, parameters, printerName);
-
-                if (result)
+                if (string.IsNullOrEmpty(printerName))
                 {
-                    _logger.LogInformation($"Printed pallet list for pallet {pallet.PalletNumber.Value} to printer {printerName}");
+                    _logger?.LogWarning("PrinterService: No printer found for pallet list.");
+                    return false;
                 }
-                else
+
+                // Send to reporting service
+                var reportParameters = new Dictionary<string, string>
                 {
-                    _logger.LogWarning($"Failed to print pallet list for pallet {pallet.PalletNumber.Value} to printer {printerName}");
-                }
+                    { "PalletId", palletId.ToString() },
+                    { "PrinterName", printerName }
+                };
+
+                bool result = await _reportingService.GenerateAndPrintReportAsync(
+                    "PalletList", reportParameters, printerName);
 
                 return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error printing pallet list for pallet ID {palletId}");
-                throw;
+                _logger?.LogError(ex, $"PrinterService: Error printing pallet list for pallet ID {palletId}");
+                return false;
             }
         }
 
-        /// <inheritdoc/>
         public async Task<bool> PrintItemLabelAsync(int itemId)
         {
             try
             {
-                // Get the item with pallet
-                var item = await _itemRepository.GetByIdWithPalletAsync(itemId);
+                var item = await _itemRepository.GetByIdWithIncludesAsync(itemId, new[] { "Pallet" });
                 if (item == null)
                 {
-                    _logger.LogWarning($"Cannot print item label: Item with ID {itemId} not found");
+                    _logger?.LogWarning($"PrinterService: Item with ID {itemId} not found.");
                     return false;
                 }
 
-                if (item.Pallet == null)
+                // Determine which printer to use based on division and platform
+                string printerName = await GetItemLabelPrinterAsync(
+                    item.Pallet.Division,
+                    item.Pallet.Platform,
+                    item.IsSpecialClient());
+
+                if (string.IsNullOrEmpty(printerName))
                 {
-                    _logger.LogWarning($"Cannot print item label: Item with ID {itemId} is not assigned to a pallet");
+                    _logger?.LogWarning("PrinterService: No printer found for item label.");
                     return false;
                 }
 
-                // Check if this is a special client
-                bool isSpecialClient = item.IsSpecialClient();
-
-                // Get the appropriate printer
-                string printerName = await GetItemLabelPrinterAsync(item.Pallet.Division, item.Pallet.Platform, isSpecialClient);
-
-                // Print the report
-                var reportPath = _configuration["Reports:ItemLabelReport"];
-                var parameters = new { ItemId = itemId };
-
-                bool result = await _reportingService.PrintReportAsync(reportPath, parameters, printerName);
-
-                if (result)
+                // Send to reporting service
+                var reportParameters = new Dictionary<string, string>
                 {
-                    _logger.LogInformation($"Printed label for item {item.ItemNumber} to printer {printerName}");
-                }
-                else
-                {
-                    _logger.LogWarning($"Failed to print label for item {item.ItemNumber} to printer {printerName}");
-                }
+                    { "ItemId", itemId.ToString() },
+                    { "PrinterName", printerName }
+                };
+
+                bool result = await _reportingService.GenerateAndPrintReportAsync(
+                    "ItemLabel", reportParameters, printerName);
 
                 return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error printing label for item ID {itemId}");
-                throw;
+                _logger?.LogError(ex, $"PrinterService: Error printing item label for item ID {itemId}");
+                return false;
             }
         }
 
-        /// <inheritdoc/>
         public async Task<string> GetPalletListPrinterAsync(Division division, Platform platform, bool hasSpecialClient)
         {
             try
             {
-                // Check for special client rule
-                if (hasSpecialClient)
+                // Get printer based on division and platform
+                string printerName = _appSettings.GetSetting($"Printers:{division}:{platform}:PalletList");
+
+                // Check if special client handling is needed
+                if (hasSpecialClient && _appSettings.GetBoolSetting("Printers:UseSpecialClientPrinter", false))
                 {
-                    var specialClientPrinter = _configuration["Printers:SpecialClient:PalletList"];
-                    if (!string.IsNullOrEmpty(specialClientPrinter))
+                    string specialPrinter = _appSettings.GetSetting("Printers:SpecialClient:PalletList");
+                    if (!string.IsNullOrEmpty(specialPrinter))
                     {
-                        return await Task.FromResult(specialClientPrinter);
+                        printerName = specialPrinter;
                     }
                 }
 
-                // Get division and platform specific printer
-                string divisionPlatformKey = $"Printers:{division}:{platform}:PalletList";
-                var divisionPlatformPrinter = _configuration[divisionPlatformKey];
-                if (!string.IsNullOrEmpty(divisionPlatformPrinter))
+                // If not found, get default printer
+                if (string.IsNullOrEmpty(printerName))
                 {
-                    return await Task.FromResult(divisionPlatformPrinter);
+                    printerName = _appSettings.GetSetting("Printers:Default:PalletList");
                 }
 
-                // Get division specific printer
-                string divisionKey = $"Printers:{division}:PalletList";
-                var divisionPrinter = _configuration[divisionKey];
-                if (!string.IsNullOrEmpty(divisionPrinter))
-                {
-                    return await Task.FromResult(divisionPrinter);
-                }
-
-                // Use default printer
-                return await Task.FromResult(_configuration["Printers:Default:PalletList"]);
+                return printerName;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting pallet list printer for division {division}, platform {platform}, hasSpecialClient={hasSpecialClient}");
-                throw;
+                _logger?.LogError(ex, "PrinterService: Error getting pallet list printer");
+                return string.Empty;
             }
         }
 
-        /// <inheritdoc/>
         public async Task<string> GetItemLabelPrinterAsync(Division division, Platform platform, bool isSpecialClient)
         {
             try
             {
-                // Check for special client rule
-                if (isSpecialClient)
+                // Get printer based on division and platform
+                string printerName = _appSettings.GetSetting($"Printers:{division}:{platform}:ItemLabel");
+
+                // Check if special client handling is needed
+                if (isSpecialClient && _appSettings.GetBoolSetting("Printers:UseSpecialClientPrinter", false))
                 {
-                    var specialClientPrinter = _configuration["Printers:SpecialClient:ItemLabel"];
-                    if (!string.IsNullOrEmpty(specialClientPrinter))
+                    string specialPrinter = _appSettings.GetSetting("Printers:SpecialClient:ItemLabel");
+                    if (!string.IsNullOrEmpty(specialPrinter))
                     {
-                        return await Task.FromResult(specialClientPrinter);
+                        printerName = specialPrinter;
                     }
                 }
 
-                // Get division and platform specific printer
-                string divisionPlatformKey = $"Printers:{division}:{platform}:ItemLabel";
-                var divisionPlatformPrinter = _configuration[divisionPlatformKey];
-                if (!string.IsNullOrEmpty(divisionPlatformPrinter))
+                // If not found, get default printer
+                if (string.IsNullOrEmpty(printerName))
                 {
-                    return await Task.FromResult(divisionPlatformPrinter);
+                    printerName = _appSettings.GetSetting("Printers:Default:ItemLabel");
                 }
 
-                // Get division specific printer
-                string divisionKey = $"Printers:{division}:ItemLabel";
-                var divisionPrinter = _configuration[divisionKey];
-                if (!string.IsNullOrEmpty(divisionPrinter))
-                {
-                    return await Task.FromResult(divisionPrinter);
-                }
-
-                // Use default printer
-                return await Task.FromResult(_configuration["Printers:Default:ItemLabel"]);
+                return printerName;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting item label printer for division {division}, platform {platform}, isSpecialClient={isSpecialClient}");
-                throw;
+                _logger?.LogError(ex, "PrinterService: Error getting item label printer");
+                return string.Empty;
             }
         }
 
-        /// <inheritdoc/>
         public async Task<bool> SetDefaultPalletListPrinterAsync(string username, string printerName)
         {
-            if (string.IsNullOrWhiteSpace(username))
-            {
-                throw new ArgumentException("Username cannot be null or empty", nameof(username));
-            }
-
-            if (string.IsNullOrWhiteSpace(printerName))
-            {
-                throw new ArgumentException("Printer name cannot be null or empty", nameof(printerName));
-            }
-
             try
             {
-                // In a real application, this would store the user preference in a database
-                // For this implementation, we'll log the operation
-                _logger.LogInformation($"Setting default pallet list printer for user {username} to {printerName}");
-
-                // Return success
-                return await Task.FromResult(true);
+                // In a real application, this would save to a database
+                // For now, just simulate success
+                return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error setting default pallet list printer for user {username} to {printerName}");
+                _logger?.LogError(ex, "PrinterService: Error setting default pallet list printer");
                 return false;
             }
         }
 
-        /// <inheritdoc/>
         public async Task<bool> SetDefaultItemLabelPrinterAsync(string username, string printerName)
         {
-            if (string.IsNullOrWhiteSpace(username))
-            {
-                throw new ArgumentException("Username cannot be null or empty", nameof(username));
-            }
-
-            if (string.IsNullOrWhiteSpace(printerName))
-            {
-                throw new ArgumentException("Printer name cannot be null or empty", nameof(printerName));
-            }
-
             try
             {
-                // In a real application, this would store the user preference in a database
-                // For this implementation, we'll log the operation
-                _logger.LogInformation($"Setting default item label printer for user {username} to {printerName}");
-
-                // Return success
-                return await Task.FromResult(true);
+                // In a real application, this would save to a database
+                // For now, just simulate success
+                return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error setting default item label printer for user {username} to {printerName}");
+                _logger?.LogError(ex, "PrinterService: Error setting default item label printer");
                 return false;
             }
         }
 
-        /// <inheritdoc/>
         public async Task<string> GetDefaultPalletListPrinterAsync(string username)
         {
-            if (string.IsNullOrWhiteSpace(username))
-            {
-                throw new ArgumentException("Username cannot be null or empty", nameof(username));
-            }
-
             try
             {
-                // In a real application, this would retrieve the user preference from a database
-                // For this implementation, we'll return the default printer
-                _logger.LogInformation($"Getting default pallet list printer for user {username}");
-                return await Task.FromResult(_configuration["Printers:Default:PalletList"]);
+                // In a real application, this would read from a database
+                // For now, just return the default from settings
+                return _appSettings.GetSetting("Printers:Default:PalletList");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting default pallet list printer for user {username}");
-                throw;
+                _logger?.LogError(ex, "PrinterService: Error getting default pallet list printer");
+                return string.Empty;
             }
         }
 
-        /// <inheritdoc/>
         public async Task<string> GetDefaultItemLabelPrinterAsync(string username)
         {
-            if (string.IsNullOrWhiteSpace(username))
-            {
-                throw new ArgumentException("Username cannot be null or empty", nameof(username));
-            }
-
             try
             {
-                // In a real application, this would retrieve the user preference from a database
-                // For this implementation, we'll return the default printer
-                _logger.LogInformation($"Getting default item label printer for user {username}");
-                return await Task.FromResult(_configuration["Printers:Default:ItemLabel"]);
+                // In a real application, this would read from a database
+                // For now, just return the default from settings
+                return _appSettings.GetSetting("Printers:Default:ItemLabel");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting default item label printer for user {username}");
-                throw;
+                _logger?.LogError(ex, "PrinterService: Error getting default item label printer");
+                return string.Empty;
             }
         }
 
-        /// <inheritdoc/>
         public async Task<IEnumerable<string>> GetAvailablePrintersAsync(PrinterType printerType)
         {
             try
             {
-                var printers = new List<string>();
-
-                // In a real application, this would query the available printers from the system or configuration
-                // For this implementation, we'll return hard-coded values
+                // In a real application, this would query available system printers or a configured list
+                // For now, just return some sample printers
+                List<string> printers = new List<string>();
 
                 switch (printerType)
                 {
                     case PrinterType.PalletList:
-                        printers.Add("HP LaserJet 4200 - Office");
-                        printers.Add("Xerox WorkCentre - Production");
-                        printers.Add("Brother MFC - Warehouse");
-                        printers.Add("Xerox WorkCentre - Special Printer");
+                        printers.Add("PalletListPrinter1");
+                        printers.Add("PalletListPrinter2");
+                        printers.Add("SharedPrinter1");
                         break;
                     case PrinterType.ItemLabel:
-                        printers.Add("Zebra ZT410 - Warehouse");
-                        printers.Add("Zebra ZT230 - Shipping");
-                        printers.Add("Zebra ZT230 - Special Label");
-                        printers.Add("Datamax - Production");
+                        printers.Add("LabelPrinter1");
+                        printers.Add("LabelPrinter2");
+                        printers.Add("SharedPrinter1");
                         break;
-                    default:
-                        throw new ArgumentException($"Unknown printer type: {printerType}");
                 }
 
-                return await Task.FromResult(printers);
+                return printers;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting available printers for type {printerType}");
-                throw;
+                _logger?.LogError(ex, "PrinterService: Error getting available printers");
+                return Enumerable.Empty<string>();
             }
         }
     }
