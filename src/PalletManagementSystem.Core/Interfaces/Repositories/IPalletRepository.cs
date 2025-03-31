@@ -34,7 +34,9 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
         /// <param name="id">The pallet ID</param>
         /// <param name="cancellationToken">A token to cancel the operation</param>
         /// <returns>The pallet detail DTO, or null if not found</returns>
-        Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default); 
+
+       
 
         /// <summary>
         /// Gets a pallet by its pallet number as a list DTO (without items)

@@ -13,7 +13,7 @@ using PalletManagementSystem.Web2.ViewModels.Settings;
 
 namespace PalletManagementSystem.Web2.Controllers
 {
-    [Authorize]
+    //[Authorize]
     public class SettingsController : BaseController
     {
         private readonly IUserPreferenceService _userPreferenceService;

@@ -6,8 +6,8 @@
 
 <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fa fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fa fa-pallet"></i> Pallets</a></li>
         <li class="breadcrumb-item"><a href="@Url.Action("Details", "Pallets", new { id = Model.SourcePalletId })">@Model.SourcePalletNumber</a></li>
         <li class="breadcrumb-item"><a href="@Url.Action("Details", "Items", new { id = Model.ItemId })">Item #@Model.ItemNumber</a></li>
         <li class="breadcrumb-item active" aria-current="page">Move Item</li>
@@ -18,7 +18,7 @@
 <div class="move-header">
     <div class="row align-items-center">
         <div class="col-md-8">
-            <h4><i class="fas fa-exchange-alt mr-2"></i>Move Item #@Model.ItemNumber</h4>
+            <h4><i class="fa fa-exchange-alt mr-2"></i>Move Item #@Model.ItemNumber</h4>
             <div class="mt-2">
                 <span class="badge badge-secondary mr-2">Current Pallet: @Model.SourcePalletNumber</span>
                 <span class="badge badge-orange">Open</span>
@@ -26,7 +26,7 @@
         </div>
         <div class="col-md-4 text-md-right mt-3 mt-md-0">
             <a href="@Url.Action("Details", "Pallets", new { id = Model.SourcePalletId })" class="btn btn-secondary">
-                <i class="fas fa-arrow-left mr-1"></i>Back
+                <i class="fa fa-arrow-left mr-1"></i>Back
             </a>
         </div>
     </div>
@@ -38,7 +38,7 @@
         <!-- Item Information -->
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-box mr-2"></i>Item Details
+                <i class="fa fa-box mr-2"></i>Item Details
             </div>
             <div class="card-body">
                 <div class="item-preview">
@@ -79,25 +79,25 @@
                     <div class="source-dest-box">
                         <div class="source-dest-title">Source Pallet</div>
                         <div class="source-dest-icon">
-                            <i class="fas fa-pallet"></i>
+                            <i class="fa fa-pallet"></i>
                         </div>
                         <div class="fw-bold">@Model.SourcePalletNumber</div>
                         <div class="badge badge-orange">Open</div>
                     </div>
                     <div class="arrow-container">
-                        <i class="fas fa-arrow-right"></i>
+                        <i class="fa fa-arrow-right"></i>
                     </div>
                     <div class="source-dest-box">
                         <div class="source-dest-title">Destination Pallet</div>
                         <div class="source-dest-icon">
-                            <i class="fas fa-pallet"></i>
+                            <i class="fa fa-pallet"></i>
                         </div>
                         <div id="destPalletDisplay">No pallet selected</div>
                     </div>
                 </div>
 
                 <div class="alert alert-info mt-3">
-                    <i class="fas fa-info-circle mr-2"></i>Moving this item will change its pallet assignment but won't change any other item properties.
+                    <i class="fa fa-info-circle mr-2"></i>Moving this item will change its pallet assignment but won't change any other item properties.
                 </div>
             </div>
         </div>
@@ -107,7 +107,7 @@
         <!-- Destination Pallet Selection -->
         <div class="card">
             <div class="card-header">
-                <i class="fas fa-exchange-alt mr-2"></i>Select Destination Pallet
+                <i class="fa fa-exchange-alt mr-2"></i>Select Destination Pallet
             </div>
             <div class="card-body">
                 @using (Html.BeginForm("MoveItem", "Pallets", FormMethod.Post, new { id = "moveItemForm" }))
@@ -135,7 +135,7 @@
                                     <div class="input-group">
                                         <div class="input-group-prepend">
                                             <span class="input-group-text">
-                                                <i class="fas fa-search"></i>
+                                                <i class="fa fa-search"></i>
                                             </span>
                                         </div>
                                         @Html.TextBoxFor(m => m.SearchKeyword, new { @class = "form-control", placeholder = "Search by pallet number, order..." })
@@ -144,14 +144,14 @@
                             </div>
                             <div class="col-lg-2">
                                 <button type="button" class="btn btn-outline-primary" id="filterButton">
-                                    <i class="fas fa-filter mr-1"></i>Filter
+                                    <i class="fa fa-filter mr-1"></i>Filter
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle mr-2"></i>Only open pallets are shown. Items cannot be moved to closed pallets.
+                        <i class="fa fa-exclamation-triangle mr-2"></i>Only open pallets are shown. Items cannot be moved to closed pallets.
                     </div>
 
                     <!-- Available Pallets -->
@@ -159,7 +159,7 @@
                         @if (Model.AvailablePallets.Count == 0)
                         {
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle mr-2"></i>No open pallets available for moving this item.
+                                <i class="fa fa-info-circle mr-2"></i>No open pallets available for moving this item.
                             </div>
                         }
                         else
@@ -189,13 +189,13 @@
                                     </div>
                                     <div class="pallet-card-info">
                                         <div class="pallet-info-item">
-                                            <i class="fas fa-cube mr-1"></i>Items: @pallet.ItemCount
+                                            <i class="fa fa-cube mr-1"></i>Items: @pallet.ItemCount
                                         </div>
                                         <div class="pallet-info-item">
-                                            <i class="fas fa-weight mr-1"></i>@pallet.Quantity @pallet.UnitOfMeasure
+                                            <i class="fa fa-weight mr-1"></i>@pallet.Quantity @pallet.UnitOfMeasure
                                         </div>
                                         <div class="pallet-info-item">
-                                            <i class="fas fa-clock mr-1"></i>@pallet.CreatedDate.ToString("MMM dd, yyyy")
+                                            <i class="fa fa-clock mr-1"></i>@pallet.CreatedDate.ToString("MMM dd, yyyy")
                                         </div>
                                     </div>
                                 </div>
@@ -207,14 +207,14 @@
                     <div class="floating-buttons">
                         <div class="d-flex justify-content-between align-items-center">
                             <button type="button" class="btn btn-link text-decoration-none" data-toggle="modal" data-target="#newPalletModal">
-                                <i class="fas fa-plus-circle mr-1"></i>Create New Pallet
+                                <i class="fa fa-plus-circle mr-1"></i>Create New Pallet
                             </button>
                             <div>
                                 <a href="@Url.Action("Details", "Pallets", new { id = Model.SourcePalletId })" class="btn btn-secondary mr-2">
-                                    <i class="fas fa-times mr-1"></i>Cancel
+                                    <i class="fa fa-times mr-1"></i>Cancel
                                 </a>
                                 <button type="submit" class="btn btn-primary" id="moveItemBtn" disabled>
-                                    <i class="fas fa-exchange-alt mr-1"></i>Move Item
+                                    <i class="fa fa-exchange-alt mr-1"></i>Move Item
                                 </button>
                             </div>
                         </div>
@@ -230,7 +230,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus-circle mr-2"></i>Create New Pallet</h5>
+                <h5 class="modal-title"><i class="fa fa-plus-circle mr-2"></i>Create New Pallet</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -257,7 +257,7 @@
                     </label>
                 </div>
                 <div class="alert alert-info">
-                    <i class="fas fa-info-circle mr-2"></i>The new pallet will be created with a temporary number. A permanent number will be assigned when the pallet is closed.
+                    <i class="fa fa-info-circle mr-2"></i>The new pallet will be created with a temporary number. A permanent number will be assigned when the pallet is closed.
                 </div>
             </div>
             <div class="modal-footer">
@@ -273,7 +273,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-exchange-alt mr-2"></i>Confirm Move</h5>
+                <h5 class="modal-title"><i class="fa fa-exchange-alt mr-2"></i>Confirm Move</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -281,7 +281,7 @@
             <div class="modal-body">
                 <p>Are you sure you want to move item <strong>#@Model.ItemNumber</strong> from pallet <strong>@Model.SourcePalletNumber</strong> to pallet <strong id="confirmDestPallet"></strong>?</p>
                 <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>This action cannot be undone!
+                    <i class="fa fa-exclamation-triangle mr-2"></i>This action cannot be undone!
                 </div>
             </div>
             <div class="modal-footer">

@@ -31,7 +31,7 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// </summary>
         /// <param name="role">The role name</param>
         /// <returns>True if the user is in the role, false otherwise</returns>
-        bool IsInRole(string role);
+        Task<bool> IsInRoleAsync(string role);
 
         /// <summary>
         /// Gets the current user's roles
@@ -43,25 +43,25 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// Checks if the current user can edit pallets
         /// </summary>
         /// <returns>True if the user can edit pallets, false otherwise</returns>
-        bool CanEditPallets();
+        Task<bool> CanEditPalletsAsync();
 
         /// <summary>
         /// Checks if the current user can close pallets
         /// </summary>
         /// <returns>True if the user can close pallets, false otherwise</returns>
-        bool CanClosePallets();
+        Task<bool> CanClosePalletsAsync();
 
         /// <summary>
         /// Checks if the current user can edit items
         /// </summary>
         /// <returns>True if the user can edit items, false otherwise</returns>
-        bool CanEditItems();
+        Task<bool> CanEditItemsAsync();
 
         /// <summary>
         /// Checks if the current user can move items
         /// </summary>
         /// <returns>True if the user can move items, false otherwise</returns>
-        bool CanMoveItems();
+        Task<bool> CanMoveItemsAsync();
 
         /// <summary>
         /// Gets the current session's division

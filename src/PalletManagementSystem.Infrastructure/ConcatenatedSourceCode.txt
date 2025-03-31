@@ -1,0 +1,4533 @@
+﻿Source Code Concatenation Report
+Project Root: D:\source\PalletManagementSystem\src\PalletManagementSystem.Infrastructure
+Generated On: 03/29/2025 17:30:29
+Included Extensions: .cs, .vb, .fs, .cpp, .c, .hpp, .h, .js, .ts, .jsx, .tsx, .html, .htm, .css, .scss, .less, .xaml, .razor, .cshtml, .sql, .py, .sh, .ps1, .xml, .json, .yaml, .yml, .config, .settings, .props, .targets
+Excluded Directories: bin, obj, .vs, .git, .svn, node_modules, packages, TestResults, GeneratedFiles
+
+
+
+===============================================================================
+File: Data\ApplicationDbContext.cs
+===============================================================================
+using Microsoft.EntityFrameworkCore;
+using PalletManagementSystem.Core.Models;
+using PalletManagementSystem.Infrastructure.Data.Configurations;
+
+namespace PalletManagementSystem.Infrastructure.Data
+{
+    /// <summary>
+    /// Application database context
+    /// </summary>
+    public class ApplicationDbContext : DbContext
+    {
+        /// <summary>
+        /// Gets or sets the pallets DbSet
+        /// </summary>
+        public DbSet<Pallet> Pallets { get; set; }
+
+        /// <summary>
+        /// Gets or sets the items DbSet
+        /// </summary>
+        public DbSet<Item> Items { get; set; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ApplicationDbContext"/> class
+        /// </summary>
+        /// <param name="options">The options to be used by the context</param>
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
+
+        /// <inheritdoc/>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Apply configurations
+            modelBuilder.ApplyConfiguration(new PalletConfiguration());
+            modelBuilder.ApplyConfiguration(new ItemConfiguration());
+
+            // Add any additional configurations here
+        }
+    }
+}
+
+===============================================================================
+File: Data\UnitOfWork.cs
+===============================================================================
+using System;
+using System.Data;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+
+namespace PalletManagementSystem.Infrastructure.Data
+{
+    /// <summary>
+    /// Implementation of the unit of work pattern
+    /// </summary>
+    public class UnitOfWork : IUnitOfWork
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<UnitOfWork> _logger;
+        private readonly Lazy<IPalletRepository> _palletRepository;
+        private readonly Lazy<IItemRepository> _itemRepository;
+        private IDbContextTransaction _transaction;
+        private bool _disposed;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="UnitOfWork"/> class
+        /// </summary>
+        /// <param name="context">The database context</param>
+        /// <param name="loggerFactory">The logger factory</param>
+        /// <param name="palletRepository">The pallet repository</param>
+        /// <param name="itemRepository">The item repository</param>
+        public UnitOfWork(
+            ApplicationDbContext context,
+            ILoggerFactory loggerFactory,
+            IPalletRepository palletRepository,
+            IItemRepository itemRepository)
+        {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = loggerFactory?.CreateLogger<UnitOfWork>() ?? throw new ArgumentNullException(nameof(loggerFactory));
+
+            // Using Lazy to defer repository instantiation until needed
+            _palletRepository = new Lazy<IPalletRepository>(() => palletRepository);
+            _itemRepository = new Lazy<IItemRepository>(() => itemRepository);
+        }
+
+        /// <inheritdoc/>
+        public IPalletRepository PalletRepository => _palletRepository.Value;
+
+        /// <inheritdoc/>
+        public IItemRepository ItemRepository => _itemRepository.Value;
+
+        /// <inheritdoc/>
+        public IRepository<T> Repository<T>() where T : class
+        {
+            // This method is intended to be used when the specific repository
+            // type is not known at compile time or for generic operations
+
+            // For known entity types, return the specialized repository
+            if (typeof(T) == typeof(Core.Models.Pallet))
+                return (IRepository<T>)PalletRepository;
+
+            if (typeof(T) == typeof(Core.Models.Item))
+                return (IRepository<T>)ItemRepository;
+
+            // For other entity types, we'd need to register them with the DI container
+            // and return them here, but for now throw an exception
+            throw new NotSupportedException($"No repository is registered for entity type {typeof(T).Name}");
+        }
+
+        /// <inheritdoc/>
+        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Could add auditing, validation, etc. here before saving changes
+                return await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while saving changes to the database");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            // Ensure we don't already have an active transaction
+            if (_transaction != null)
+            {
+                throw new InvalidOperationException("A transaction is already in progress");
+            }
+
+            try
+            {
+                _transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+                _logger.LogInformation("Database transaction begun");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error beginning database transaction");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
+        {
+            // Ensure we don't already have an active transaction
+            if (_transaction != null)
+            {
+                throw new InvalidOperationException("A transaction is already in progress");
+            }
+
+            try
+            {
+                // For .NET Standard 2.0 and EF Core 2.x, we need to use the synchronous method 
+                // and wrap it in a Task.Run to make it async
+                _transaction = await Task.Run(() => _context.Database.BeginTransaction(isolationLevel), cancellationToken);
+                _logger.LogInformation("Database transaction begun with isolation level {IsolationLevel}", isolationLevel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error beginning database transaction with isolation level {IsolationLevel}", isolationLevel);
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            if (_transaction == null)
+            {
+                throw new InvalidOperationException("No transaction is in progress");
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+                _transaction.Commit(); // Using Commit instead of CommitAsync for EF Core 2.x
+                _logger.LogInformation("Database transaction committed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error committing database transaction");
+                await RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+            finally
+            {
+                _transaction.Dispose();
+                _transaction = null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            if (_transaction == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _transaction.Rollback(); // Using Rollback instead of RollbackAsync for EF Core 2.x
+                _logger.LogInformation("Database transaction rolled back");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rolling back database transaction");
+                throw;
+            }
+            finally
+            {
+                _transaction.Dispose();
+                _transaction = null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the resources used by this unit of work
+        /// </summary>
+        /// <param name="disposing">Indicates whether the method is called from Dispose</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed && disposing)
+            {
+                // Dispose the transaction if one exists
+                _transaction?.Dispose();
+
+                // Dispose the context
+                _context.Dispose();
+
+                _disposed = true;
+            }
+        }
+    }
+}
+
+===============================================================================
+File: Data\Configurations\ItemConfiguration.cs
+===============================================================================
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PalletManagementSystem.Core.Models;
+
+namespace PalletManagementSystem.Infrastructure.Data.Configurations
+{
+    /// <summary>
+    /// Entity Framework configuration for the Item entity
+    /// </summary>
+    public class ItemConfiguration : IEntityTypeConfiguration<Item>
+    {
+        /// <inheritdoc/>
+        public void Configure(EntityTypeBuilder<Item> builder)
+        {
+            builder.ToTable("Items");
+
+            builder.HasKey(i => i.Id);
+
+            // Configure properties
+            builder.Property(i => i.Id)
+                .ValueGeneratedOnAdd();
+
+            builder.Property(i => i.ItemNumber)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            builder.Property(i => i.PalletId)
+                .IsRequired();
+
+            builder.Property(i => i.ManufacturingOrder)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            builder.Property(i => i.ManufacturingOrderLine)
+                .HasMaxLength(20)
+                .IsRequired(false);
+
+            builder.Property(i => i.ServiceOrder)
+                .HasMaxLength(50)
+                .IsRequired(false);
+
+            builder.Property(i => i.ServiceOrderLine)
+                .HasMaxLength(20)
+                .IsRequired(false);
+
+            builder.Property(i => i.FinalOrder)
+                .HasMaxLength(50)
+                .IsRequired(false);
+
+            builder.Property(i => i.FinalOrderLine)
+                .HasMaxLength(20)
+                .IsRequired(false);
+
+            builder.Property(i => i.ClientCode)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            builder.Property(i => i.ClientName)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            builder.Property(i => i.Reference)
+                .HasMaxLength(50)
+                .IsRequired(false);
+
+            builder.Property(i => i.Finish)
+                .HasMaxLength(50)
+                .IsRequired(false);
+
+            builder.Property(i => i.Color)
+                .HasMaxLength(50)
+                .IsRequired(false);
+
+            builder.Property(i => i.Quantity)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+
+            builder.Property(i => i.QuantityUnit)
+                .HasMaxLength(10)
+                .IsRequired();
+
+            builder.Property(i => i.Weight)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+
+            builder.Property(i => i.WeightUnit)
+                .HasMaxLength(10)
+                .IsRequired();
+
+            builder.Property(i => i.Width)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+
+            builder.Property(i => i.WidthUnit)
+                .HasMaxLength(10)
+                .IsRequired();
+
+            builder.Property(i => i.Quality)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            builder.Property(i => i.Batch)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            builder.Property(i => i.CreatedDate)
+                .IsRequired();
+
+            builder.Property(i => i.CreatedBy)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            // Configure navigation property
+            builder.HasOne(i => i.Pallet)
+                .WithMany(p => p.Items)
+                .HasForeignKey(i => i.PalletId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Add unique index for ItemNumber
+            builder.HasIndex(i => i.ItemNumber)
+                .IsUnique();
+        }
+    }
+}
+
+===============================================================================
+File: Data\Configurations\PalletConfiguration.cs
+===============================================================================
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PalletManagementSystem.Core.Models;
+using PalletManagementSystem.Core.Models.Enums;
+using PalletManagementSystem.Core.Models.ValueObjects;
+using PalletManagementSystem.Infrastructure.Data.ValueConverters;
+using System;
+
+namespace PalletManagementSystem.Infrastructure.Data.Configurations
+{
+    /// <summary>
+    /// Entity Framework configuration for the Pallet entity
+    /// </summary>
+    public class PalletConfiguration : IEntityTypeConfiguration<Pallet>
+    {
+        /// <inheritdoc/>
+        public void Configure(EntityTypeBuilder<Pallet> builder)
+        {
+            builder.ToTable("Pallets");
+
+            builder.HasKey(p => p.Id);
+
+            // Configure properties
+            builder.Property(p => p.Id)
+                .ValueGeneratedOnAdd();
+
+            // Configure PalletNumber value object using a value converter
+            builder.Property(p => p.PalletNumber)
+                .HasConversion(new PalletNumberConverter())
+                .HasColumnName("PalletNumber")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            // Configure other scalar properties
+            builder.Property(p => p.ManufacturingOrder)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            builder.Property(p => p.Division)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Property(p => p.Platform)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Property(p => p.UnitOfMeasure)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Property(p => p.Quantity)
+                .HasColumnType("decimal(18,2)")
+                .IsRequired();
+
+            builder.Property(p => p.IsClosed)
+                .IsRequired();
+
+            builder.Property(p => p.CreatedDate)
+                .IsRequired();
+
+            builder.Property(p => p.ClosedDate)
+                .IsRequired(false);
+
+            builder.Property(p => p.CreatedBy)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            // Configure navigation property
+            builder.HasMany(p => p.Items)
+                .WithOne(i => i.Pallet)
+                .HasForeignKey(i => i.PalletId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+}
+
+===============================================================================
+File: Data\Repositories\ItemRepository.cs
+===============================================================================
+using Microsoft.EntityFrameworkCore;
+using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Extensions;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Mappers;
+using PalletManagementSystem.Core.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Infrastructure.Data.Repositories
+{
+    public class ItemRepository : Repository<Item>, IItemRepository
+    {
+        public ItemRepository(ApplicationDbContext context) : base(context)
+        {
+        }
+
+        /// <inheritdoc/>
+        public async Task<Item> GetByIdWithPalletAsync(int id, CancellationToken cancellationToken = default)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("Invalid item ID", nameof(id));
+            }
+
+            // Use the standardized approach with expression-based includes
+            return await GetByIdWithIncludesAsync(id, new Expression<Func<Item, object>>[]
+            {
+                i => i.Pallet
+            }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<ItemListDto> GetItemListByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var query = GetQuery().Where(i => i.Id == id);
+            var item = query.FirstOrDefault();
+
+            if (item == null)
+                return null;
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return mapper(item);
+        }
+
+        /// <inheritdoc/>
+        public async Task<ItemDetailDto> GetItemDetailByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            // For complex includes like this, we'll use the EF Core version for now
+            var item = await _dbSet
+                .Include(i => i.Pallet)
+                .Where(i => i.Id == id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (item == null)
+                return null;
+
+            var mapper = ItemMapper.ProjectToDetailDto().Compile();
+            return mapper(item);
+        }
+
+        /// <inheritdoc/>
+        public async Task<ItemListDto> GetItemListByNumberAsync(string itemNumber, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(itemNumber))
+            {
+                throw new ArgumentException("Item number cannot be null or empty", nameof(itemNumber));
+            }
+
+            var query = GetQuery().Where(i => i.ItemNumber == itemNumber);
+            var item = query.FirstOrDefault();
+
+            if (item == null)
+                return null;
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return mapper(item);
+        }
+
+        /// <inheritdoc/>
+        public async Task<ItemDetailDto> GetItemDetailByNumberAsync(string itemNumber, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(itemNumber))
+            {
+                throw new ArgumentException("Item number cannot be null or empty", nameof(itemNumber));
+            }
+
+            // For complex includes like this, we'll use the EF Core version for now
+            var item = await _dbSet
+                .Include(i => i.Pallet)
+                .Where(i => i.ItemNumber == itemNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (item == null)
+                return null;
+
+            var mapper = ItemMapper.ProjectToDetailDto().Compile();
+            return mapper(item);
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<ItemListDto>> GetItemsByPalletIdAsync(
+            int palletId,
+            CancellationToken cancellationToken = default)
+        {
+            if (palletId <= 0)
+            {
+                throw new ArgumentException("Invalid pallet ID", nameof(palletId));
+            }
+
+            var items = await _dbSet
+                .Where(i => i.PalletId == palletId)
+                .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return items.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<ItemListDto>> GetItemsByClientCodeAsync(
+            string clientCode,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(clientCode))
+            {
+                throw new ArgumentException("Client code cannot be null or empty", nameof(clientCode));
+            }
+
+            var items = await _dbSet
+                .Where(i => i.ClientCode == clientCode)
+                .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return items.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<ItemListDto>> GetItemsByManufacturingOrderAsync(
+            string manufacturingOrder,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(manufacturingOrder))
+            {
+                throw new ArgumentException("Manufacturing order cannot be null or empty", nameof(manufacturingOrder));
+            }
+
+            var items = await _dbSet
+                .Where(i => i.ManufacturingOrder == manufacturingOrder)
+                .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return items.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<string> GetNextItemNumberAsync(CancellationToken cancellationToken = default)
+        {
+            // Fetch all item numbers to process in memory
+            var itemNumbers = await _dbSet
+                .Select(i => i.ItemNumber)
+                .ToListAsync(cancellationToken);
+
+            // Process the conversion in memory where statement lambdas are allowed
+            var maxNumber = itemNumbers
+                .Select(i => {
+                    if (int.TryParse(i, out int num))
+                        return num;
+                    return 0;
+                })
+                .DefaultIfEmpty(100000)
+                .Max();
+
+            return (maxNumber + 1).ToString();
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<ItemListDto>> SearchItemsAsync(
+            string keyword,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return new List<ItemListDto>();
+            }
+
+            keyword = keyword.Trim();
+
+            var items = await _dbSet
+                .Where(i =>
+                    i.ItemNumber.Contains(keyword) ||
+                    i.ManufacturingOrder.Contains(keyword) ||
+                    i.ServiceOrder.Contains(keyword) ||
+                    i.FinalOrder.Contains(keyword) ||
+                    i.ClientCode.Contains(keyword) ||
+                    i.ClientName.Contains(keyword) ||
+                    i.Reference.Contains(keyword) ||
+                    i.Batch.Contains(keyword)
+                )
+                .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            return items.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<PagedResultDto<ItemListDto>> GetPagedItemsAsync(
+            int pageNumber,
+            int pageSize,
+            int? palletId = null,
+            string clientCode = null,
+            string manufacturingOrder = null,
+            string keyword = null,
+            bool orderByCreatedDate = true,
+            bool descending = true,
+            CancellationToken cancellationToken = default)
+        {
+            if (pageNumber < 1)
+            {
+                throw new ArgumentException("Page number must be greater than or equal to 1", nameof(pageNumber));
+            }
+
+            if (pageSize < 1)
+            {
+                throw new ArgumentException("Page size must be greater than or equal to 1", nameof(pageSize));
+            }
+
+            var query = _dbSet.AsQueryable();
+
+            // Apply filters
+            if (palletId.HasValue)
+            {
+                query = query.Where(i => i.PalletId == palletId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(clientCode))
+            {
+                query = query.Where(i => i.ClientCode == clientCode);
+            }
+
+            if (!string.IsNullOrWhiteSpace(manufacturingOrder))
+            {
+                query = query.Where(i => i.ManufacturingOrder == manufacturingOrder);
+            }
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(i =>
+                    i.ItemNumber.Contains(keyword) ||
+                    i.ManufacturingOrder.Contains(keyword) ||
+                    i.ServiceOrder.Contains(keyword) ||
+                    i.FinalOrder.Contains(keyword) ||
+                    i.ClientCode.Contains(keyword) ||
+                    i.ClientName.Contains(keyword) ||
+                    i.Reference.Contains(keyword) ||
+                    i.Batch.Contains(keyword));
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Apply ordering
+            if (orderByCreatedDate)
+            {
+                query = descending
+                    ? query.OrderByDescending(i => i.CreatedDate)
+                    : query.OrderBy(i => i.CreatedDate);
+            }
+            else
+            {
+                query = descending
+                    ? query.OrderByDescending(i => i.ItemNumber)
+                    : query.OrderBy(i => i.ItemNumber);
+            }
+
+            var skip = (pageNumber - 1) * pageSize;
+            var itemEntities = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToListDto().Compile();
+            var items = itemEntities.Select(mapper).ToList();
+
+            return new PagedResultDto<ItemListDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
+        /// <inheritdoc/>
+        public async Task<PagedResultDto<ItemDetailDto>> GetPagedItemDetailsAsync(
+            int pageNumber,
+            int pageSize,
+            int? palletId = null,
+            string clientCode = null,
+            string manufacturingOrder = null,
+            string keyword = null,
+            bool orderByCreatedDate = true,
+            bool descending = true,
+            CancellationToken cancellationToken = default)
+        {
+            if (pageNumber < 1)
+            {
+                throw new ArgumentException("Page number must be greater than or equal to 1", nameof(pageNumber));
+            }
+
+            if (pageSize < 1)
+            {
+                throw new ArgumentException("Page size must be greater than or equal to 1", nameof(pageSize));
+            }
+
+            var query = _dbSet.AsQueryable();
+
+            // Apply filters
+            if (palletId.HasValue)
+            {
+                query = query.Where(i => i.PalletId == palletId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(clientCode))
+            {
+                query = query.Where(i => i.ClientCode == clientCode);
+            }
+
+            if (!string.IsNullOrWhiteSpace(manufacturingOrder))
+            {
+                query = query.Where(i => i.ManufacturingOrder == manufacturingOrder);
+            }
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(i =>
+                    i.ItemNumber.Contains(keyword) ||
+                    i.ManufacturingOrder.Contains(keyword) ||
+                    i.ServiceOrder.Contains(keyword) ||
+                    i.FinalOrder.Contains(keyword) ||
+                    i.ClientCode.Contains(keyword) ||
+                    i.ClientName.Contains(keyword) ||
+                    i.Reference.Contains(keyword) ||
+                    i.Batch.Contains(keyword));
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Apply ordering
+            if (orderByCreatedDate)
+            {
+                query = descending
+                    ? query.OrderByDescending(i => i.CreatedDate)
+                    : query.OrderBy(i => i.CreatedDate);
+            }
+            else
+            {
+                query = descending
+                    ? query.OrderByDescending(i => i.ItemNumber)
+                    : query.OrderBy(i => i.ItemNumber);
+            }
+
+            var skip = (pageNumber - 1) * pageSize;
+            var itemEntities = await query
+                .Include(i => i.Pallet)
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var mapper = ItemMapper.ProjectToDetailDto().Compile();
+            var items = itemEntities.Select(mapper).ToList();
+
+            return new PagedResultDto<ItemDetailDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+    }
+}
+
+===============================================================================
+File: Data\Repositories\PalletRepository.cs
+===============================================================================
+using Microsoft.EntityFrameworkCore;
+using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Extensions;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Mappers;
+using PalletManagementSystem.Core.Models;
+using PalletManagementSystem.Core.Models.Enums;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Infrastructure.Data.Repositories
+{
+    public class PalletRepository : Repository<Pallet>, IPalletRepository
+    {
+        public PalletRepository(ApplicationDbContext context) : base(context)
+        {
+        }
+
+        /// <inheritdoc/>
+        public async Task<Pallet> GetByIdWithItemsAsync(int id, CancellationToken cancellationToken = default)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("Invalid pallet ID", nameof(id));
+            }
+
+            // Use the standardized approach with expression-based includes
+            return await GetByIdWithIncludesAsync(id, new Expression<Func<Pallet, object>>[]
+            {
+                p => p.Items
+            }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<PalletListDto> GetPalletListByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var query = GetQuery().Where(p => p.Id == id);
+            var pallet = query.FirstOrDefault();
+
+            if (pallet == null)
+                return null;
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return mapper(pallet);
+        }
+
+        /// <inheritdoc/>
+        public async Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            // For complex includes like this, we'll use the EF Core version for now
+            var pallet = await _dbSet
+                .Include(p => p.Items)
+                .Where(p => p.Id == id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (pallet == null)
+                return null;
+
+            var mapper = PalletMapper.ProjectToDetailDto().Compile();
+            return mapper(pallet);
+        }
+
+        /// <inheritdoc/>
+        public async Task<PalletListDto> GetPalletListByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(palletNumber))
+            {
+                throw new ArgumentException("Pallet number cannot be null or empty", nameof(palletNumber));
+            }
+
+            var query = GetQuery().Where(p => p.PalletNumber.Value == palletNumber);
+            var pallet = query.FirstOrDefault();
+
+            if (pallet == null)
+                return null;
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return mapper(pallet);
+        }
+
+        /// <inheritdoc/>
+        public async Task<PalletDetailDto> GetPalletDetailByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(palletNumber))
+            {
+                throw new ArgumentException("Pallet number cannot be null or empty", nameof(palletNumber));
+            }
+
+            // For complex includes like this, we'll use the EF Core version for now
+            var pallet = await _dbSet
+                .Include(p => p.Items)
+                .Where(p => p.PalletNumber.Value == palletNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (pallet == null)
+                return null;
+
+            var mapper = PalletMapper.ProjectToDetailDto().Compile();
+            return mapper(pallet);
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<PalletListDto>> GetPalletsByDivisionAndPlatformAsync(
+            Division division,
+            Platform platform,
+            CancellationToken cancellationToken = default)
+        {
+            // For backward compatibility and to ensure good performance with
+            // complex projections, we'll use EF Core directly for this
+            var pallets = await _dbSet
+                .Where(p => p.Division == division && p.Platform == platform)
+                .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return pallets.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<PalletDetailDto>> GetPalletDetailsByDivisionAndPlatformAsync(
+            Division division,
+            Platform platform,
+            CancellationToken cancellationToken = default)
+        {
+            // For backward compatibility and to ensure good performance with
+            // complex projections, we'll use EF Core directly for this
+            var pallets = await _dbSet
+                .Include(p => p.Items)
+                .Where(p => p.Division == division && p.Platform == platform)
+                .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToDetailDto().Compile();
+            return pallets.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<PalletListDto>> GetPalletsByStatusAsync(
+            bool isClosed,
+            CancellationToken cancellationToken = default)
+        {
+            var pallets = await _dbSet
+                .Where(p => p.IsClosed == isClosed)
+                .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return pallets.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<PalletListDto>> GetPalletsByManufacturingOrderAsync(
+            string manufacturingOrder,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(manufacturingOrder))
+            {
+                throw new ArgumentException("Manufacturing order cannot be null or empty", nameof(manufacturingOrder));
+            }
+
+            var pallets = await _dbSet
+                .Where(p => p.ManufacturingOrder == manufacturingOrder)
+                .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return pallets.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<int> GetNextTemporarySequenceNumberAsync(CancellationToken cancellationToken = default)
+        {
+            // Get all temporary pallet numbers that start with TEMP-
+            var tempPalletNumbers = await _dbSet
+                .Where(p => p.PalletNumber.IsTemporary)
+                .Select(p => p.PalletNumber.Value)
+                .Where(p => p.StartsWith("TEMP-", StringComparison.OrdinalIgnoreCase))
+                .ToListAsync(cancellationToken);
+
+            // Process the numbers in memory
+            var maxNumber = tempPalletNumbers
+                .Select(p => {
+                    if (int.TryParse(p.Substring(5), out int num))
+                        return num;
+                    return 0;
+                })
+                .DefaultIfEmpty(0)
+                .Max();
+
+            return maxNumber + 1;
+        }
+
+        /// <inheritdoc/>
+        public async Task<int> GetNextPermanentSequenceNumberAsync(
+            Division division,
+            CancellationToken cancellationToken = default)
+        {
+            switch (division)
+            {
+                case Division.MA:
+                    // Get all permanent pallet numbers for Manufacturing division
+                    var maPalletNumbers = await _dbSet
+                        .Where(p => !p.PalletNumber.IsTemporary && p.Division == division)
+                        .Select(p => p.PalletNumber.Value)
+                        .Where(p => p.StartsWith("P8"))
+                        .ToListAsync(cancellationToken);
+
+                    // Process the numbers in memory
+                    var maMaxNumber = maPalletNumbers
+                        .Select(p => {
+                            if (int.TryParse(p.Substring(2), out int num))
+                                return num;
+                            return 0;
+                        })
+                        .DefaultIfEmpty(0)
+                        .Max();
+
+                    return maMaxNumber + 1;
+
+                case Division.TC:
+                    // Get all permanent pallet numbers for Technical Center division
+                    var tcPalletNumbers = await _dbSet
+                        .Where(p => !p.PalletNumber.IsTemporary && p.Division == division)
+                        .Select(p => p.PalletNumber.Value)
+                        .Where(p => p.StartsWith("47"))
+                        .ToListAsync(cancellationToken);
+
+                    // Process the numbers in memory
+                    var tcMaxNumber = tcPalletNumbers
+                        .Select(p => {
+                            if (int.TryParse(p.Substring(2), out int num))
+                                return num;
+                            return 0;
+                        })
+                        .DefaultIfEmpty(0)
+                        .Max();
+
+                    return tcMaxNumber + 1;
+
+                default:
+                    throw new ArgumentException($"Unsupported division: {division}", nameof(division));
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<PalletListDto>> SearchPalletsAsync(
+            string keyword,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return new List<PalletListDto>();
+            }
+
+            keyword = keyword.Trim();
+
+            var pallets = await _dbSet
+                .Where(p =>
+                    p.PalletNumber.Value.Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword)
+                )
+                .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            return pallets.Select(mapper).ToList();
+        }
+
+        /// <inheritdoc/>
+        public async Task<PagedResultDto<PalletListDto>> GetPagedPalletsAsync(
+            int pageNumber,
+            int pageSize,
+            Division? division = null,
+            Platform? platform = null,
+            bool? isClosed = null,
+            string keyword = null,
+            bool orderByCreatedDate = false,
+            bool descending = false,
+            CancellationToken cancellationToken = default)
+        {
+            if (pageNumber < 1)
+            {
+                throw new ArgumentException("Page number must be greater than or equal to 1", nameof(pageNumber));
+            }
+
+            if (pageSize < 1)
+            {
+                throw new ArgumentException("Page size must be greater than or equal to 1", nameof(pageSize));
+            }
+
+            var query = _dbSet.AsQueryable();
+
+            if (division.HasValue)
+            {
+                query = query.Where(p => p.Division == division.Value);
+            }
+
+            if (platform.HasValue)
+            {
+                query = query.Where(p => p.Platform == platform.Value);
+            }
+
+            if (isClosed.HasValue)
+            {
+                query = query.Where(p => p.IsClosed == isClosed.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(p =>
+                    p.PalletNumber.Value.Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword));
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            if (orderByCreatedDate)
+            {
+                query = descending
+                    ? query.OrderByDescending(p => p.CreatedDate)
+                    : query.OrderBy(p => p.CreatedDate);
+            }
+            else
+            {
+                query = descending
+                    ? query.OrderByDescending(p => p.PalletNumber.Value)
+                    : query.OrderBy(p => p.PalletNumber.Value);
+            }
+
+            var skip = (pageNumber - 1) * pageSize;
+            var palletEntities = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var mapper = PalletMapper.ProjectToListDto().Compile();
+            var items = palletEntities.Select(mapper).ToList();
+
+            return new PagedResultDto<PalletListDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<SearchResultDto>> GetPalletSearchResultsAsync(
+            string keyword,
+            int maxResults = 0,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Enumerable.Empty<SearchResultDto>();
+            }
+
+            // Build query
+            var query = _dbSet.AsQueryable()
+                .Where(p =>
+                    p.PalletNumber.Value.Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword));
+
+            // Apply max results limit if specified
+            if (maxResults > 0)
+            {
+                query = query.Take(maxResults);
+            }
+
+            var pallets = await query.ToListAsync(cancellationToken);
+
+            return pallets.Select(p => new SearchResultDto
+            {
+                Id = p.Id,
+                EntityType = "Pallet",
+                Identifier = p.PalletNumber.Value,
+                AdditionalInfo = $"MO: {p.ManufacturingOrder}",
+                ViewUrl = $"/Pallets/Details/{p.Id}"
+            });
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<SearchSuggestionDto>> GetPalletSearchSuggestionsAsync(
+            string keyword,
+            int maxResults = 0,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Enumerable.Empty<SearchSuggestionDto>();
+            }
+
+            // Build query
+            var query = _dbSet.AsQueryable()
+                .Where(p =>
+                    p.PalletNumber.Value.Contains(keyword) ||
+                    p.ManufacturingOrder.Contains(keyword));
+
+            // Apply max results limit if specified
+            if (maxResults > 0)
+            {
+                query = query.Take(maxResults);
+            }
+
+            var pallets = await query.ToListAsync(cancellationToken);
+
+            return pallets.Select(p => new SearchSuggestionDto
+            {
+                Text = p.PalletNumber.Value,
+                Type = "Pallet",
+                Url = $"/Pallets/Details/{p.Id}",
+                EntityId = p.Id,
+                IsViewAll = false
+            });
+        }
+    }
+}
+
+===============================================================================
+File: Data\Repositories\QueryAdapter.cs
+===============================================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+
+namespace PalletManagementSystem.Infrastructure.Data.Repositories
+{
+    public class QueryAdapter<T> : IQuery<T> where T : class
+    {
+        private readonly IQueryable<T> _query;
+
+        public QueryAdapter(IQueryable<T> query)
+        {
+            _query = query;
+        }
+
+        public IQuery<T> Where(Expression<Func<T, bool>> predicate)
+        {
+            return new QueryAdapter<T>(_query.Where(predicate));
+        }
+
+        public IQuery<T> Include(Expression<Func<T, object>> path)
+        {
+            return new QueryAdapter<T>(_query.Include(path));
+        }
+
+        public IQuery<T> Include(string path)
+        {
+            return new QueryAdapter<T>(_query.Include(path));
+        }
+
+        public IReadOnlyList<T> ToList()
+        {
+            return _query.ToList();
+        }
+
+        public T FirstOrDefault()
+        {
+            return _query.FirstOrDefault();
+        }
+    }
+}
+
+===============================================================================
+File: Data\Repositories\QuerySpecificationAdapter.cs
+===============================================================================
+using System.Collections.Generic;
+using System.Linq;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+
+namespace PalletManagementSystem.Infrastructure.Data.Repositories
+{
+    /// <summary>
+    /// Adapter to apply specifications to IQuery objects
+    /// </summary>
+    public static class QuerySpecificationAdapter
+    {
+        /// <summary>
+        /// Applies a specification to a query
+        /// </summary>
+        /// <typeparam name="T">The entity type</typeparam>
+        /// <param name="query">The query</param>
+        /// <param name="spec">The specification</param>
+        /// <returns>A query with the specification applied</returns>
+        public static IQuery<T> ApplySpecification<T>(this IQuery<T> query, ISpecification<T> spec) where T : class
+        {
+            // Apply criteria
+            if (spec.Criteria != null)
+            {
+                query = query.Where(spec.Criteria);
+            }
+
+            // Apply includes
+            foreach (var include in spec.Includes)
+            {
+                query = query.Include(include);
+            }
+
+            foreach (var includeString in spec.IncludeStrings)
+            {
+                query = query.Include(includeString);
+            }
+
+            // Note: For paging, ordering, etc. we rely on the underlying implementation
+            // These would need to be added to the IQuery interface if needed
+
+            return query;
+        }
+    }
+}
+
+===============================================================================
+File: Data\Repositories\Repository.cs
+===============================================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using PalletManagementSystem.Core.Extensions;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Models;
+
+namespace PalletManagementSystem.Infrastructure.Data.Repositories
+{
+    /// <summary>
+    /// Generic repository implementation
+    /// </summary>
+    /// <typeparam name="T">The entity type</typeparam>
+    public class Repository<T> : IRepository<T> where T : class
+    {
+        protected readonly ApplicationDbContext _context;
+        protected readonly DbSet<T> _dbSet;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Repository{T}"/> class
+        /// </summary>
+        /// <param name="context">The database context</param>
+        public Repository(ApplicationDbContext context)
+        {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _dbSet = context.Set<T>();
+        }
+
+        /// <summary>
+        /// Gets a query adapter for the repository
+        /// </summary>
+        public virtual IQuery<T> GetQuery()
+        {
+            return new QueryAdapter<T>(_dbSet.AsQueryable());
+        }
+
+        /// <summary>
+        /// Gets a queryable view of the repository (for backward compatibility)
+        /// </summary>
+        public virtual IQueryable<T> GetQueryable()
+        {
+            return _dbSet.AsQueryable();
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<T> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.ToListAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<PagedResult<T>> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            if (pageNumber < 1)
+                throw new ArgumentException("Page number must be greater than or equal to 1", nameof(pageNumber));
+
+            if (pageSize < 1)
+                throw new ArgumentException("Page size must be greater than or equal to 1", nameof(pageSize));
+
+            var totalCount = await _dbSet.CountAsync(cancellationToken);
+            var skip = (pageNumber - 1) * pageSize;
+            var items = await _dbSet
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return new PagedResult<T>(items, totalCount, pageNumber, pageSize);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<IReadOnlyList<T>> FindAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.Where(predicate).ToListAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<PagedResult<T>> FindPagedAsync(Expression<Func<T, bool>> predicate, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            if (pageNumber < 1)
+                throw new ArgumentException("Page number must be greater than or equal to 1", nameof(pageNumber));
+
+            if (pageSize < 1)
+                throw new ArgumentException("Page size must be greater than or equal to 1", nameof(pageSize));
+
+            var query = _dbSet.Where(predicate);
+            var totalCount = await query.CountAsync(cancellationToken);
+            var skip = (pageNumber - 1) * pageSize;
+            var items = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return new PagedResult<T>(items, totalCount, pageNumber, pageSize);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<IReadOnlyList<T>> FindAsync(ISpecification<T> specification, CancellationToken cancellationToken = default)
+        {
+            return await ApplySpecification(specification).ToListAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<T> FindFirstAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.FirstOrDefaultAsync(predicate, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<T> FindFirstAsync(ISpecification<T> specification, CancellationToken cancellationToken = default)
+        {
+            return await ApplySpecification(specification).FirstOrDefaultAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
+        {
+            await _dbSet.AddAsync(entity, cancellationToken);
+            // Note: We don't save changes here; that's the responsibility of the UnitOfWork
+            return entity;
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task AddRangeAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default)
+        {
+            await _dbSet.AddRangeAsync(entities, cancellationToken);
+            // Note: We don't save changes here; that's the responsibility of the UnitOfWork
+        }
+
+        /// <inheritdoc/>
+        public virtual Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
+        {
+            _context.Entry(entity).State = EntityState.Modified;
+            // Note: We don't save changes here; that's the responsibility of the UnitOfWork
+            return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
+        public virtual Task UpdateRangeAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default)
+        {
+            foreach (var entity in entities)
+            {
+                _context.Entry(entity).State = EntityState.Modified;
+            }
+            // Note: We don't save changes here; that's the responsibility of the UnitOfWork
+            return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
+        public virtual Task DeleteAsync(T entity, CancellationToken cancellationToken = default)
+        {
+            _dbSet.Remove(entity);
+            // Note: We don't save changes here; that's the responsibility of the UnitOfWork
+            return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
+        public virtual Task DeleteRangeAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default)
+        {
+            _dbSet.RemoveRange(entities);
+            // Note: We don't save changes here; that's the responsibility of the UnitOfWork
+            return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.AnyAsync(predicate, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<int> CountAsync(CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.CountAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<int> CountAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.CountAsync(predicate, cancellationToken);
+        }
+
+        /// <summary>
+        /// Applies a specification to the query
+        /// </summary>
+        /// <param name="specification">The specification to apply</param>
+        /// <returns>The query with the specification applied</returns>
+        protected virtual IQueryable<T> ApplySpecification(ISpecification<T> specification)
+        {
+            return SpecificationEvaluator<T>.GetQuery(_dbSet.AsQueryable(), specification);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<T> GetByIdWithIncludesAsync(int id, IEnumerable<string> includes, CancellationToken cancellationToken = default)
+        {
+            var query = GetQuery();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    if (!string.IsNullOrWhiteSpace(include))
+                    {
+                        query = query.Include(include);
+                    }
+                }
+            }
+
+            return await Task.FromResult(query.Where(e => EF.Property<int>(e, "Id") == id).FirstOrDefault());
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<T> GetByIdWithIncludesAsync(int id, IEnumerable<Expression<Func<T, object>>> includes, CancellationToken cancellationToken = default)
+        {
+            var query = _dbSet.AsQueryable();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
+            }
+
+            return await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<IReadOnlyList<T>> FindWithIncludesAsync(
+            Expression<Func<T, bool>> predicate,
+            IEnumerable<string> includes,
+            CancellationToken cancellationToken = default)
+        {
+            var query = GetQuery();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    if (!string.IsNullOrWhiteSpace(include))
+                    {
+                        query = query.Include(include);
+                    }
+                }
+            }
+
+            return await Task.FromResult(query.Where(predicate).ToList());
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<IReadOnlyList<T>> FindWithIncludesAsync(
+            Expression<Func<T, bool>> predicate,
+            IEnumerable<Expression<Func<T, object>>> includes,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _dbSet.AsQueryable();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
+            }
+
+            return await query.Where(predicate).ToListAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<T> FindFirstWithIncludesAsync(
+            Expression<Func<T, bool>> predicate,
+            IEnumerable<string> includes,
+            CancellationToken cancellationToken = default)
+        {
+            var query = GetQuery();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    if (!string.IsNullOrWhiteSpace(include))
+                    {
+                        query = query.Include(include);
+                    }
+                }
+            }
+
+            return await Task.FromResult(query.Where(predicate).FirstOrDefault());
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<T> FindFirstWithIncludesAsync(
+            Expression<Func<T, bool>> predicate,
+            IEnumerable<Expression<Func<T, object>>> includes,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _dbSet.AsQueryable();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
+            }
+
+            return await query.FirstOrDefaultAsync(predicate, cancellationToken);
+        }
+    }
+}
+
+===============================================================================
+File: Data\Repositories\SpecificationEvaluator.cs
+===============================================================================
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+
+namespace PalletManagementSystem.Infrastructure.Data.Repositories
+{
+    /// <summary>
+    /// Evaluates a specification and applies it to a query
+    /// </summary>
+    /// <typeparam name="T">The entity type</typeparam>
+    public class SpecificationEvaluator<T> where T : class
+    {
+        /// <summary>
+        /// Gets a query with the specification applied
+        /// </summary>
+        /// <param name="inputQuery">The input query</param>
+        /// <param name="specification">The specification</param>
+        /// <returns>The query with the specification applied</returns>
+        public static IQueryable<T> GetQuery(IQueryable<T> inputQuery, ISpecification<T> specification)
+        {
+            var query = inputQuery;
+
+            // Apply criteria if provided
+            if (specification.Criteria != null)
+            {
+                query = query.Where(specification.Criteria);
+            }
+
+            // Include all expression-based includes
+            query = specification.Includes.Aggregate(query,
+                (current, include) => current.Include(include));
+
+            // Include all string-based includes
+            query = specification.IncludeStrings.Aggregate(query,
+                (current, include) => current.Include(include));
+
+            // Apply ordering if expressions are provided
+            if (specification.OrderBy != null)
+            {
+                query = query.OrderBy(specification.OrderBy);
+            }
+            else if (specification.OrderByDescending != null)
+            {
+                query = query.OrderByDescending(specification.OrderByDescending);
+            }
+
+            // Apply paging if enabled
+            if (specification.IsPagingEnabled)
+            {
+                query = query.Skip(specification.Skip).Take(specification.Take);
+            }
+
+            return query;
+        }
+    }
+}
+
+===============================================================================
+File: Data\ValueConverters\PalletNumberConverter.cs
+===============================================================================
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using PalletManagementSystem.Core.Models.Enums;
+using PalletManagementSystem.Core.Models.ValueObjects;
+using System;
+
+namespace PalletManagementSystem.Infrastructure.Data.ValueConverters
+{
+    /// <summary>
+    /// Value converter for PalletNumber value object
+    /// </summary>
+    public class PalletNumberConverter : ValueConverter<PalletNumber, string>
+    {
+        public PalletNumberConverter() : base(
+            // Convert to string when saving to database
+            v => Serialize(v),
+
+            // Convert from string when reading from database
+            v => Deserialize(v))
+        {
+        }
+
+        private static string Serialize(PalletNumber palletNumber)
+        {
+            // Escape any pipe characters in the value
+            string escapedValue = palletNumber.Value.Replace("|", "\\|");
+            return $"{escapedValue}|{palletNumber.IsTemporary}|{palletNumber.Division}";
+        }
+
+        private static PalletNumber Deserialize(string value)
+        {
+            try
+            {
+                // Split the string, but handle escaped pipes
+                string[] parts = SplitEscaped(value, '|');
+
+                if (parts.Length != 3)
+                    throw new ArgumentException("Invalid PalletNumber format");
+
+                // Unescape any escaped pipe characters
+                string palletNumberValue = parts[0].Replace("\\|", "|");
+                bool isTemporary = bool.Parse(parts[1]);
+                Division division = (Division)Enum.Parse(typeof(Division), parts[2]);
+
+                return new PalletNumber(palletNumberValue, isTemporary, division);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Error deserializing PalletNumber: {value}", ex);
+            }
+        }
+
+        private static string[] SplitEscaped(string input, char delimiter)
+        {
+            var result = new System.Collections.Generic.List<string>();
+            var current = new System.Text.StringBuilder();
+            bool escaped = false;
+
+            foreach (char c in input)
+            {
+                if (escaped)
+                {
+                    current.Append(c);
+                    escaped = false;
+                }
+                else if (c == '\\')
+                {
+                    escaped = true;
+                }
+                else if (c == delimiter)
+                {
+                    result.Add(current.ToString());
+                    current.Clear();
+                }
+                else
+                {
+                    current.Append(c);
+                }
+            }
+
+            result.Add(current.ToString());
+            return result.ToArray();
+        }
+    }
+}
+
+===============================================================================
+File: Extensions\ServiceCollectionExtensions.cs
+===============================================================================
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Services;
+using PalletManagementSystem.Infrastructure.Data.Repositories;
+using PalletManagementSystem.Infrastructure.Data;
+using PalletManagementSystem.Infrastructure.Identity;
+using PalletManagementSystem.Infrastructure.Services;
+//using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
+
+namespace PalletManagementSystem.Infrastructure.Extensions
+{
+    public static class ServiceCollectionExtensions
+    {
+        /// <summary>
+        /// Adds infrastructure services to the service collection
+        /// </summary>
+        /// <param name="services">The service collection</param>
+        /// <param name="configuration">The configuration</param>
+        /// <returns>The service collection</returns>
+        public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+        {
+            // Database context
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseSqlServer(
+                    configuration.GetConnectionString("DefaultConnection"),
+                    b => b.MigrationsAssembly("PalletManagementSystem.Infrastructure")));
+
+            // Repositories
+            services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            services.AddScoped<IPalletRepository, PalletRepository>();
+            services.AddScoped<IItemRepository, ItemRepository>();
+
+            // Unit of Work and Transaction Manager
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<ITransactionManager, TransactionManager>();
+
+            // Infrastructure Services
+            //services.AddScoped<IPrinterService, PrinterService>();
+            services.AddScoped<ISearchService, SearchService>();
+            services.AddScoped<IUserPreferenceService, UserPreferenceService>();
+
+            // SSRS Integration
+            //services.AddHttpClient<ISSRSClient, SSRSClient>();
+            //services.AddScoped<IReportingService, ReportingService>();
+
+            // Identity and Authentication
+            services.AddScoped<WindowsAuthenticationService>();
+            services.AddScoped<IUserContext, UserContext>();
+
+            return services;
+        }
+
+        /// <summary>
+        /// Adds core services to the service collection
+        /// </summary>
+        /// <param name="services">The service collection</param>
+        /// <returns>The service collection</returns>
+        public static IServiceCollection AddCoreServices(this IServiceCollection services)
+        {
+            // Domain Services
+            services.AddScoped<IPalletService, PalletService>();
+            services.AddScoped<IItemService, ItemService>();
+            services.AddScoped<IPlatformValidationService, PlatformValidationService>();
+            services.AddScoped<IPalletNumberGenerator, PalletNumberGenerator>();
+
+
+            return services;
+        }
+    }
+}
+
+===============================================================================
+File: Identity\IUserContext.cs
+===============================================================================
+using PalletManagementSystem.Core.Models.Enums;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Infrastructure.Identity
+{
+    /// <summary>
+    /// Interface for providing user context information
+    /// </summary>
+    public interface IUserContext
+    {
+        /// <summary>
+        /// Gets the current username
+        /// </summary>
+        /// <returns>The username</returns>
+        string GetUsername();
+
+        /// <summary>
+        /// Gets the current user's display name
+        /// </summary>
+        /// <returns>The display name</returns>
+        Task<string> GetDisplayNameAsync();
+
+        /// <summary>
+        /// Gets the current user's email
+        /// </summary>
+        /// <returns>The email</returns>
+        Task<string> GetEmailAsync();
+
+        /// <summary>
+        /// Checks if the current user is in a specified role
+        /// </summary>
+        /// <param name="role">The role name</param>
+        /// <returns>True if the user is in the role, false otherwise</returns>
+        bool IsInRole(string role);
+
+        /// <summary>
+        /// Gets the current user's roles
+        /// </summary>
+        /// <returns>An array of role names</returns>
+        Task<string[]> GetRolesAsync();
+
+        /// <summary>
+        /// Checks if the current user can edit pallets
+        /// </summary>
+        /// <returns>True if the user can edit pallets, false otherwise</returns>
+        bool CanEditPallets();
+
+        /// <summary>
+        /// Checks if the current user can close pallets
+        /// </summary>
+        /// <returns>True if the user can close pallets, false otherwise</returns>
+        bool CanClosePallets();
+
+        /// <summary>
+        /// Checks if the current user can edit items
+        /// </summary>
+        /// <returns>True if the user can edit items, false otherwise</returns>
+        bool CanEditItems();
+
+        /// <summary>
+        /// Checks if the current user can move items
+        /// </summary>
+        /// <returns>True if the user can move items, false otherwise</returns>
+        bool CanMoveItems();
+
+        /// <summary>
+        /// Gets the current session's division
+        /// </summary>
+        /// <returns>The division</returns>
+        Division GetDivision();
+
+        /// <summary>
+        /// Gets the current session's platform
+        /// </summary>
+        /// <returns>The platform</returns>
+        Platform GetPlatform();
+    }
+}
+
+===============================================================================
+File: Identity\UserContext.cs
+===============================================================================
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Models.Enums;
+using System;
+using System.Security.Principal;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Infrastructure.Identity
+{
+    /// <summary>
+    /// Provides context information for the current user
+    /// </summary>
+    public class UserContext : IUserContext
+    {
+        private readonly WindowsAuthenticationService _windowsAuthService;
+        private readonly ILogger<UserContext> _logger;
+        private readonly WindowsIdentity _windowsIdentity;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="UserContext"/> class
+        /// </summary>
+        /// <param name="windowsAuthService">The Windows authentication service</param>
+        /// <param name="logger">The logger</param>
+        public UserContext(
+            WindowsAuthenticationService windowsAuthService,
+            ILogger<UserContext> logger)
+        {
+            _windowsAuthService = windowsAuthService ?? throw new ArgumentNullException(nameof(windowsAuthService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+            try
+            {
+                _windowsIdentity = WindowsIdentity.GetCurrent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to get current Windows identity");
+            }
+        }
+
+        /// <inheritdoc/>
+        public string GetUsername()
+        {
+            try
+            {
+                return _windowsIdentity?.Name?.Split('\\').Length > 1
+                    ? _windowsIdentity.Name.Split('\\')[1]
+                    : _windowsIdentity?.Name ?? Environment.UserName;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting username");
+                return Environment.UserName;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<string> GetDisplayNameAsync()
+        {
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    var userDetails = await _windowsAuthService.GetUserDetailsAsync(_windowsIdentity);
+                    return userDetails.DisplayName;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting display name");
+            }
+
+            return GetUsername();
+        }
+
+        /// <inheritdoc/>
+        public async Task<string> GetEmailAsync()
+        {
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    var userDetails = await _windowsAuthService.GetUserDetailsAsync(_windowsIdentity);
+                    return userDetails.Email;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting email");
+            }
+
+            return $"{GetUsername()}@example.com";
+        }
+
+        /// <inheritdoc/>
+        public bool IsInRole(string role)
+        {
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    // This is synchronous for simplicity
+                    var isInGroup = _windowsAuthService.IsUserInGroupAsync(_windowsIdentity, $"PalletSystem_{role}s").Result;
+                    return isInGroup;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error checking if user is in role {role}");
+            }
+
+            // Default to Viewer role only
+            return role == "Viewer";
+        }
+
+        /// <inheritdoc/>
+        public async Task<string[]> GetRolesAsync()
+        {
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    return await _windowsAuthService.GetUserRolesAsync(_windowsIdentity);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting roles");
+            }
+
+            return new[] { "Viewer" };
+        }
+
+        /// <inheritdoc/>
+        public bool CanEditPallets()
+        {
+            return IsInRole("Administrator") || IsInRole("Editor");
+        }
+
+        /// <inheritdoc/>
+        public bool CanClosePallets()
+        {
+            return IsInRole("Administrator") || IsInRole("Editor");
+        }
+
+        /// <inheritdoc/>
+        public bool CanEditItems()
+        {
+            return IsInRole("Administrator") || IsInRole("Editor");
+        }
+
+        /// <inheritdoc/>
+        public bool CanMoveItems()
+        {
+            return IsInRole("Administrator") || IsInRole("Editor");
+        }
+
+        /// <inheritdoc/>
+        public Division GetDivision()
+        {
+            try
+            {
+                // In a real application, this would get the division from the session
+                // For now, default to Manufacturing
+                return Division.MA;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting division");
+                return Division.MA;
+            }
+        }
+
+        /// <inheritdoc/>
+        public Platform GetPlatform()
+        {
+            try
+            {
+                // In a real application, this would get the platform from the session
+                // For now, default to TEC1
+                return Platform.TEC1;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting platform");
+                return Platform.TEC1;
+            }
+        }
+    }
+}
+
+===============================================================================
+File: Identity\WindowsAuthenticationService.cs
+===============================================================================
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.DirectoryServices.AccountManagement;
+using System.Linq;
+using System.Security.Principal;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Infrastructure.Identity
+{
+    /// <summary>
+    /// Service for Windows Authentication operations
+    /// </summary>
+    public class WindowsAuthenticationService
+    {
+        private readonly ILogger<WindowsAuthenticationService> _logger;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WindowsAuthenticationService"/> class
+        /// </summary>
+        /// <param name="logger">The logger</param>
+        public WindowsAuthenticationService(ILogger<WindowsAuthenticationService> logger)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        /// <summary>
+        /// Gets user details from Active Directory
+        /// </summary>
+        /// <param name="identity">The Windows identity</param>
+        /// <returns>A tuple with username, display name, and email</returns>
+        public async Task<(string Username, string DisplayName, string Email)> GetUserDetailsAsync(WindowsIdentity identity)
+        {
+            if (identity == null)
+            {
+                throw new ArgumentNullException(nameof(identity));
+            }
+
+            try
+            {
+                // Extract username from identity
+                var username = identity.Name.Split('\\').Length > 1
+                    ? identity.Name.Split('\\')[1]
+                    : identity.Name;
+
+                // Simulate an async operation
+                await Task.Delay(1).ConfigureAwait(false); ;
+
+                // Try to get user details from Active Directory
+                using (var context = new PrincipalContext(ContextType.Domain))
+                {
+                    try
+                    {
+                        var user = UserPrincipal.FindByIdentity(context, username);
+                        if (user != null)
+                        {
+                            return (
+                                user.SamAccountName,
+                                user.DisplayName,
+                                user.EmailAddress
+                            );
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error getting user details from Active Directory. Using fallback method.");
+                    }
+                }
+
+                // Fallback if Active Directory query fails
+                return (
+                    username,
+                    identity.Name,
+                    $"{username}@example.com"
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting user details for {identity.Name}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a user is in a specific Windows group
+        /// </summary>
+        /// <param name="identity">The Windows identity</param>
+        /// <param name="groupName">The group name</param>
+        /// <returns>True if the user is in the group, false otherwise</returns>
+        public async Task<bool> IsUserInGroupAsync(WindowsIdentity identity, string groupName)
+        {
+            if (identity == null)
+            {
+                throw new ArgumentNullException(nameof(identity));
+            }
+
+            if (string.IsNullOrWhiteSpace(groupName))
+            {
+                throw new ArgumentException("Group name cannot be null or empty", nameof(groupName));
+            }
+
+            try
+            {
+                // Simulate an async operation
+                await Task.Delay(1).ConfigureAwait(false); 
+                    
+                // Check if the identity is in the specified group
+                var isInGroup = identity.Groups != null &&
+                    identity.Groups.OfType<SecurityIdentifier>()
+                    .Any(sid =>
+                    {
+                        try
+                        {
+                            var ntAccount = sid.Translate(typeof(NTAccount));
+                            return ntAccount.Value.EndsWith(groupName, StringComparison.OrdinalIgnoreCase);
+                        }
+                        catch
+                        {
+                            // Ignore errors that could happen during name translation
+                            return false;
+                        }
+                    });
+
+                _logger.LogInformation($"User {identity.Name} {(isInGroup ? "is" : "is not")} in group {groupName}");
+
+                return isInGroup;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error checking if user {identity.Name} is in group {groupName}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Gets the roles for a user
+        /// </summary>
+        /// <param name="identity">The Windows identity</param>
+        /// <returns>An array of role names</returns>
+        public async Task<string[]> GetUserRolesAsync(WindowsIdentity identity)
+        {
+            if (identity == null)
+            {
+                throw new ArgumentNullException(nameof(identity));
+            }
+
+            try
+            {
+                // Define role mapping to Windows groups
+                var roleGroupMap = new Dictionary<string, string>
+                {
+                    { "Administrator", "PalletSystem_Admins" },
+                    { "Editor", "PalletSystem_Editors" },
+                    { "Viewer", "PalletSystem_Viewers" }
+                };
+
+                // Check which groups the user is in
+                var roles = new List<string>();
+
+                foreach (var role in roleGroupMap)
+                {
+                    if (await IsUserInGroupAsync(identity, role.Value))
+                    {
+                        roles.Add(role.Key);
+                    }
+                }
+
+                // Ensure at least Viewer role is assigned
+                if (!roles.Any())
+                {
+                    roles.Add("Viewer");
+                }
+
+                return roles.ToArray();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting roles for user {identity.Name}");
+                throw;
+            }
+        }
+    }
+}
+
+===============================================================================
+File: Logging\LoggingService.cs
+===============================================================================
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Infrastructure.Identity;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Infrastructure.Logging
+{
+    /// <summary>
+    /// Service for application logging
+    /// </summary>
+    public class LoggingService
+    {
+        private readonly ILogger<LoggingService> _logger;
+        private readonly IUserContext _userContext;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="LoggingService"/> class
+        /// </summary>
+        /// <param name="logger">The logger</param>
+        /// <param name="userContext">The user context</param>
+        public LoggingService(ILogger<LoggingService> logger, IUserContext userContext)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+        }
+
+        /// <summary>
+        /// Logs an information message with user context
+        /// </summary>
+        /// <param name="message">The message</param>
+        /// <param name="properties">Additional properties</param>
+        public void LogInfo(string message, Dictionary<string, object> properties = null)
+        {
+            try
+            {
+                var enrichedProperties = EnrichWithUserContext(properties);
+                _logger.LogInformation(FormatMessage(message, enrichedProperties));
+            }
+            catch (Exception ex)
+            {
+                // Log the original message even if enrichment fails
+                _logger.LogInformation(message);
+                _logger.LogWarning(ex, "Error enriching log message with user context");
+            }
+        }
+
+        /// <summary>
+        /// Logs a warning message with user context
+        /// </summary>
+        /// <param name="message">The message</param>
+        /// <param name="properties">Additional properties</param>
+        public void LogWarning(string message, Dictionary<string, object> properties = null)
+        {
+            try
+            {
+                var enrichedProperties = EnrichWithUserContext(properties);
+                _logger.LogWarning(FormatMessage(message, enrichedProperties));
+            }
+            catch (Exception ex)
+            {
+                // Log the original message even if enrichment fails
+                _logger.LogWarning(message);
+                _logger.LogWarning(ex, "Error enriching log message with user context");
+            }
+        }
+
+        /// <summary>
+        /// Logs an error message with user context
+        /// </summary>
+        /// <param name="exception">The exception</param>
+        /// <param name="message">The message</param>
+        /// <param name="properties">Additional properties</param>
+        public void LogError(Exception exception, string message, Dictionary<string, object> properties = null)
+        {
+            try
+            {
+                var enrichedProperties = EnrichWithUserContext(properties);
+                _logger.LogError(exception, FormatMessage(message, enrichedProperties));
+            }
+            catch
+            {
+                // Log the original message and exception even if enrichment fails
+                _logger.LogError(exception, message);
+            }
+        }
+
+        /// <summary>
+        /// Logs an audit event with user context
+        /// </summary>
+        /// <param name="action">The action performed</param>
+        /// <param name="entityType">The entity type</param>
+        /// <param name="entityId">The entity ID</param>
+        /// <param name="details">Additional details</param>
+        public void LogAudit(string action, string entityType, string entityId, string details = null)
+        {
+            try
+            {
+                var properties = new Dictionary<string, object>
+                {
+                    { "Action", action },
+                    { "EntityType", entityType },
+                    { "EntityId", entityId }
+                };
+
+                if (!string.IsNullOrEmpty(details))
+                {
+                    properties.Add("Details", details);
+                }
+
+                var enrichedProperties = EnrichWithUserContext(properties);
+                _logger.LogInformation(FormatMessage("AUDIT", enrichedProperties));
+            }
+            catch (Exception ex)
+            {
+                // Log a basic audit message even if enrichment fails
+                _logger.LogInformation($"AUDIT: {action} {entityType} {entityId} by {_userContext.GetUsername()}");
+                _logger.LogWarning(ex, "Error enriching audit log message with user context");
+            }
+        }
+
+        /// <summary>
+        /// Logs a security event with user context
+        /// </summary>
+        /// <param name="action">The security action</param>
+        /// <param name="outcome">The outcome (success/failure)</param>
+        /// <param name="details">Additional details</param>
+        public void LogSecurity(string action, string outcome, string details = null)
+        {
+            try
+            {
+                var properties = new Dictionary<string, object>
+                {
+                    { "SecurityAction", action },
+                    { "Outcome", outcome }
+                };
+
+                if (!string.IsNullOrEmpty(details))
+                {
+                    properties.Add("Details", details);
+                }
+
+                var enrichedProperties = EnrichWithUserContext(properties);
+                _logger.LogInformation(FormatMessage("SECURITY", enrichedProperties));
+            }
+            catch (Exception ex)
+            {
+                // Log a basic security message even if enrichment fails
+                _logger.LogInformation($"SECURITY: {action} {outcome} by {_userContext.GetUsername()}");
+                _logger.LogWarning(ex, "Error enriching security log message with user context");
+            }
+        }
+
+        /// <summary>
+        /// Logs a performance event with user context
+        /// </summary>
+        /// <param name="operation">The operation performed</param>
+        /// <param name="durationMs">The duration in milliseconds</param>
+        /// <param name="details">Additional details</param>
+        public void LogPerformance(string operation, long durationMs, string details = null)
+        {
+            try
+            {
+                var properties = new Dictionary<string, object>
+                {
+                    { "Operation", operation },
+                    { "DurationMs", durationMs }
+                };
+
+                if (!string.IsNullOrEmpty(details))
+                {
+                    properties.Add("Details", details);
+                }
+
+                var enrichedProperties = EnrichWithUserContext(properties);
+                _logger.LogInformation(FormatMessage("PERFORMANCE", enrichedProperties));
+            }
+            catch (Exception ex)
+            {
+                // Log a basic performance message even if enrichment fails
+                _logger.LogInformation($"PERFORMANCE: {operation} took {durationMs}ms");
+                _logger.LogWarning(ex, "Error enriching performance log message with user context");
+            }
+        }
+
+        /// <summary>
+        /// Creates a performance timer for logging operation duration
+        /// </summary>
+        /// <param name="operation">The operation name</param>
+        /// <returns>A disposable timer that logs performance when disposed</returns>
+        public IDisposable TimeOperation(string operation)
+        {
+            return new PerformanceTimer(this, operation);
+        }
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Enriches properties with user context
+        /// </summary>
+        /// <param name="properties">The properties to enrich</param>
+        /// <returns>The enriched properties</returns>
+        private Dictionary<string, object> EnrichWithUserContext(Dictionary<string, object> properties)
+        {
+            var result = properties ?? new Dictionary<string, object>();
+
+            // Add user context
+            var username = _userContext.GetUsername();
+            if (!string.IsNullOrEmpty(username))
+            {
+                result["Username"] = username;
+            }
+
+            // Add division and platform
+            var division = _userContext.GetDivision();
+            var platform = _userContext.GetPlatform();
+            result["Division"] = division.ToString();
+            result["Platform"] = platform.ToString();
+
+            return result;
+        }
+
+        /// <summary>
+        /// Formats a message with properties
+        /// </summary>
+        /// <param name="message">The message</param>
+        /// <param name="properties">The properties</param>
+        /// <returns>The formatted message</returns>
+        private string FormatMessage(string message, Dictionary<string, object> properties)
+        {
+            if (properties == null || !properties.Any())
+            {
+                return message;
+            }
+
+            var sb = new StringBuilder(message);
+            sb.Append(" {");
+
+            var first = true;
+            foreach (var property in properties)
+            {
+                if (!first)
+                {
+                    sb.Append(", ");
+                }
+
+                sb.Append(property.Key);
+                sb.Append(": ");
+                sb.Append(property.Value);
+
+                first = false;
+            }
+
+            sb.Append("}");
+
+            return sb.ToString();
+        }
+
+        #endregion
+
+        #region PerformanceTimer
+
+        /// <summary>
+        /// Timer for logging operation performance
+        /// </summary>
+        private class PerformanceTimer : IDisposable
+        {
+            private readonly LoggingService _loggingService;
+            private readonly string _operation;
+            private readonly System.Diagnostics.Stopwatch _stopwatch;
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="PerformanceTimer"/> class
+            /// </summary>
+            /// <param name="loggingService">The logging service</param>
+            /// <param name="operation">The operation name</param>
+            public PerformanceTimer(LoggingService loggingService, string operation)
+            {
+                _loggingService = loggingService;
+                _operation = operation;
+                _stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                _stopwatch.Stop();
+                _loggingService.LogPerformance(_operation, _stopwatch.ElapsedMilliseconds);
+            }
+        }
+
+        #endregion
+    }
+}
+
+===============================================================================
+File: Services\MockPrinterService.cs
+===============================================================================
+// src/PalletManagementSystem.Infrastructure/Services/MockPrinterService.cs
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Models.Enums;
+
+namespace PalletManagementSystem.Infrastructure.Services
+{
+    public class MockPrinterService : IPrinterService
+    {
+        public async Task<bool> PrintPalletListAsync(int palletId)
+        {
+            // Just simulate success
+            return true;
+        }
+
+        public async Task<bool> PrintItemLabelAsync(int itemId)
+        {
+            // Just simulate success
+            return true;
+        }
+
+        public async Task<string> GetPalletListPrinterAsync(Division division, Platform platform, bool hasSpecialClient)
+        {
+            // Return a dummy printer name
+            return "MockPalletListPrinter";
+        }
+
+        public async Task<string> GetItemLabelPrinterAsync(Division division, Platform platform, bool isSpecialClient)
+        {
+            // Return a dummy printer name
+            return "MockItemLabelPrinter";
+        }
+
+        public async Task<bool> SetDefaultPalletListPrinterAsync(string username, string printerName)
+        {
+            // Just simulate success
+            return true;
+        }
+
+        public async Task<bool> SetDefaultItemLabelPrinterAsync(string username, string printerName)
+        {
+            // Just simulate success
+            return true;
+        }
+
+        public async Task<string> GetDefaultPalletListPrinterAsync(string username)
+        {
+            // Return a dummy printer name
+            return "DefaultPalletListPrinter";
+        }
+
+        public async Task<string> GetDefaultItemLabelPrinterAsync(string username)
+        {
+            // Return a dummy printer name
+            return "DefaultItemLabelPrinter";
+        }
+
+        public async Task<IEnumerable<string>> GetAvailablePrintersAsync(PrinterType printerType)
+        {
+            // Return some dummy printer names
+            var printers = new List<string>();
+
+            switch (printerType)
+            {
+                case PrinterType.PalletList:
+                    printers.Add("PalletListPrinter1");
+                    printers.Add("PalletListPrinter2");
+                    printers.Add("SharedPrinter");
+                    break;
+                case PrinterType.ItemLabel:
+                    printers.Add("LabelPrinter1");
+                    printers.Add("LabelPrinter2");
+                    printers.Add("SharedPrinter");
+                    break;
+            }
+
+            return printers;
+        }
+    }
+}
+
+===============================================================================
+File: Services\PrinterService.cs
+===============================================================================
+// src/PalletManagementSystem.Infrastructure/Services/PrinterService.cs
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Models.Enums;
+using PalletManagementSystem.Infrastructure.Services.SSRSIntegration;
+
+namespace PalletManagementSystem.Infrastructure.Services
+{
+    public class PrinterService : IPrinterService
+    {
+        private readonly IPalletRepository _palletRepository;
+        private readonly IItemRepository _itemRepository;
+        private readonly IReportingService _reportingService;
+        private readonly IAppSettings _appSettings;
+        private readonly ILogger<PrinterService> _logger;
+
+        public PrinterService(
+            IPalletRepository palletRepository,
+            IItemRepository itemRepository,
+            IReportingService reportingService,
+            IAppSettings appSettings,
+            ILogger<PrinterService> logger = null)
+        {
+            _palletRepository = palletRepository ?? throw new ArgumentNullException(nameof(palletRepository));
+            _itemRepository = itemRepository ?? throw new ArgumentNullException(nameof(itemRepository));
+            _reportingService = reportingService ?? throw new ArgumentNullException(nameof(reportingService));
+            _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
+            _logger = logger;
+        }
+
+        public async Task<bool> PrintPalletListAsync(int palletId)
+        {
+            try
+            {
+                var pallet = await _palletRepository.GetByIdWithIncludesAsync(palletId, new[] { "Items" });
+                if (pallet == null)
+                {
+                    _logger?.LogWarning($"PrinterService: Pallet with ID {palletId} not found.");
+                    return false;
+                }
+
+                // Determine which printer to use based on division and platform
+                string printerName = GetPalletListPrinterAsync(
+                    pallet.Division,
+                    pallet.Platform,
+                    pallet.Items.Any(i => i.IsSpecialClient())).Result;
+
+                if (string.IsNullOrEmpty(printerName))
+                {
+                    _logger?.LogWarning("PrinterService: No printer found for pallet list.");
+                    return false;
+                }
+
+                // Send to reporting service
+                var reportParameters = new Dictionary<string, string>
+                {
+                    { "PalletId", palletId.ToString() },
+                    { "PrinterName", printerName }
+                };
+
+                bool result = await _reportingService.GenerateAndPrintReportAsync(
+                    "PalletList", reportParameters, printerName);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"PrinterService: Error printing pallet list for pallet ID {palletId}");
+                return false;
+            }
+        }
+
+        public async Task<bool> PrintItemLabelAsync(int itemId)
+        {
+            try
+            {
+                var item = await _itemRepository.GetByIdWithIncludesAsync(itemId, new[] { "Pallet" });
+                if (item == null)
+                {
+                    _logger?.LogWarning($"PrinterService: Item with ID {itemId} not found.");
+                    return false;
+                }
+
+                // Determine which printer to use based on division and platform
+                string printerName = await GetItemLabelPrinterAsync(
+                    item.Pallet.Division,
+                    item.Pallet.Platform,
+                    item.IsSpecialClient());
+
+                if (string.IsNullOrEmpty(printerName))
+                {
+                    _logger?.LogWarning("PrinterService: No printer found for item label.");
+                    return false;
+                }
+
+                // Send to reporting service
+                var reportParameters = new Dictionary<string, string>
+                {
+                    { "ItemId", itemId.ToString() },
+                    { "PrinterName", printerName }
+                };
+
+                bool result = await _reportingService.GenerateAndPrintReportAsync(
+                    "ItemLabel", reportParameters, printerName);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"PrinterService: Error printing item label for item ID {itemId}");
+                return false;
+            }
+        }
+
+        public async Task<string> GetPalletListPrinterAsync(Division division, Platform platform, bool hasSpecialClient)
+        {
+            try
+            {
+                // Get printer based on division and platform
+                string printerName = _appSettings.GetSetting($"Printers:{division}:{platform}:PalletList");
+
+                // Check if special client handling is needed
+                if (hasSpecialClient && _appSettings.GetBoolSetting("Printers:UseSpecialClientPrinter", false))
+                {
+                    string specialPrinter = _appSettings.GetSetting("Printers:SpecialClient:PalletList");
+                    if (!string.IsNullOrEmpty(specialPrinter))
+                    {
+                        printerName = specialPrinter;
+                    }
+                }
+
+                // If not found, get default printer
+                if (string.IsNullOrEmpty(printerName))
+                {
+                    printerName = _appSettings.GetSetting("Printers:Default:PalletList");
+                }
+
+                return printerName;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "PrinterService: Error getting pallet list printer");
+                return string.Empty;
+            }
+        }
+
+        public async Task<string> GetItemLabelPrinterAsync(Division division, Platform platform, bool isSpecialClient)
+        {
+            try
+            {
+                // Get printer based on division and platform
+                string printerName = _appSettings.GetSetting($"Printers:{division}:{platform}:ItemLabel");
+
+                // Check if special client handling is needed
+                if (isSpecialClient && _appSettings.GetBoolSetting("Printers:UseSpecialClientPrinter", false))
+                {
+                    string specialPrinter = _appSettings.GetSetting("Printers:SpecialClient:ItemLabel");
+                    if (!string.IsNullOrEmpty(specialPrinter))
+                    {
+                        printerName = specialPrinter;
+                    }
+                }
+
+                // If not found, get default printer
+                if (string.IsNullOrEmpty(printerName))
+                {
+                    printerName = _appSettings.GetSetting("Printers:Default:ItemLabel");
+                }
+
+                return printerName;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "PrinterService: Error getting item label printer");
+                return string.Empty;
+            }
+        }
+
+        public async Task<bool> SetDefaultPalletListPrinterAsync(string username, string printerName)
+        {
+            try
+            {
+                // In a real application, this would save to a database
+                // For now, just simulate success
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "PrinterService: Error setting default pallet list printer");
+                return false;
+            }
+        }
+
+        public async Task<bool> SetDefaultItemLabelPrinterAsync(string username, string printerName)
+        {
+            try
+            {
+                // In a real application, this would save to a database
+                // For now, just simulate success
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "PrinterService: Error setting default item label printer");
+                return false;
+            }
+        }
+
+        public async Task<string> GetDefaultPalletListPrinterAsync(string username)
+        {
+            try
+            {
+                // In a real application, this would read from a database
+                // For now, just return the default from settings
+                return _appSettings.GetSetting("Printers:Default:PalletList");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "PrinterService: Error getting default pallet list printer");
+                return string.Empty;
+            }
+        }
+
+        public async Task<string> GetDefaultItemLabelPrinterAsync(string username)
+        {
+            try
+            {
+                // In a real application, this would read from a database
+                // For now, just return the default from settings
+                return _appSettings.GetSetting("Printers:Default:ItemLabel");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "PrinterService: Error getting default item label printer");
+                return string.Empty;
+            }
+        }
+
+        public async Task<IEnumerable<string>> GetAvailablePrintersAsync(PrinterType printerType)
+        {
+            try
+            {
+                // In a real application, this would query available system printers or a configured list
+                // For now, just return some sample printers
+                List<string> printers = new List<string>();
+
+                switch (printerType)
+                {
+                    case PrinterType.PalletList:
+                        printers.Add("PalletListPrinter1");
+                        printers.Add("PalletListPrinter2");
+                        printers.Add("SharedPrinter1");
+                        break;
+                    case PrinterType.ItemLabel:
+                        printers.Add("LabelPrinter1");
+                        printers.Add("LabelPrinter2");
+                        printers.Add("SharedPrinter1");
+                        break;
+                }
+
+                return printers;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "PrinterService: Error getting available printers");
+                return Enumerable.Empty<string>();
+            }
+        }
+    }
+}
+
+===============================================================================
+File: Services\SearchService.cs
+===============================================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Mappers;
+using PalletManagementSystem.Core.Models;
+using PalletManagementSystem.Infrastructure.Data;
+
+namespace PalletManagementSystem.Infrastructure.Services
+{
+    /// <summary>
+    /// Implementation of the search service with projection optimizations
+    /// </summary>
+    public class SearchService : ISearchService
+    {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<SearchService> _logger;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SearchService"/> class
+        /// </summary>
+        public SearchService(
+            IUnitOfWork unitOfWork,
+            ILogger<SearchService> logger)
+        {
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<SearchResultDto>> SearchAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
+        {
+            if (!await ValidateSearchKeywordAsync(keyword, cancellationToken))
+            {
+                return Enumerable.Empty<SearchResultDto>();
+            }
+
+            try
+            {
+                var results = new List<SearchResultDto>();
+
+                // Use the new repository method instead of direct field access
+                var palletResults = await _unitOfWork.PalletRepository.GetPalletSearchResultsAsync(
+                    keyword,
+                    maxResults > 0 ? maxResults / 2 : 0,
+                    cancellationToken);
+
+                results.AddRange(palletResults);
+
+                // Search for items using projections
+                var remainingResults = maxResults > 0 ? maxResults - results.Count : 0;
+
+                var itemQuery = _unitOfWork.Repository<Item>().GetQueryable()
+                    .Where(i =>
+                        i.ItemNumber.Contains(keyword) ||
+                        i.ManufacturingOrder.Contains(keyword) ||
+                        i.ServiceOrder.Contains(keyword) ||
+                        i.FinalOrder.Contains(keyword) ||
+                        i.ClientCode.Contains(keyword) ||
+                        i.ClientName.Contains(keyword) ||
+                        i.Reference.Contains(keyword) ||
+                        i.Batch.Contains(keyword))
+                    .Select(i => new SearchResultDto
+                    {
+                        Id = i.Id,
+                        EntityType = "Item",
+                        Identifier = i.ItemNumber,
+                        AdditionalInfo = $"Client: {i.ClientName}",
+                        ViewUrl = $"/Items/Details/{i.Id}"
+                    });
+
+                if (maxResults > 0 && remainingResults > 0)
+                {
+                    itemQuery = itemQuery.Take(remainingResults);
+                }
+
+                results.AddRange(await itemQuery.ToListAsync(cancellationToken));
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching for '{keyword}'");
+
+                // Fallback to traditional approach
+                return await FallbackSearchAsync(keyword, maxResults, cancellationToken);
+            }
+        }
+
+        /// <summary>
+        /// Fallback search method using traditional approach
+        /// </summary>
+        private async Task<IEnumerable<SearchResultDto>> FallbackSearchAsync(string keyword, int maxResults, CancellationToken cancellationToken)
+        {
+            var results = new List<SearchResultDto>();
+
+            // Search for pallets
+            var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword, cancellationToken);
+            foreach (var palletDto in palletDtos)
+            {
+                results.Add(new SearchResultDto
+                {
+                    Id = palletDto.Id,
+                    EntityType = "Pallet",
+                    Identifier = palletDto.PalletNumber,
+                    AdditionalInfo = $"MO: {palletDto.ManufacturingOrder}",
+                    ViewUrl = $"/Pallets/Details/{palletDto.Id}"
+                });
+            }
+
+            // Search for items
+            var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword, cancellationToken);
+            foreach (var itemDto in itemDtos)
+            {
+                results.Add(new SearchResultDto
+                {
+                    Id = itemDto.Id,
+                    EntityType = "Item",
+                    Identifier = itemDto.ItemNumber,
+                    AdditionalInfo = $"Client: {itemDto.ClientName}",
+                    ViewUrl = $"/Items/Details/{itemDto.Id}"
+                });
+            }
+
+            // Apply max results limit if specified
+            if (maxResults > 0 && results.Count > maxResults)
+            {
+                results = results.Take(maxResults).ToList();
+            }
+
+            return results;
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<SearchSuggestionDto>> GetSearchSuggestionsAsync(string partialKeyword, int maxResults = 5, CancellationToken cancellationToken = default)
+        {
+            if (!await ValidateSearchKeywordAsync(partialKeyword, cancellationToken) || partialKeyword.Length < 2)
+            {
+                return Enumerable.Empty<SearchSuggestionDto>();
+            }
+
+            try
+            {
+                var suggestions = new List<SearchSuggestionDto>();
+
+                // Use the new repository method instead of direct field access
+                int palletsToInclude = maxResults > 0 ? Math.Min(maxResults / 2, 5) : 5;
+                var palletSuggestions = await _unitOfWork.PalletRepository.GetPalletSearchSuggestionsAsync(
+                    partialKeyword,
+                    palletsToInclude,
+                    cancellationToken);
+
+                suggestions.AddRange(palletSuggestions);
+
+                // Search for items using projections
+                var remainingSuggestions = maxResults > 0 ? maxResults - suggestions.Count : 5;
+
+                if (remainingSuggestions > 0)
+                {
+                    var itemSuggestionsQuery = _unitOfWork.Repository<Item>().GetQueryable()
+                        .Where(i =>
+                            i.ItemNumber.Contains(partialKeyword) ||
+                            i.ManufacturingOrder.Contains(partialKeyword) ||
+                            i.ClientCode.Contains(partialKeyword) ||
+                            i.ClientName.Contains(partialKeyword))
+                        .Select(i => new SearchSuggestionDto
+                        {
+                            Text = i.ItemNumber,
+                            Type = "Item",
+                            Url = $"/Items/Details/{i.Id}",
+                            EntityId = i.Id,
+                            IsViewAll = false
+                        });
+
+                    suggestions.AddRange(await itemSuggestionsQuery.Take(remainingSuggestions).ToListAsync(cancellationToken));
+                }
+
+                // Add "View All" suggestion if there are results and space
+                if (suggestions.Any() && (maxResults <= 0 || suggestions.Count < maxResults))
+                {
+                    suggestions.Add(new SearchSuggestionDto
+                    {
+                        Text = $"View all results for '{partialKeyword}'",
+                        Type = "ViewAll",
+                        Url = $"/Search?q={Uri.EscapeDataString(partialKeyword)}",
+                        EntityId = null,
+                        IsViewAll = true
+                    });
+                }
+
+                return suggestions;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting search suggestions for '{partialKeyword}'");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        /// <inheritdoc/>
+        public async Task<IEnumerable<PalletDto>> SearchPalletsAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Enumerable.Empty<PalletDto>();
+            }
+
+            try
+            {
+                // Use existing repository method that handles the same search criteria
+                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword, cancellationToken);
+
+                // Convert PalletListDto to PalletDto using the ToDto extension method
+                var palletDtoCollection = palletDtos.ToDto();
+
+                // Apply max results limit if specified
+                return maxResults > 0 ? palletDtoCollection.Take(maxResults) : palletDtoCollection;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching pallets for '{keyword}'");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<ItemDto>> SearchItemsAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Enumerable.Empty<ItemDto>();
+            }
+
+            try
+            {
+                // Build query with projection
+                var query = _unitOfWork.Repository<Item>().GetQueryable()
+                    .Where(i =>
+                        i.ItemNumber.Contains(keyword) ||
+                        i.ManufacturingOrder.Contains(keyword) ||
+                        i.ServiceOrder.Contains(keyword) ||
+                        i.FinalOrder.Contains(keyword) ||
+                        i.ClientCode.Contains(keyword) ||
+                        i.ClientName.Contains(keyword) ||
+                        i.Reference.Contains(keyword) ||
+                        i.Batch.Contains(keyword))
+                    .ProjectToDto();
+
+                // Apply max results limit if specified
+                if (maxResults > 0)
+                {
+                    query = query.Take(maxResults);
+                }
+
+                return await query.ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching items for '{keyword}'");
+
+                // Fallback to traditional approach
+                var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword, cancellationToken);
+
+                // Apply max results limit if specified
+                return maxResults > 0 && itemDtos.Count > maxResults
+                    ? itemDtos.ToDto().Take(maxResults)
+                    : itemDtos.ToDto();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<string>> SearchManufacturingOrdersAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Enumerable.Empty<string>();
+            }
+
+            try
+            {
+                // Build query with projection
+                var query = _unitOfWork.Repository<Pallet>().GetQueryable()
+                    .Where(p => p.ManufacturingOrder.Contains(keyword))
+                    .Select(p => p.ManufacturingOrder)
+                    .Distinct();
+
+                // Apply max results limit if specified
+                if (maxResults > 0)
+                {
+                    query = query.Take(maxResults);
+                }
+
+                return await query.ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching manufacturing orders for '{keyword}'");
+
+                // Fallback to traditional approach
+                // Get pallet DTOs and extract manufacturing orders
+                var palletDtos = await _unitOfWork.PalletRepository.SearchPalletsAsync(keyword, cancellationToken);
+                var manufacturingOrders = palletDtos
+                    .Select(p => p.ManufacturingOrder)
+                    .Distinct();
+
+                // Apply max results limit if specified
+                return maxResults > 0 && manufacturingOrders.Count() > maxResults
+                    ? manufacturingOrders.Take(maxResults)
+                    : manufacturingOrders;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string keyword, int maxResults = 0, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Enumerable.Empty<ClientDto>();
+            }
+
+            try
+            {
+                // Get the matching clients with counts
+                var matchingItems = await _unitOfWork.Repository<Item>().GetQueryable()
+                    .Where(i =>
+                        i.ClientCode.Contains(keyword) ||
+                        i.ClientName.Contains(keyword))
+                    .Select(i => new { i.ClientCode, i.ClientName })
+                    .ToListAsync(cancellationToken);
+
+                // Process in memory
+                var groupedClients = matchingItems
+                    .GroupBy(i => new { i.ClientCode, i.ClientName })
+                    .Select(g => new ClientDto
+                    {
+                        ClientCode = g.Key.ClientCode,
+                        ClientName = g.Key.ClientName,
+                        IsSpecial = g.Key.ClientCode == "280898" && g.Key.ClientName == "Special Client HB",
+                        ItemCount = g.Count()
+                    })
+                    .OrderBy(c => c.ClientName)
+                    .ToList(); // Convert to List to remove IOrderedEnumerable
+
+                // Apply max results limit if specified
+                if (maxResults > 0 && groupedClients.Count > maxResults)
+                {
+                    groupedClients = groupedClients.Take(maxResults).ToList();
+                }
+
+                return groupedClients;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error searching clients for '{keyword}'");
+
+                // Fallback to traditional approach using the item repository
+                var itemDtos = await _unitOfWork.ItemRepository.SearchItemsAsync(keyword, cancellationToken);
+                var clients = itemDtos
+                    .GroupBy(i => new { i.ClientCode, i.ClientName })
+                    .Select(g => new ClientDto
+                    {
+                        ClientCode = g.Key.ClientCode,
+                        ClientName = g.Key.ClientName,
+                        // Check for special client based on code and name
+                        IsSpecial = g.Key.ClientCode == "280898" && g.Key.ClientName == "Special Client HB",
+                        ItemCount = g.Count()
+                    })
+                    .OrderBy(c => c.ClientName)
+                    .ToList();
+
+                // Apply max results limit if specified
+                if (maxResults > 0 && clients.Count > maxResults)
+                {
+                    clients = clients.Take(maxResults).ToList();
+                }
+
+                return clients;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> ValidateSearchKeywordAsync(string keyword, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return false;
+            }
+
+            keyword = keyword.Trim();
+
+            // Ensure keyword is at least 2 characters long
+            if (keyword.Length < 2)
+            {
+                return false;
+            }
+
+            // Check for special characters that might cause SQL injection
+            // This is basic validation - real implementation should be more comprehensive
+            if (keyword.Contains(";") || keyword.Contains("--") || keyword.Contains("/*") ||
+                keyword.Contains("*/") || keyword.Contains("'"))
+            {
+                return false;
+            }
+
+            // For more complex validation, this could be expanded
+            // For now, we'll return success asynchronously
+            return await Task.FromResult(true);
+        }
+    }
+}
+
+===============================================================================
+File: Services\TransactionManager.cs
+===============================================================================
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces.Repositories;
+using PalletManagementSystem.Core.Interfaces.Services;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Infrastructure.Services
+{
+    /// <summary>
+    /// Manages database transactions
+    /// </summary>
+    public class TransactionManager : ITransactionManager
+    {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<TransactionManager> _logger;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TransactionManager"/> class
+        /// </summary>
+        /// <param name="unitOfWork">The unit of work</param>
+        /// <param name="logger">The logger</param>
+        public TransactionManager(IUnitOfWork unitOfWork, ILogger<TransactionManager> logger)
+        {
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        /// <inheritdoc/>
+        public async Task<TResult> ExecuteInTransactionAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> action,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+                var result = await action(cancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing transaction");
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task ExecuteInTransactionAsync(
+            Func<CancellationToken, Task> action,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+                await action(cancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing transaction");
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<TResult> ExecuteInTransactionWithIsolationAsync<TResult>(
+            Func<CancellationToken, Task<TResult>> action,
+            CancellationToken cancellationToken = default,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
+        {
+            try
+            {
+                await _unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
+                _logger.LogDebug("Transaction started with isolation level {IsolationLevel}", isolationLevel);
+
+                var result = await action(cancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                _logger.LogDebug("Transaction committed successfully");
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing transaction. Rolling back...");
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task ExecuteInTransactionWithIsolationAsync(
+            Func<CancellationToken, Task> action,
+            CancellationToken cancellationToken = default,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
+        {
+            try
+            {
+                await _unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
+                _logger.LogDebug("Transaction started with isolation level {IsolationLevel}", isolationLevel);
+
+                await action(cancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                _logger.LogDebug("Transaction committed successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing transaction. Rolling back...");
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        protected async Task<IReadOnlyList<T>> GetResultsFromQueryAsync<T>(
+    IQuery<T> query,
+    CancellationToken cancellationToken = default) where T : class
+        {
+            return await Task.FromResult(query.ToList());
+        }
+
+    }
+}
+
+===============================================================================
+File: Services\TransactionManagerExtensions.cs
+===============================================================================
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces.Services;
+
+namespace PalletManagementSystem.Infrastructure.Services
+{
+    /// <summary>
+    /// Extension methods for ITransactionManager
+    /// </summary>
+    public static class TransactionManagerExtensions
+    {
+        /// <summary>
+        /// Executes a database operation with retry logic
+        /// </summary>
+        /// <typeparam name="TResult">The result type</typeparam>
+        /// <param name="transactionManager">The transaction manager</param>
+        /// <param name="action">The action to execute</param>
+        /// <param name="operationName">The name of the operation for logging</param>
+        /// <param name="logger">The logger</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <param name="retryCount">The number of times to retry on failure</param>
+        /// <returns>The result of the action</returns>
+        public static async Task<TResult> ExecuteWithRetryAsync<TResult>(
+            this ITransactionManager transactionManager,
+            Func<CancellationToken, Task<TResult>> action,
+            string operationName,
+            ILogger logger,
+            CancellationToken cancellationToken = default,
+            int retryCount = 3)
+        {
+            int attempts = 0;
+
+            while (true)
+            {
+                attempts++;
+
+                try
+                {
+                    return await transactionManager.ExecuteInTransactionAsync(action, cancellationToken);
+                }
+                catch (Exception ex) when (attempts <= retryCount && IsTransientException(ex))
+                {
+                    // Calculate exponential backoff delay (100ms, 200ms, 400ms, etc.)
+                    var delay = TimeSpan.FromMilliseconds(Math.Pow(2, attempts - 1) * 100);
+
+                    logger.LogWarning(ex,
+                        "Transient error during {OperationName}. Retry attempt {Attempt}/{MaxRetries} after {Delay}ms. Error: {Error}",
+                        operationName, attempts, retryCount, delay.TotalMilliseconds, ex.Message);
+
+                    await Task.Delay(delay, cancellationToken);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Executes a database operation with retry logic
+        /// </summary>
+        /// <param name="transactionManager">The transaction manager</param>
+        /// <param name="action">The action to execute</param>
+        /// <param name="operationName">The name of the operation for logging</param>
+        /// <param name="logger">The logger</param>
+        /// <param name="cancellationToken">A token to cancel the operation</param>
+        /// <param name="retryCount">The number of times to retry on failure</param>
+        /// <returns>A task representing the operation</returns>
+        public static async Task ExecuteWithRetryAsync(
+            this ITransactionManager transactionManager,
+            Func<CancellationToken, Task> action,
+            string operationName,
+            ILogger logger,
+            CancellationToken cancellationToken = default,
+            int retryCount = 3)
+        {
+            int attempts = 0;
+
+            while (true)
+            {
+                attempts++;
+
+                try
+                {
+                    await transactionManager.ExecuteInTransactionAsync(action, cancellationToken);
+                    return;
+                }
+                catch (Exception ex) when (attempts <= retryCount && IsTransientException(ex))
+                {
+                    // Calculate exponential backoff delay (100ms, 200ms, 400ms, etc.)
+                    var delay = TimeSpan.FromMilliseconds(Math.Pow(2, attempts - 1) * 100);
+
+                    logger.LogWarning(ex,
+                        "Transient error during {OperationName}. Retry attempt {Attempt}/{MaxRetries} after {Delay}ms. Error: {Error}",
+                        operationName, attempts, retryCount, delay.TotalMilliseconds, ex.Message);
+
+                    await Task.Delay(delay, cancellationToken);
+                }
+            }
+        }
+
+        private static bool IsTransientException(Exception ex)
+        {
+            // Detect transient database errors that should be retried
+            // For SQL Server, this might include connection errors, deadlocks, etc.
+            if (ex is System.Data.SqlClient.SqlException sqlEx)
+            {
+                return sqlEx.Number == 1205 // Deadlock
+                    || sqlEx.Number == -2   // Timeout
+                    || sqlEx.Number == 53   // Connection error
+                    || sqlEx.Number == 40613; // Database unavailable
+            }
+
+            // Check for Entity Framework exceptions
+            if (ex.GetType().FullName == "Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException")
+            {
+                return true;
+            }
+
+            // Check for transient connection issues
+            if (ex is System.IO.IOException || ex is System.TimeoutException)
+            {
+                return true;
+            }
+
+            return false;
+        }
+    }
+}
+
+===============================================================================
+File: Services\UserPreferenceService.cs
+===============================================================================
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.DTOs;
+using PalletManagementSystem.Core.Interfaces.Services;
+using PalletManagementSystem.Core.Models.Enums;
+
+namespace PalletManagementSystem.Infrastructure.Services
+{
+    /// <summary>
+    /// Implementation of the user preference service
+    /// </summary>
+    public class UserPreferenceService : IUserPreferenceService
+    {
+        private readonly ILogger<UserPreferenceService> _logger;
+        private readonly IPlatformValidationService _platformValidationService;
+
+        // In a real application, this would be stored in a database
+        // For this implementation, we'll use an in-memory dictionary
+        private static readonly Dictionary<string, UserPreferencesDto> _userPreferences =
+            new Dictionary<string, UserPreferencesDto>();
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="UserPreferenceService"/> class
+        /// </summary>
+        public UserPreferenceService(
+            ILogger<UserPreferenceService> logger,
+            IPlatformValidationService platformValidationService)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _platformValidationService = platformValidationService ?? throw new ArgumentNullException(nameof(platformValidationService));
+        }
+
+        /// <inheritdoc/>
+        public async Task<Division> GetPreferredDivisionAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                // Parse division from string
+                if (Enum.TryParse<Division>(preferences.PreferredDivision, out var division))
+                {
+                    return division;
+                }
+
+                // Default to Manufacturing
+                return Division.MA;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting preferred division for user {username}");
+                return Division.MA; // Default to Manufacturing
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> SetPreferredDivisionAsync(string username, Division division)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                // Update division
+                preferences.PreferredDivision = division.ToString();
+
+                // Ensure platform is valid for this division
+                Platform platform;
+                if (Enum.TryParse<Platform>(preferences.PreferredPlatform, out platform))
+                {
+                    bool isValidPlatform = await _platformValidationService.IsValidPlatformForDivisionAsync(
+                        platform,
+                        division);
+
+                    if (!isValidPlatform)
+                    {
+                        // If current platform is not valid for the new division, use default platform
+                        Platform defaultPlatform = await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
+                        preferences.PreferredPlatform = defaultPlatform.ToString();
+                    }
+                }
+                else
+                {
+                    // If parsing failed, use default platform
+                    Platform defaultPlatform = await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
+                    preferences.PreferredPlatform = defaultPlatform.ToString();
+                }
+
+                // Save preferences
+                await SaveUserPreferencesAsync(username, preferences);
+
+                _logger.LogInformation($"Set preferred division for user {username} to {division}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting preferred division for user {username}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<Platform> GetPreferredPlatformAsync(string username, Division division)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                // Parse platform from string
+                if (Enum.TryParse<Platform>(preferences.PreferredPlatform, out var platform))
+                {
+                    // Check if the platform is valid for the division
+                    bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
+                    if (isValid)
+                    {
+                        return platform;
+                    }
+                }
+
+                // Return default platform for division
+                return await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting preferred platform for user {username}");
+                return await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> SetPreferredPlatformAsync(string username, Division division, Platform platform)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Validate platform for division
+                bool isValid = await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division);
+                if (!isValid)
+                {
+                    _logger.LogWarning($"Platform {platform} is not valid for division {division}");
+                    return false;
+                }
+
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                // Update platform
+                preferences.PreferredPlatform = platform.ToString();
+
+                // Save preferences
+                await SaveUserPreferencesAsync(username, preferences);
+
+                _logger.LogInformation($"Set preferred platform for user {username} to {platform}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting preferred platform for user {username}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> GetTouchModeEnabledAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                return preferences.TouchModeEnabled;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting touch mode preference for user {username}");
+                return false; // Default to disabled
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> SetTouchModeEnabledAsync(string username, bool enabled)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                // Update touch mode
+                preferences.TouchModeEnabled = enabled;
+
+                // Save preferences
+                await SaveUserPreferencesAsync(username, preferences);
+
+                _logger.LogInformation($"Set touch mode for user {username} to {enabled}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting touch mode preference for user {username}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<int> GetItemsPerPageAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                return preferences.ItemsPerPage;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting items per page preference for user {username}");
+                return 20; // Default to 20 items per page
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> SetItemsPerPageAsync(string username, int itemsPerPage)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            if (itemsPerPage <= 0)
+            {
+                throw new ArgumentException("Items per page must be greater than zero", nameof(itemsPerPage));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                // Update items per page
+                preferences.ItemsPerPage = itemsPerPage;
+
+                // Save preferences
+                await SaveUserPreferencesAsync(username, preferences);
+
+                _logger.LogInformation($"Set items per page for user {username} to {itemsPerPage}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting items per page preference for user {username}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<string> GetDefaultPalletViewAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                return preferences.DefaultPalletView;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting default pallet view preference for user {username}");
+                return "all"; // Default to showing all pallets
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> SetDefaultPalletViewAsync(string username, string defaultView)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            if (string.IsNullOrWhiteSpace(defaultView))
+            {
+                throw new ArgumentException("Default view cannot be null or empty", nameof(defaultView));
+            }
+
+            try
+            {
+                // Validate view type
+                if (defaultView != "all" && defaultView != "open" && defaultView != "closed")
+                {
+                    throw new ArgumentException("Invalid default view value. Must be 'all', 'open', or 'closed'", nameof(defaultView));
+                }
+
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                // Update default pallet view
+                preferences.DefaultPalletView = defaultView;
+
+                // Save preferences
+                await SaveUserPreferencesAsync(username, preferences);
+
+                _logger.LogInformation($"Set default pallet view for user {username} to {defaultView}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting default pallet view preference for user {username}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<UserPreferencesDto> GetAllPreferencesAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                return await GetUserPreferencesAsync(username);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting all preferences for user {username}");
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> SetAllPreferencesAsync(string username, UserPreferencesDto preferences)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            if (preferences == null)
+            {
+                throw new ArgumentNullException(nameof(preferences));
+            }
+
+            try
+            {
+                // Validate preferences
+                ValidatePreferences(preferences);
+
+                // Update username
+                preferences.Username = username;
+
+                // Save preferences
+                await SaveUserPreferencesAsync(username, preferences);
+
+                _logger.LogInformation($"Set all preferences for user {username}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting all preferences for user {username}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<int> GetSessionTimeoutAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                return preferences.SessionTimeoutMinutes;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting session timeout preference for user {username}");
+                return 30; // Default to 30 minutes
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> SetSessionTimeoutAsync(string username, int timeoutMinutes)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentException("Username cannot be null or empty", nameof(username));
+            }
+
+            if (timeoutMinutes <= 0)
+            {
+                throw new ArgumentException("Session timeout must be greater than zero", nameof(timeoutMinutes));
+            }
+
+            try
+            {
+                // Get user preferences or create default
+                var preferences = await GetUserPreferencesAsync(username);
+
+                // Update session timeout
+                preferences.SessionTimeoutMinutes = timeoutMinutes;
+
+                // Save preferences
+                await SaveUserPreferencesAsync(username, preferences);
+
+                _logger.LogInformation($"Set session timeout for user {username} to {timeoutMinutes} minutes");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error setting session timeout preference for user {username}");
+                return false;
+            }
+        }
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Gets user preferences or creates default preferences if not found
+        /// </summary>
+        /// <param name="username">The username</param>
+        /// <returns>The user preferences</returns>
+        private async Task<UserPreferencesDto> GetUserPreferencesAsync(string username)
+        {
+            // In a real application, this would retrieve from a database
+            // For this implementation, we'll use an in-memory dictionary
+            if (_userPreferences.TryGetValue(username, out var preferences))
+            {
+                return preferences;
+            }
+
+            // Create default preferences
+            var defaultPreferences = new UserPreferencesDto
+            {
+                Username = username,
+                PreferredDivision = Division.MA.ToString(),
+                PreferredPlatform = Platform.TEC1.ToString(),
+                TouchModeEnabled = false,
+                ItemsPerPage = 20,
+                DefaultPalletView = "all",
+                DefaultPalletListPrinter = "HP LaserJet 4200 - Office",
+                DefaultItemLabelPrinter = "Zebra ZT410 - Warehouse",
+                ShowConfirmationPrompts = true,
+                AutoPrintPalletList = true,
+                UseSpecialPrinterForSpecialClients = true,
+                SessionTimeoutMinutes = 30,
+                RememberDivisionAndPlatform = true,
+                AutoRefreshPalletList = false,
+                AutoRefreshIntervalSeconds = 60,
+                ShowBrowserNotifications = true
+            };
+
+            // Save default preferences
+            await SaveUserPreferencesAsync(username, defaultPreferences);
+
+            return defaultPreferences;
+        }
+
+        /// <summary>
+        /// Saves user preferences
+        /// </summary>
+        /// <param name="username">The username</param>
+        /// <param name="preferences">The user preferences</param>
+        private async Task SaveUserPreferencesAsync(string username, UserPreferencesDto preferences)
+        {
+            // In a real application, this would save to a database
+            // For this implementation, we'll use an in-memory dictionary
+            _userPreferences[username] = preferences;
+
+            await Task.CompletedTask; // To make async method
+        }
+
+        /// <summary>
+        /// Validates user preferences
+        /// </summary>
+        /// <param name="preferences">The user preferences</param>
+        /// <exception cref="ArgumentException">Thrown when preferences are invalid</exception>
+        private async void ValidatePreferences(UserPreferencesDto preferences)
+        {
+            // Validate division
+            Division division;
+            if (!Enum.TryParse<Division>(preferences.PreferredDivision, out division))
+            {
+                preferences.PreferredDivision = Division.MA.ToString();
+            }
+
+            // Validate platform
+            Platform platform;
+            if (!Enum.TryParse<Platform>(preferences.PreferredPlatform, out platform) ||
+                !await _platformValidationService.IsValidPlatformForDivisionAsync(platform, division))
+            {
+                Platform defaultPlatform = await _platformValidationService.GetDefaultPlatformForDivisionAsync(division);
+                preferences.PreferredPlatform = defaultPlatform.ToString();
+            }
+
+            // Validate items per page
+            if (preferences.ItemsPerPage <= 0)
+            {
+                preferences.ItemsPerPage = 20;
+            }
+
+            // Validate session timeout
+            if (preferences.SessionTimeoutMinutes <= 0)
+            {
+                preferences.SessionTimeoutMinutes = 30;
+            }
+
+            // Validate auto refresh interval
+            if (preferences.AutoRefreshIntervalSeconds <= 0)
+            {
+                preferences.AutoRefreshIntervalSeconds = 60;
+            }
+        }
+
+        #endregion
+    }
+}
+
+===============================================================================
+File: Services\SSRSIntegration\IReportingService.cs
+===============================================================================
+// src/PalletManagementSystem.Core/Interfaces/Services/IReportingService.cs
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Core.Interfaces.Services
+{
+    public interface IReportingService
+    {
+        Task<bool> GenerateAndPrintReportAsync(
+            string reportName,
+            Dictionary<string, string> parameters,
+            string printerName);
+
+        Task<byte[]> GenerateReportAsync(
+            string reportName,
+            Dictionary<string, string> parameters,
+            string format = "PDF");
+    }
+}
+
+===============================================================================
+File: Services\SSRSIntegration\ISSRSClient.cs
+===============================================================================
+// src/PalletManagementSystem.Infrastructure/Services/SSRSIntegration/ISSRSClient.cs
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
+{
+    public interface ISSRSClient
+    {
+        Task<bool> PrintReportAsync(
+            string reportServerUrl,
+            string reportPath,
+            Dictionary<string, string> parameters);
+
+        Task<byte[]> GenerateReportAsync(
+            string reportServerUrl,
+            string reportPath,
+            Dictionary<string, string> parameters,
+            string format = "PDF");
+    }
+}
+
+===============================================================================
+File: Services\SSRSIntegration\ReportingService.cs
+===============================================================================
+// src/PalletManagementSystem.Infrastructure/Services/SSRSIntegration/ReportingService.cs
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces.Services;
+
+namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
+{
+    public class ReportingService : IReportingService
+    {
+        private readonly ISSRSClient _ssrsClient;
+        private readonly IAppSettings _appSettings;
+        private readonly ILogger<ReportingService> _logger;
+
+        public ReportingService(
+            ISSRSClient ssrsClient,
+            IAppSettings appSettings,
+            ILogger<ReportingService> logger = null)
+        {
+            _ssrsClient = ssrsClient ?? throw new ArgumentNullException(nameof(ssrsClient));
+            _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
+            _logger = logger;
+        }
+
+        public async Task<bool> GenerateAndPrintReportAsync(
+            string reportName,
+            Dictionary<string, string> parameters,
+            string printerName)
+        {
+            try
+            {
+                // Get report server URL and path from configuration
+                string reportServerUrl = _appSettings.GetSetting("ReportServer:Url");
+                string reportPath = _appSettings.GetSetting($"ReportServer:Reports:{reportName}");
+
+                if (string.IsNullOrEmpty(reportServerUrl) || string.IsNullOrEmpty(reportPath))
+                {
+                    _logger?.LogWarning($"ReportingService: Missing configuration for report {reportName}");
+                    return false;
+                }
+
+                // Add the printer name to the parameters
+                parameters["PrinterName"] = printerName;
+
+                // Call SSRS client to generate and print the report
+                bool result = await _ssrsClient.PrintReportAsync(reportServerUrl, reportPath, parameters);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"ReportingService: Error generating report {reportName}");
+                return false;
+            }
+        }
+
+        public async Task<byte[]> GenerateReportAsync(
+            string reportName,
+            Dictionary<string, string> parameters,
+            string format = "PDF")
+        {
+            try
+            {
+                // Get report server URL and path from configuration
+                string reportServerUrl = _appSettings.GetSetting("ReportServer:Url");
+                string reportPath = _appSettings.GetSetting($"ReportServer:Reports:{reportName}");
+
+                if (string.IsNullOrEmpty(reportServerUrl) || string.IsNullOrEmpty(reportPath))
+                {
+                    _logger?.LogWarning($"ReportingService: Missing configuration for report {reportName}");
+                    return null;
+                }
+
+                // Call SSRS client to generate the report
+                byte[] reportData = await _ssrsClient.GenerateReportAsync(reportServerUrl, reportPath, parameters, format);
+
+                return reportData;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"ReportingService: Error generating report {reportName}");
+                return null;
+            }
+        }
+    }
+}
+
+===============================================================================
+File: Services\SSRSIntegration\SSRSClient.cs
+===============================================================================
+// src/PalletManagementSystem.Infrastructure/Services/SSRSIntegration/SSRSClient.cs
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces.Services;
+
+namespace PalletManagementSystem.Infrastructure.Services.SSRSIntegration
+{
+    public class SSRSClient : ISSRSClient
+    {
+        private readonly IAppSettings _appSettings;
+        private readonly ILogger<SSRSClient> _logger;
+
+        public SSRSClient(
+            IAppSettings appSettings,
+            ILogger<SSRSClient> logger = null)
+        {
+            _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
+            _logger = logger;
+        }
+
+        public async Task<bool> PrintReportAsync(
+            string reportServerUrl,
+            string reportPath,
+            Dictionary<string, string> parameters)
+        {
+            try
+            {
+                // In a real application, this would connect to SSRS and send the print job
+                // For now, just simulate success
+
+                // Log what we're doing
+                _logger?.LogInformation($"SSRSClient: Printing report {reportPath} to printer {parameters["PrinterName"]}");
+
+                // Simulate delay
+                await Task.Delay(500);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"SSRSClient: Error printing report {reportPath}");
+                return false;
+            }
+        }
+
+        public async Task<byte[]> GenerateReportAsync(
+            string reportServerUrl,
+            string reportPath,
+            Dictionary<string, string> parameters,
+            string format = "PDF")
+        {
+            try
+            {
+                // In a real application, this would connect to SSRS and generate the report
+                // For now, just simulate a PDF (return an empty byte array)
+
+                // Log what we're doing
+                _logger?.LogInformation($"SSRSClient: Generating report {reportPath} in format {format}");
+
+                // Simulate delay
+                await Task.Delay(500);
+
+                // Return dummy data
+                return new byte[1024];
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"SSRSClient: Error generating report {reportPath}");
+                return null;
+            }
+        }
+    }
+}

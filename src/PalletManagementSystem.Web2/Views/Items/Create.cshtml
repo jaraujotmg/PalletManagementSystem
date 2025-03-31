@@ -7,8 +7,8 @@
 
 <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fa fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fa fa-pallet"></i> Pallets</a></li>
         <li class="breadcrumb-item"><a href="@Url.Action("Details", "Pallets", new { id = Model.PalletId })">@Model.PalletNumber</a></li>
         <li class="breadcrumb-item active" aria-current="page">Create New Item</li>
     </ol>
@@ -18,7 +18,7 @@
 <div class="create-header">
     <div class="row align-items-center">
         <div class="col-md-8">
-            <h4><i class="fas fa-plus-circle mr-2"></i>Create New Item</h4>
+            <h4><i class="fa fa-plus-circle mr-2"></i>Create New Item</h4>
             <div class="mt-2">
                 <span class="badge badge-secondary mr-2">Pallet: @Model.PalletNumber</span>
                 <span class="badge badge-orange">Open</span>
@@ -36,7 +36,7 @@
 <!-- Create Form -->
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-edit mr-2"></i>Item Information
+        <i class="fa fa-edit mr-2"></i>Item Information
     </div>
     <div class="card-body">
         @using (Html.BeginForm("Create", "Items", FormMethod.Post, new { id = "createItemForm" }))
@@ -101,7 +101,7 @@
                             </div>
                             <div class="form-group">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleClientSearch">
-                                    <i class="fas fa-search mr-1"></i>Search Client
+                                    <i class="fa fa-search mr-1"></i>Search Client
                                 </button>
                             </div>
                             
@@ -113,7 +113,7 @@
                                         <input type="text" class="form-control" id="clientSearchKeyword" placeholder="Enter client code or name">
                                         <div class="input-group-append">
                                             <button class="btn btn-outline-secondary" type="button" id="clientSearchButton">
-                                                <i class="fas fa-search"></i>
+                                                <i class="fa fa-search"></i>
                                             </button>
                                         </div>
                                     </div>
@@ -207,7 +207,7 @@
                                     <button type="button" class="btn num-key" data-value=".">.</button>
                                     <button type="button" class="btn num-key" data-value="0">0</button>
                                     <button type="button" class="btn num-key btn-danger" data-value="del">
-                                        <i class="fas fa-backspace"></i>
+                                        <i class="fa fa-backspace"></i>
                                     </button>
                                 </div>
                             </div>
@@ -218,10 +218,10 @@
             
             <div class="d-flex justify-content-end mt-4">
                 <a href="@Model.ReturnUrl" class="btn btn-secondary mr-2" id="cancelButton">
-                    <i class="fas fa-times mr-1"></i>Cancel
+                    <i class="fa fa-times mr-1"></i>Cancel
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save mr-1"></i>Create Item
+                    <i class="fa fa-save mr-1"></i>Create Item
                 </button>
             </div>
         }
@@ -233,7 +233,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Unsaved Changes</h5>
+                <h5 class="modal-title"><i class="fa fa-exclamation-triangle mr-2"></i>Unsaved Changes</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -308,7 +308,7 @@
             // In a real app, this would be an AJAX call to search clients
             // For this example, we'll just simulate some results
             var resultsContainer = document.getElementById('clientSearchResults');
-            resultsContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+            resultsContainer.innerHTML = '<div class="text-center"><i class="fa fa-spinner fa-spin"></i> Searching...</div>';
             
             // Simulate network delay
             setTimeout(function() {

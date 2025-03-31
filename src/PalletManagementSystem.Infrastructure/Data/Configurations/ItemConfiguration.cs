@@ -88,7 +88,7 @@ namespace PalletManagementSystem.Infrastructure.Data.Configurations
                 .IsRequired();
 
             builder.Property(i => i.Width)
-                .HasColumnType("decimal(18,2)")
+                //.HasColumnType("decimal(18,2)")
                 .IsRequired();
 
             builder.Property(i => i.WidthUnit)

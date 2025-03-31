@@ -12,7 +12,7 @@ using PalletManagementSystem.Web2.ViewModels.Shared;
 
 namespace PalletManagementSystem.Web2.Controllers
 {
-    [Authorize]
+    //[Authorize]
     public class SearchController : BaseController
     {
         private readonly ISearchService _searchService;

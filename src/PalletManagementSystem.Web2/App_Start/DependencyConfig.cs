@@ -9,6 +9,7 @@ using Autofac;
 using Autofac.Integration.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using PalletManagementSystem.Core.Interfaces;
 using PalletManagementSystem.Core.Interfaces.Repositories;
 using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Infrastructure.Data;
@@ -122,15 +123,19 @@ namespace PalletManagementSystem.Web2.App_Start
         {
             // Register DbContext
             builder.Register(c => {
+                var loggerFactory = c.Resolve<ILoggerFactory>();
                 var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
                 var connectionString = appSettings.GetConnectionString("DefaultConnection");
-                optionsBuilder.UseSqlServer(connectionString);
+                optionsBuilder
+                     .UseLoggerFactory(loggerFactory)  // <-- Add this line
+                     .EnableSensitiveDataLogging()
+                    .UseSqlServer(connectionString);
                 // Optional: Inject ILoggerFactory into DbContext if needed for EF Core logging
                 // var loggerFactory = c.Resolve<ILoggerFactory>();
                 // optionsBuilder.UseLoggerFactory(loggerFactory);
                 return new ApplicationDbContext(optionsBuilder.Options);
             })
-                       .InstancePerRequest() // Database context should be scoped to the request
+            .InstancePerRequest() // Database context should be scoped to the request
             .PropertiesAutowired();
 
             // Data access components - per request lifetime to ensure
@@ -255,23 +260,38 @@ namespace PalletManagementSystem.Web2.App_Start
         /// <summary>
         /// Registers components from the Web project
         /// </summary>
+        /// <summary>
+        /// Registers components from the Web project
+        /// </summary>
         public static void RegisterWebComponents(this ContainerBuilder builder)
         {
-            // Register MVC controllers
-            builder.RegisterControllers(Assembly.GetExecutingAssembly()).PropertiesAutowired(); // Add PropertiesAutowired here if controllers need property injection
+            // Register MVC controllers from the current assembly (Web2 project)
+            // Enable property injection for controllers if they need dependencies injected via public properties.
+            builder.RegisterControllers(Assembly.GetExecutingAssembly()).PropertiesAutowired();
 
-
-            // Session manager - per request as it manages session state
+            // Register SessionManager (ISessionManager)
+            // This implementation now gets username directly from HttpContext and uses
+            // IUserPreferenceService, IPlatformValidationService, but NOT IUserContext.
             builder.RegisterType<SessionManager>()
                 .As<ISessionManager>()
-                .InstancePerRequest()
-                .PropertiesAutowired();
+                .InstancePerRequest() // Session state is tied to the request
+                .PropertiesAutowired(); // Keep if SessionManager uses property injection
 
-            // User context adapter - per request as it wraps user-specific data
+            // Register UserContextAdapter (IUserContextAdapter)
+            // Review if this class is still needed or if its functionality overlaps.
+            // Keeping it registered as per your original code for now.
             builder.RegisterType<UserContextAdapter>()
                 .As<IUserContextAdapter>()
-                .InstancePerRequest()
+                .InstancePerRequest() // Assuming it's request-specific
                 .PropertiesAutowired();
+
+            // Register UserSessionContext (IUserSessionContext) - Web implementation
+            // This is the implementation that UserContext (Infrastructure) will receive
+            // via the IUserSessionContext interface injection. It depends on ISessionManager.
+            builder.RegisterType<UserSessionContext>()    // The concrete class from Web2.Services
+                   .As<IUserSessionContext>()       // The interface from Core.Interfaces
+                   .InstancePerRequest()          // Session context is per request
+                   .PropertiesAutowired();         // If UserSessionContext uses property injection
         }
     }
 

@@ -11,6 +11,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace PalletManagementSystem.Infrastructure.Data.Repositories
 {
@@ -49,22 +50,6 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default)
-        {
-            // For complex includes like this, we'll use the EF Core version for now
-            var pallet = await _dbSet
-                .Include(p => p.Items)
-                .Where(p => p.Id == id)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (pallet == null)
-                return null;
-
-            var mapper = PalletMapper.ProjectToDetailDto().Compile();
-            return mapper(pallet);
-        }
-
-        /// <inheritdoc/>
         public async Task<PalletListDto> GetPalletListByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(palletNumber))
@@ -81,6 +66,78 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             var mapper = PalletMapper.ProjectToListDto().Compile();
             return mapper(pallet);
         }
+
+        /// <inheritdoc/>
+        public async Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var palletEntity = await _dbSet
+                .Include(p => p.Items)
+                .Where(p => p.Id == id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (palletEntity == null) return null;
+
+            // Step 2: Manually project the fetched entity into PalletDetailDto in memory
+
+            // Create the DTO first (its Items collection is already initialized as new List<...>())
+            var palletDetailDto = new PalletDetailDto
+            {
+                Id = palletEntity.Id,
+                PalletNumber = palletEntity.PalletNumber.Value,
+                IsTemporary = palletEntity.PalletNumber.IsTemporary,
+                ManufacturingOrder = palletEntity.ManufacturingOrder,
+                Division = palletEntity.Division.ToString(),
+                Platform = palletEntity.Platform.ToString(),
+                UnitOfMeasure = palletEntity.UnitOfMeasure.ToString(),
+                Quantity = palletEntity.Quantity,
+                ItemCount = palletEntity.Items.Count,
+                IsClosed = palletEntity.IsClosed,
+                CreatedDate = palletEntity.CreatedDate,
+                ClosedDate = palletEntity.ClosedDate,
+                CreatedBy = palletEntity.CreatedBy,
+                // Items = new List<ItemDetailDto>() // Remove direct assignment here
+            };
+
+            // --- MODIFIED PART: Add items to the existing collection ---
+            if (palletEntity.Items != null && palletEntity.Items.Any())
+            {
+                foreach (var itemEntity in palletEntity.Items)
+                {
+                    palletDetailDto.Items.Add(new ItemDetailDto // Use .Add()
+                    {
+                        Id = itemEntity.Id,
+                        ItemNumber = itemEntity.ItemNumber,
+                        PalletId = itemEntity.PalletId,
+                        ManufacturingOrder = itemEntity.ManufacturingOrder,
+                        ManufacturingOrderLine = itemEntity.ManufacturingOrderLine,
+                        ServiceOrder = itemEntity.ServiceOrder,
+                        ServiceOrderLine = itemEntity.ServiceOrderLine,
+                        FinalOrder = itemEntity.FinalOrder,
+                        FinalOrderLine = itemEntity.FinalOrderLine,
+                        ClientCode = itemEntity.ClientCode,
+                        ClientName = itemEntity.ClientName,
+                        Reference = itemEntity.Reference,
+                        Finish = itemEntity.Finish,
+                        Color = itemEntity.Color,
+                        Quantity = itemEntity.Quantity,
+                        QuantityUnit = itemEntity.QuantityUnit,
+                        Weight = itemEntity.Weight,
+                        WeightUnit = itemEntity.WeightUnit,
+                        Width = itemEntity.Width,
+                        WidthUnit = itemEntity.WidthUnit,
+                        Quality = itemEntity.Quality,
+                        Batch = itemEntity.Batch,
+                        CreatedDate = itemEntity.CreatedDate,
+                        CreatedBy = itemEntity.CreatedBy,
+                        Pallet = new PalletInfo { Id = palletEntity.Id, PalletNumber = palletEntity.PalletNumber.Value, IsClosed = palletEntity.IsClosed }
+                    });
+                }
+            }
+            // ----------------------------------------------------------
+
+            return palletDetailDto;
+        }
+
 
         /// <inheritdoc/>
         public async Task<PalletDetailDto> GetPalletDetailByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)

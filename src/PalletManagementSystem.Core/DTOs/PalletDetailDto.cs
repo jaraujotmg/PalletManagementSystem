@@ -1,10 +1,11 @@
-﻿using System;
+﻿// src/PalletManagementSystem.Core/DTOs/PalletDetailDto.cs
+using System;
 using System.Collections.Generic;
 
 namespace PalletManagementSystem.Core.DTOs
 {
     /// <summary>
-    /// DTO for pallet detail view (with items)
+    /// DTO for pallet detail view (with detailed item information)
     /// </summary>
     public class PalletDetailDto
     {
@@ -73,9 +74,11 @@ namespace PalletManagementSystem.Core.DTOs
         /// </summary>
         public string CreatedBy { get; set; }
 
+        // --- MODIFIED PROPERTY TYPE ---
         /// <summary>
-        /// Gets or sets the items on this pallet
+        /// Gets or sets the detailed items on this pallet
         /// </summary>
-        public ICollection<ItemListDto> Items { get; set; } = new List<ItemListDto>();
+        public ICollection<ItemDetailDto> Items { get; set; } = new List<ItemDetailDto>();
+        // ------------------------------
     }
 }

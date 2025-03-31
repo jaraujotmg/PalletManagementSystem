@@ -1,11 +1,16 @@
-﻿// src/PalletManagementSystem.Web/Services/UserContextAdapter.cs
+﻿// src/PalletManagementSystem.Web2/Services/UserContextAdapter.cs
 using System;
-using System.Threading.Tasks;
+using System.Threading.Tasks; // Add using
 using PalletManagementSystem.Core.Models.Enums;
-using PalletManagementSystem.Infrastructure.Identity;
+using PalletManagementSystem.Infrastructure.Identity; // Reference to IUserContext
 
-namespace PalletManagementSystem.Web2.Services
+namespace PalletManagementSystem.Web2.Services // Adjust namespace if needed
 {
+    /// <summary>
+    /// Concrete implementation of IUserContextAdapter.
+    /// Delegates calls to IUserContext and ISessionManager, using async/await
+    /// for inherently asynchronous operations from IUserContext.
+    /// </summary>
     public class UserContextAdapter : IUserContextAdapter
     {
         private readonly IUserContext _userContext;
@@ -13,71 +18,79 @@ namespace PalletManagementSystem.Web2.Services
 
         public UserContextAdapter(IUserContext userContext, ISessionManager sessionManager)
         {
-            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
-            _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+            _userContext = userContext ?? throw new ArgumentNullException("userContext");
+            _sessionManager = sessionManager ?? throw new ArgumentNullException("sessionManager");
         }
+
+        // --- Synchronous Methods ---
 
         public string GetUsername()
         {
+            // Delegate directly - GetUsername is synchronous on IUserContext
             return _userContext.GetUsername();
-        }
-
-        public string GetDisplayName()
-        {
-            Task<string> task = _userContext.GetDisplayNameAsync();
-            task.Wait();
-            return task.Result;
-        }
-
-        public string GetEmail()
-        {
-            Task<string> task = _userContext.GetEmailAsync();
-            task.Wait();
-            return task.Result;
-        }
-
-        public bool IsInRole(string role)
-        {
-            return _userContext.IsInRole(role);
-        }
-
-        public string[] GetRoles()
-        {
-            Task<string[]> task = _userContext.GetRolesAsync();
-            task.Wait();
-            return task.Result;
-        }
-
-        public bool CanEditPallets()
-        {
-            return _userContext.CanEditPallets();
-        }
-
-        public bool CanClosePallets()
-        {
-            return _userContext.CanClosePallets();
-        }
-
-        public bool CanEditItems()
-        {
-            return _userContext.CanEditItems();
-        }
-
-        public bool CanMoveItems()
-        {
-            return _userContext.CanMoveItems();
         }
 
         public Division GetDivision()
         {
-            // Use session manager to get division from session or user preferences
+            // Delegate directly - GetCurrentDivision is synchronous on ISessionManager
             return _sessionManager.GetCurrentDivision();
         }
 
         public Platform GetPlatform()
         {
-            // Use session manager to get platform from session or user preferences
+            // Delegate directly - GetCurrentPlatform is synchronous on ISessionManager
             return _sessionManager.GetCurrentPlatform();
+        }
+
+
+        // --- Asynchronous Methods ---
+
+        public async Task<string> GetDisplayNameAsync()
+        {
+            // Use await to call the async method on IUserContext
+            return await _userContext.GetDisplayNameAsync();
+        }
+
+        public async Task<string> GetEmailAsync()
+        {
+            // Use await to call the async method on IUserContext
+            return await _userContext.GetEmailAsync();
+        }
+
+        public async Task<string[]> GetRolesAsync()
+        {
+            // Use await to call the async method on IUserContext
+            return await _userContext.GetRolesAsync();
+        }
+
+        public async Task<bool> IsInRoleAsync(string role)
+        {
+            // Use await to call the async method on IUserContext
+            return await _userContext.IsInRoleAsync(role);
+        }
+
+        public async Task<bool> CanEditPalletsAsync()
+        {
+            // Use await to call the async method on IUserContext
+            return await _userContext.CanEditPalletsAsync();
+        }
+
+        public async Task<bool> CanClosePalletsAsync()
+        {
+            // Use await to call the async method on IUserContext
+            return await _userContext.CanClosePalletsAsync();
+        }
+
+        public async Task<bool> CanEditItemsAsync()
+        {
+            // Use await to call the async method on IUserContext
+            return await _userContext.CanEditItemsAsync();
+        }
+
+        public async Task<bool> CanMoveItemsAsync()
+        {
+            // Use await to call the async method on IUserContext
+            return await _userContext.CanMoveItemsAsync();
         }
     }
 }

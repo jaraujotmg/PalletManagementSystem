@@ -1,5 +1,5 @@
 <!-- src/PalletManagementSystem.Web/Views/Items/Details.cshtml -->
-@model PalletManagementSystem.Web2.ViewModels.Items.ItemDetailViewModel
+@model PalletManagementSystem.Web.ViewModels.Items.ItemDetailViewModel
 
 @{
     ViewBag.Title = "Item Details - " + Model.Item.ItemNumber;
@@ -7,8 +7,8 @@
 
 <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fa fa-home"></i> Home</a></li>
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fa fa-pallet"></i> Pallets</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
         <li class="breadcrumb-item"><a href="@Url.Action("Details", "Pallets", new { id = Model.Item.PalletId })">@Model.Item.Pallet.PalletNumber</a></li>
         <li class="breadcrumb-item active" aria-current="page">Item #@Model.Item.ItemNumber</li>
     </ol>
@@ -18,7 +18,7 @@
 @if (TempData["SuccessMessage"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="fa fa-check-circle mr-2"></i>@TempData["SuccessMessage"]
+        <i class="fas fa-check-circle mr-2"></i>@TempData["SuccessMessage"]
         <button type="button" class="close" data-dismiss="alert" aria-label="Close">
             <span aria-hidden="true">&times;</span>
         </button>
@@ -28,7 +28,7 @@
 @if (TempData["ErrorMessage"] != null)
 {
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="fa fa-exclamation-circle mr-2"></i>@TempData["ErrorMessage"]
+        <i class="fas fa-exclamation-circle mr-2"></i>@TempData["ErrorMessage"]
         <button type="button" class="close" data-dismiss="alert" aria-label="Close">
             <span aria-hidden="true">&times;</span>
         </button>
@@ -38,7 +38,7 @@
 @if (TempData["WarningMessage"] != null)
 {
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
-        <i class="fa fa-exclamation-triangle mr-2"></i>@TempData["WarningMessage"]
+        <i class="fas fa-exclamation-triangle mr-2"></i>@TempData["WarningMessage"]
         <button type="button" class="close" data-dismiss="alert" aria-label="Close">
             <span aria-hidden="true">&times;</span>
         </button>
@@ -49,7 +49,7 @@
 <div class="item-header">
     <div class="row align-items-center">
         <div class="col-md-8">
-            <h4><i class="fa fa-box mr-2"></i>Item #@Model.Item.ItemNumber</h4>
+            <h4><i class="fas fa-box mr-2"></i>Item #@Model.Item.ItemNumber</h4>
             <div class="mt-2">
                 <span class="badge badge-secondary mr-2">Pallet: @Model.Item.Pallet.PalletNumber</span>
                 @if (Model.Item.Pallet.IsClosed)
@@ -66,13 +66,13 @@
             @if (Model.CanEdit)
             {
                 <a href="@Url.Action("Edit", new { id = Model.Item.Id })" class="btn btn-warning mr-2">
-                    <i class="fa fa-edit mr-1"></i>Edit
+                    <i class="fas fa-edit mr-1"></i>Edit
                 </a>
             }
             @if (Model.CanMove)
             {
                 <a href="@Url.Action("Move", new { id = Model.Item.Id })" class="btn btn-info mr-2">
-                    <i class="fa fa-exchange-alt mr-1"></i>Move
+                    <i class="fas fa-exchange-alt mr-1"></i>Move
                 </a>
             }
             @if (Model.CanPrint)
@@ -82,12 +82,12 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="id" value="@Model.Item.Id" />
                     <button type="submit" class="btn btn-primary mr-2">
-                        <i class="fa fa-print mr-1"></i>Print Label
+                        <i class="fas fa-print mr-1"></i>Print Label
                     </button>
                 }
             }
             <a href="@Model.ReturnUrl" class="btn btn-secondary">
-                <i class="fa fa-arrow-left mr-1"></i>Back
+                <i class="fas fa-arrow-left mr-1"></i>Back
             </a>
         </div>
     </div>
@@ -99,14 +99,14 @@
         <!-- Orders Information -->
         <div class="card">
             <div class="card-header">
-                <i class="fa fa-file-alt mr-2"></i>Orders Information
+                <i class="fas fa-file-alt mr-2"></i>Orders Information
             </div>
             <div class="card-body">
                 @if (Model.HasManufacturingOrder)
                 {
                     <div class="info-section">
                         <h6 class="info-section-title">
-                            <i class="fa fa-industry mr-2"></i>Manufacturing Order
+                            <i class="fas fa-industry mr-2"></i>Manufacturing Order
                         </h6>
                         <div class="info-row">
                             <div class="info-label">Order Number:</div>
@@ -126,7 +126,7 @@
                 {
                     <div class="info-section">
                         <h6 class="info-section-title">
-                            <i class="fa fa-tools mr-2"></i>Service Order
+                            <i class="fas fa-tools mr-2"></i>Service Order
                         </h6>
                         <div class="info-row">
                             <div class="info-label">Order Number:</div>
@@ -146,7 +146,7 @@
                 {
                     <div class="info-section">
                         <h6 class="info-section-title">
-                            <i class="fa fa-clipboard-check mr-2"></i>Final Order
+                            <i class="fas fa-clipboard-check mr-2"></i>Final Order
                         </h6>
                         <div class="info-row">
                             <div class="info-label">Order Number:</div>
@@ -167,7 +167,7 @@
         <!-- Client Information -->
         <div class="card mt-4">
             <div class="card-header">
-                <i class="fa fa-building mr-2"></i>Client Information
+                <i class="fas fa-building mr-2"></i>Client Information
             </div>
             <div class="card-body">
                 <div class="info-row">
@@ -186,7 +186,7 @@
         <!-- Product Details -->
         <div class="card">
             <div class="card-header">
-                <i class="fa fa-tag mr-2"></i>Product Details
+                <i class="fas fa-tag mr-2"></i>Product Details
             </div>
             <div class="card-body">
                 @if (!string.IsNullOrEmpty(Model.Item.Reference))
@@ -220,7 +220,7 @@
         <!-- Physical Properties -->
         <div class="card mt-4">
             <div class="card-header">
-                <i class="fa fa-weight mr-2"></i>Physical Properties
+                <i class="fas fa-weight mr-2"></i>Physical Properties
                 @if (Model.CanEdit)
                 {
                     <span class="badge badge-info float-right">Editable Fields</span>
@@ -249,7 +249,7 @@
         <!-- Creation Info -->
         <div class="card mt-4">
             <div class="card-header">
-                <i class="fa fa-history mr-2"></i>Creation Information
+                <i class="fas fa-history mr-2"></i>Creation Information
             </div>
             <div class="card-body">
                 <div class="info-row">

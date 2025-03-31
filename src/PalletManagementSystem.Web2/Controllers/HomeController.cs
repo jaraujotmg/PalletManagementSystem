@@ -1,6 +1,8 @@
 // src/PalletManagementSystem.Web2/Controllers/HomeController.cs
 using System;
+using System.Threading.Tasks; // <-- Ensure this using is present
 using System.Web.Mvc;
+using PalletManagementSystem.Core.Interfaces.Services;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Infrastructure.Identity;
 using PalletManagementSystem.Web2.Services;
@@ -11,58 +13,91 @@ namespace PalletManagementSystem.Web2.Controllers
     public class HomeController : BaseController
     {
         private readonly ISessionManager _sessionManager;
+        private readonly IPlatformValidationService _platformValidationService;
 
-        public HomeController(IUserContext userContext, ISessionManager sessionManager)
+        public HomeController(
+            IUserContext userContext,
+            ISessionManager sessionManager,
+            IPlatformValidationService platformValidationService)
             : base(userContext)
         {
             _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+            _platformValidationService = platformValidationService ?? throw new ArgumentNullException(nameof(platformValidationService));
         }
 
-        public ActionResult Index()
+        // --- Change signature to async Task<ActionResult> ---
+        public async Task<ActionResult> Index()
         {
             var viewModel = new HomeViewModel();
 
             // Set common properties
-            viewModel.Username = Username;
-            viewModel.DisplayName = Username; // GetDisplayName().Result;
-            viewModel.CurrentDivision = UserContext.GetDivision();
-            viewModel.CurrentPlatform = UserContext.GetPlatform();
+            viewModel.Username = Username; // Username from BaseController is likely sync
+            try
+            {
+                // --- Use await instead of .Result ---
+                viewModel.DisplayName = await GetDisplayName();
+            }
+            catch (Exception ex)
+            {
+                // Log the error if you have a logger
+                System.Diagnostics.Debug.WriteLine($"Error getting display name: {ex.Message}");
+                viewModel.DisplayName = Username; // Fallback
+            }
+
+            // Get methods from SessionManager are currently sync
+            viewModel.CurrentDivision = _sessionManager.GetCurrentDivision();
+            viewModel.CurrentPlatform = _sessionManager.GetCurrentPlatform();
             viewModel.TouchModeEnabled = _sessionManager.IsTouchModeEnabled();
 
-            viewModel.LastLoginDate = DateTime.Now.AddDays(-1).ToString("MMMM dd, yyyy, hh:mm tt");
-            viewModel.ApplicationVersion = "v2.5.1";
-            viewModel.DatabaseVersion = "v2.5.0";
-            viewModel.LastUpdateDate = "01/02/2025";
-            viewModel.ServerName = "PROD-APP01";
-            viewModel.AllServicesOperational = true;
+            // ... rest of Index properties ...
+            viewModel.LastLoginDate = DateTime.Now.AddDays(-1).ToString("MMMM dd, yyyy, hh:mm tt"); // Example static date
+            viewModel.ApplicationVersion = "v2.5.1"; // Example version
+            viewModel.DatabaseVersion = "v2.5.0"; // Example version
+            viewModel.LastUpdateDate = "01/02/2025"; // Example static date
+            viewModel.ServerName = Environment.MachineName; // Gets current server name
+            viewModel.AllServicesOperational = true; // Example status
+
 
             return View(viewModel);
         }
+        // --- End Change ---
 
-        // Add the missing SetDivisionPlatform action method
-        public ActionResult SetDivisionPlatform(string division, string platform, string returnUrl)
+
+        public async Task<ActionResult> SetDivisionPlatform(string division, string platform, string returnUrl)
         {
-            // Validate and parse division
-            if (!string.IsNullOrEmpty(division) && Enum.TryParse<Division>(division, out Division divisionEnum))
+            Division divisionEnum = _sessionManager.GetCurrentDivision();
+
+            if (!string.IsNullOrEmpty(division) && Enum.TryParse<Division>(division, out var parsedDivision))
             {
-                _sessionManager.SetCurrentDivision(divisionEnum);
+                divisionEnum = parsedDivision;
+                await _sessionManager.SetCurrentDivisionAsync(divisionEnum);
             }
 
-            // Validate and parse platform
             if (!string.IsNullOrEmpty(platform) && Enum.TryParse<Platform>(platform, out Platform platformEnum))
             {
-                _sessionManager.SetCurrentPlatform(platformEnum);
+                var platformAfterDivisionSet = _sessionManager.GetCurrentPlatform();
+                if (platformEnum != platformAfterDivisionSet)
+                {
+                    var divisionToCheck = _sessionManager.GetCurrentDivision();
+                    bool isValidForDivision = await _platformValidationService.IsValidPlatformForDivisionAsync(platformEnum, divisionToCheck);
+
+                    if (isValidForDivision)
+                    {
+                        await _sessionManager.SetCurrentPlatformAsync(platformEnum);
+                    }
+                    else { /* Log Warning */ }
+                }
             }
 
-            // Redirect to the provided return URL or to the home page if not specified
             if (!string.IsNullOrEmpty(returnUrl))
             {
-                return Redirect(returnUrl);
+                if (Url.IsLocalUrl(returnUrl))
+                {
+                    return Redirect(returnUrl);
+                }
             }
-            else
-            {
-                return RedirectToAction("Index", "Home");
-            }
+
+            return RedirectToAction("Index", "Home");
         }
     }
 }

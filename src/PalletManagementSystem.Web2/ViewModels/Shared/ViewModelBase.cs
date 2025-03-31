@@ -11,5 +11,6 @@ namespace PalletManagementSystem.Web2.ViewModels.Shared
         public Division CurrentDivision { get; set; }
         public Platform CurrentPlatform { get; set; }
         public bool TouchModeEnabled { get; set; }
+        
     }
 }

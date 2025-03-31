@@ -8,8 +8,8 @@
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
-            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fa fa-home"></i> Home</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fa fa-pallet"></i> Pallets</a></li>
             <li class="breadcrumb-item"><a href="@Url.Action("Details", "Pallets", new { id = Model.PalletId })">@Model.Pallet.PalletNumber</a></li>
             <li class="breadcrumb-item active" aria-current="page">Print Pallet List</li>
         </ol>
@@ -19,7 +19,7 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">
-                    <i class="fas fa-print mr-2"></i>Print Settings
+                    <i class="fa fa-print mr-2"></i>Print Settings
                 </div>
                 <div class="card-body">
                     @using (Html.BeginForm("Print", "Pallets", FormMethod.Post))
@@ -50,10 +50,10 @@
 
                         <div class="d-flex justify-content-end mt-4">
                             <a href="@Url.Action("Details", "Pallets", new { id = Model.PalletId })" class="btn btn-secondary mr-2">
-                                <i class="fas fa-times mr-1"></i>Cancel
+                                <i class="fa fa-times mr-1"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-print mr-1"></i>Print
+                                <i class="fa fa-print mr-1"></i>Print
                             </button>
                         </div>
                     }
@@ -63,7 +63,7 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <i class="fas fa-file-alt mr-2"></i>Print Preview
+                    <i class="fa fa-file-alt mr-2"></i>Print Preview
                 </div>
                 <div class="card-body">
                     <div class="text-center mb-4">

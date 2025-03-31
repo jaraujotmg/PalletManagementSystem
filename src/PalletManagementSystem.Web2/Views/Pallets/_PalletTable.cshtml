@@ -1,4 +1,4 @@
-﻿@model IEnumerable<PalletManagementSystem.Core.DTOs.PalletDto>
+﻿@model IEnumerable<PalletManagementSystem.Core.DTOs.PalletListDto>
 
 @* Partial view to render the pallet table rows *@
 
@@ -8,32 +8,32 @@
             <tr>
                 <th>
                     <a href="#" class="text-decoration-none text-dark">
-                        <i class="fas fa-sort mr-1"></i>Pallet Number
+                        <i class="fa fa-sort mr1"></i>Pallet Number
                     </a>
                 </th>
                 <th>
                     <a href="#" class="text-decoration-none text-dark">
-                        <i class="fas fa-sort mr-1"></i>Manufacturing Order
+                        <i class="fa fa-sort mr-1"></i>Manufacturing Order
                     </a>
                 </th>
                 <th>
                     <a href="#" class="text-decoration-none text-dark">
-                        <i class="fas fa-sort mr-1"></i>Quantity
+                        <i class="fa fa-sort mr-1"></i>Quantity
                     </a>
                 </th>
                 <th>
                     <a href="#" class="text-decoration-none text-dark">
-                        <i class="fas fa-sort mr-1"></i>Items Count
+                        <i class="fa fa-sort mr-1"></i>Items Count
                     </a>
                 </th>
                 <th>
                     <a href="#" class="text-decoration-none text-dark">
-                        <i class="fas fa-sort mr-1"></i>Status
+                        <i class="fa fa-sort mr-1"></i>Status
                     </a>
                 </th>
                 <th>
                     <a href="#" class="text-decoration-none text-dark">
-                        <i class="fas fa-sort mr-1"></i>Created Date
+                        <i class="fa fa-sort mr-1"></i>Created Date
                     </a>
                 </th>
                 <th>Actions</th>
@@ -60,19 +60,19 @@
                     <td>@pallet.CreatedDate.ToString("MM/dd/yyyy")</td>
                     <td>
                         <a href="@Url.Action("Details", "Pallets", new { id = pallet.Id })" class="btn btn-sm btn-outline-primary" title="View Details">
-                            <i class="fas fa-eye"></i>
+                            <i class="fa fa-eye"></i>
                         </a>
                         <a href="@Url.Action("Print", "Pallets", new { id = pallet.Id })" class="btn btn-sm btn-outline-secondary" title="Print Pallet List">
-                            <i class="fas fa-print"></i>
+                            <i class="fa fa-print"></i>
                         </a>
                         @if (!pallet.IsClosed /* && Model.CanEdit -> This condition needs to be passed or checked differently if needed in partial */ )
                         {
                             @* Assuming CanEdit check might need rethinking if moved here, or passed via ViewBag/ViewModel if essential * BUt it was outside the loop before*@
                             <a href="@Url.Action("Edit", "Pallets", new { id = pallet.Id })" class="btn btn-sm btn-outline-warning" title="Edit Pallet">
-                                <i class="fas fa-edit"></i>
+                                <i class="fa fa-edit"></i>
                             </a>
                             <a href="@Url.Action("Close", "Pallets", new { id = pallet.Id })" class="btn btn-sm btn-outline-success" title="Close Pallet">
-                                <i class="fas fa-lock"></i>
+                                <i class="fa fa-lock"></i>
                             </a>
                         }
                     </td>

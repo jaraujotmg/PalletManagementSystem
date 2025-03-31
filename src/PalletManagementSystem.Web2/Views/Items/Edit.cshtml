@@ -7,8 +7,8 @@
 
 <nav aria-label="breadcrumb" class="mb-4">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fas fa-home"></i> Home</a></li>
-        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fas fa-pallet"></i> Pallets</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fa fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fa fa-pallet"></i> Pallets</a></li>
         <li class="breadcrumb-item"><a href="@Url.Action("Details", "Pallets", new { id = Model.PalletId })">@Model.PalletNumber</a></li>
         <li class="breadcrumb-item"><a href="@Url.Action("Details", "Items", new { id = Model.ItemId })">Item #@Model.ItemNumber</a></li>
         <li class="breadcrumb-item active" aria-current="page">Edit</li>
@@ -19,7 +19,7 @@
 <div class="edit-header">
     <div class="row align-items-center">
         <div class="col-md-8">
-            <h4><i class="fas fa-edit mr-2"></i>Edit Item #@Model.ItemNumber</h4>
+            <h4><i class="fa fa-edit mr-2"></i>Edit Item #@Model.ItemNumber</h4>
             <div class="mt-2">
                 <span class="badge badge-secondary mr-2">Pallet: @Model.PalletNumber</span>
                 @if (Model.IsPalletClosed)
@@ -44,12 +44,12 @@
 <!-- Edit Form -->
 <div class="card">
     <div class="card-header">
-        <i class="fas fa-weight mr-2"></i>Edit Physical Properties
+        <i class="fa fa-weight mr-2"></i>Edit Physical Properties
         <span class="badge badge-info float-right">Only these fields can be edited</span>
     </div>
     <div class="card-body">
         <div class="alert alert-warning">
-            <i class="fas fa-info-circle mr-2"></i>Note: Only Weight, Width, Quality, and Batch can be edited. Other item properties are not editable.
+            <i class="fa fa-info-circle mr-2"></i>Note: Only Weight, Width, Quality, and Batch can be edited. Other item properties are not editable.
         </div>
 
         @using (Html.BeginForm("Edit", "Items", FormMethod.Post, new { id = "editItemForm" }))
@@ -104,7 +104,7 @@
                                     </div>
                                 @Html.ValidationMessageFor(m => m.Weight, "", new { @class = "text-danger" })
                                     <div class="field-info">
-                                        <i class="fas fa-info-circle mr-1"></i>Enter the weight in @(Model.WeightUnit == "KG" ? "kilograms" : "pounds") (positive number)
+                                        <i class="fa fa-info-circle mr-1"></i>Enter the weight in @(Model.WeightUnit == "KG" ? "kilograms" : "pounds") (positive number)
                                     </div>
                                 </div>
                             </div>
@@ -119,7 +119,7 @@
                                     </div>
                                 @Html.ValidationMessageFor(m => m.Width, "", new { @class = "text-danger" })
                                     <div class="field-info">
-                                        <i class="fas fa-info-circle mr-1"></i>Enter the width in @(Model.WidthUnit == "CM" ? "centimeters" : "inches") (positive number)
+                                        <i class="fa fa-info-circle mr-1"></i>Enter the width in @(Model.WidthUnit == "CM" ? "centimeters" : "inches") (positive number)
                                     </div>
                                 </div>
                             </div>
@@ -138,7 +138,7 @@
                                 }, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : "") })
                                 @Html.ValidationMessageFor(m => m.Quality, "", new { @class = "text-danger" })
                                     <div class="field-info">
-                                        <i class="fas fa-info-circle mr-1"></i>Select the quality grade for this item
+                                        <i class="fa fa-info-circle mr-1"></i>Select the quality grade for this item
                                     </div>
                                 </div>
                             </div>
@@ -148,7 +148,7 @@
                                 @Html.TextBoxFor(m => m.Batch, new { @class = "form-control" + (Model.EnableTouchMode ? " touch-input" : "") })
                                 @Html.ValidationMessageFor(m => m.Batch, "", new { @class = "text-danger" })
                                     <div class="field-info">
-                                        <i class="fas fa-info-circle mr-1"></i>Enter the batch number/identifier
+                                        <i class="fa fa-info-circle mr-1"></i>Enter the batch number/identifier
                                     </div>
                                 </div>
                             </div>
@@ -172,7 +172,7 @@
                                         <button type="button" class="btn num-key" data-value=".">.</button>
                                         <button type="button" class="btn num-key" data-value="0">0</button>
                                         <button type="button" class="btn num-key btn-danger" data-value="del">
-                                            <i class="fas fa-backspace"></i>
+                                            <i class="fa fa-backspace"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -183,10 +183,10 @@
 
                 <div class="d-flex justify-content-end mt-4">
                     <a href="@Model.ReturnUrl" class="btn btn-secondary mr-2" id="cancelButton">
-                        <i class="fas fa-times mr-1"></i>Cancel
+                        <i class="fa fa-times mr-1"></i>Cancel
                     </a>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save mr-1"></i>Save Changes
+                        <i class="fa fa-save mr-1"></i>Save Changes
                     </button>
                 </div>
         }
@@ -198,7 +198,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Unsaved Changes</h5>
+                <h5 class="modal-title"><i class="fa fa-exclamation-triangle mr-2"></i>Unsaved Changes</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>

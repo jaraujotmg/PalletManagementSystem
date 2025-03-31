@@ -19,5 +19,7 @@ namespace PalletManagementSystem.Web2.ViewModels.Pallets
         public Platform SelectedPlatform { get; set; }
         public List<Platform> AvailablePlatforms { get; set; } = new List<Platform>();
         public bool CanCreatePallet { get; set; }
+
+        public string ErrorMessage { get; set; }
     }
 }

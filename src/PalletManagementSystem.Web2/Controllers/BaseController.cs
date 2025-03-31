@@ -11,7 +11,7 @@ namespace PalletManagementSystem.Web2.Controllers
 
         protected BaseController(IUserContext userContext)
         {
-            UserContext = userContext;
+            UserContext = userContext ?? throw new System.ArgumentNullException(nameof(userContext));
         }
 
         protected string Username => UserContext.GetUsername();

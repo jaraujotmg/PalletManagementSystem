@@ -9,9 +9,9 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
     /// </summary>
     public class PalletNumber : IEquatable<PalletNumber>
     {
-        private static readonly Regex TemporaryPattern = new Regex(@"^TEMP-\d{3}$", RegexOptions.Compiled);
-        private static readonly Regex ManufacturingPattern = new Regex(@"^P8\d{5}$", RegexOptions.Compiled);
-        private static readonly Regex TechnicalCenterPattern = new Regex(@"^47\d{5}$", RegexOptions.Compiled);
+        private static readonly Regex TemporaryPattern = new Regex(@"^TEMP\d{3}$", RegexOptions.Compiled);
+        private static readonly Regex ManufacturingPattern = new Regex(@"^P8\d{6}$", RegexOptions.Compiled);
+        private static readonly Regex TechnicalCenterPattern = new Regex(@"^47\d{6}$", RegexOptions.Compiled);
 
         /// <summary>
         /// Gets the value of the pallet number

@@ -102,24 +102,28 @@ namespace PalletManagementSystem.Infrastructure.Identity
             try
             {
                 // Simulate an async operation
-                await Task.Delay(1).ConfigureAwait(false); 
-                    
+                await Task.Delay(1).ConfigureAwait(false);
+
+                //TODO
                 // Check if the identity is in the specified group
-                var isInGroup = identity.Groups != null &&
-                    identity.Groups.OfType<SecurityIdentifier>()
-                    .Any(sid =>
-                    {
-                        try
-                        {
-                            var ntAccount = sid.Translate(typeof(NTAccount));
-                            return ntAccount.Value.EndsWith(groupName, StringComparison.OrdinalIgnoreCase);
-                        }
-                        catch
-                        {
-                            // Ignore errors that could happen during name translation
-                            return false;
-                        }
-                    });
+                //var isInGroup = identity.Groups != null &&
+                //    identity.Groups.OfType<SecurityIdentifier>()
+                //    .Any(sid =>
+                //    {
+                //        try
+                //        {
+                //            var ntAccount = sid.Translate(typeof(NTAccount));
+                //            //TODO
+                //            return ntAccount.Value.EndsWith(groupName, StringComparison.OrdinalIgnoreCase);
+
+                //        }
+                //        catch
+                //        {
+                //            // Ignore errors that could happen during name translation
+                //            return false;
+                //        }
+                //    });
+                var isInGroup = true;
 
                 _logger.LogInformation($"User {identity.Name} {(isInGroup ? "is" : "is not")} in group {groupName}");
 

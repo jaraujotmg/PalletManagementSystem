@@ -10,13 +10,13 @@
             @* ... Card Header ... *@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <i class="fas fa-pallet mr-2"></i>Pallets
+                    <i class="fa fa-pallet mr-2"></i>Pallets
                 </div>
                 <div>
                     @if (Model.CanCreatePallet)
                     {
                         <a href="@Url.Action("Create", "Pallets")" class="btn btn-primary">
-                            <i class="fas fa-plus mr-1"></i>New Pallet
+                            <i class="fa fa-plus mr-1"></i>New Pallet
                         </a>
                     }
                 </div>
@@ -32,7 +32,7 @@
                         <div class="input-group">
                             <div class="input-group-prepend">
                                 <span class="input-group-text">
-                                    <i class="fas fa-search"></i>
+                                    <i class="fa fa-search"></i>
                                 </span>
                             </div>
                             @Html.TextBoxFor(m => m.SearchKeyword, new { @class = "form-control", placeholder = "Search by pallet number, order..." })
@@ -48,13 +48,13 @@
                 <div class="col-md-6 col-lg-8 text-right">
                     <div class="btn-group">
                         <a href="@Url.Action("Index", "Pallets", new { isClosed = "" })" class="btn btn-outline-primary @(Model.IsClosed == null ? "active" : "")">
-                            <i class="fas fa-list mr-1"></i>All
+                            <i class="fa fa-list mr-1"></i>All
                         </a>
                         <a href="@Url.Action("Index", "Pallets", new { isClosed = false })" class="btn btn-outline-primary @(Model.IsClosed == false ? "active" : "")">
-                            <i class="fas fa-lock-open mr-1"></i>Open
+                            <i class="fa fa-lock-open mr-1"></i>Open
                         </a>
                         <a href="@Url.Action("Index", "Pallets", new { isClosed = true })" class="btn btn-outline-primary @(Model.IsClosed == true ? "active" : "")">
-                            <i class="fas fa-lock mr-1"></i>Closed
+                            <i class="fa fa-lock mr-1"></i>Closed
                         </a>
                     </div>
                 </div>
@@ -63,7 +63,7 @@
             @if (!Model.Pallets.Items.Any())
             {
                 <div class="alert alert-info">
-                    <i class="fas fa-info-circle mr-2"></i>No pallets found matching your criteria.
+                    <i class="fa fa-info-circle mr-2"></i>No pallets found matching your criteria.
                 </div>
             }
             else

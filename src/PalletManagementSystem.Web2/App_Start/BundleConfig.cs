@@ -46,6 +46,13 @@ namespace PalletManagementSystem.Web2
 
             // In production, enable optimization
             BundleTable.EnableOptimizations = true;
+
+            //fontawesome
+            bundles.Add(new StyleBundle("~/Content/fontawesome").Include(
+                   "~/Content/font-awesome-4.7.0/css/font-awesome.min.css", // Your CSS file path
+                   new CssRewriteUrlTransform()));
+
+            
         }
     }
 }

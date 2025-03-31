@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using PalletManagementSystem.Core.Models;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Core.Models.ValueObjects;
@@ -65,11 +67,22 @@ namespace PalletManagementSystem.Infrastructure.Data.Configurations
                 .HasMaxLength(50)
                 .IsRequired();
 
-            // Configure navigation property
-            builder.HasMany(p => p.Items)
-                .WithOne(i => i.Pallet)
-                .HasForeignKey(i => i.PalletId)
-                .OnDelete(DeleteBehavior.Cascade);
+            
+            builder.HasMany(p => p.Items) // Navigation property on Pallet
+                                    .WithOne(i => i.Pallet) // Inverse navigation property on Item
+                                    .HasForeignKey(i => i.PalletId) // Foreign key property on Item
+                                    .OnDelete(DeleteBehavior.Cascade); // Cascade delete configuration
+
+            // Find the navigation metadata using the public property name
+            var itemsNavigation = builder.Metadata.FindNavigation(nameof(Pallet.Items));
+            // Set the access mode to Field, telling EF to use the backing field (_items)
+            itemsNavigation.SetPropertyAccessMode(PropertyAccessMode.Field);
+
+            // --- Optional: Ignore calculated properties ---
+            builder.Ignore(p => p.ItemCount);
+
+
+
         }
     }
 }
