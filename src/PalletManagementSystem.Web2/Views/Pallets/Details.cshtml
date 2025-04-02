@@ -96,35 +96,29 @@
                                     <td class="text-right">@item.Weight.ToString("N2") @item.WeightUnit</td>
                                     <td class="text-right">@item.Width.ToString("N2") @item.WidthUnit</td>
                                     <td>@item.CreatedDate.ToString("MM/dd/yy")</td>
-                                    <td class="text-center actions-cell">
-                                      
-                                        <div class="btn-group" role="group" aria-label="Item Actions">
-                                            @* Removed btn-group-sm *@
-                                            <a href="@Url.Action("Details", "Items", new { id = item.Id })" class="btn btn-info" title="View Details">
-                                                @* Solid Button & Standard Size *@
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="@Url.Action("Details", "Items", new { id = item.Id })" class="btn btn-outline-primary" title="View Details">
                                                 <i class="fa fa-eye"></i>
                                             </a>
                                             @if (!Model.Pallet.IsClosed && Model.CanEdit)
                                             {
-                                                <a href="@Url.Action("Edit", "Items", new { id = item.Id })" class="btn btn-warning" title="Edit Item">
-                                                    @* Solid Button & Standard Size *@
-                                                    <i class="fa fa-pencil"></i>
+                                                <a href="@Url.Action("Edit", "Items", new { id = item.Id })" class="btn btn-outline-warning" title="Edit Item">
+                                                    <i class="fa fa-pencil"></i> @* FA 4 icon *@
                                                 </a>
-                                                <a href="@Url.Action("Move", "Items", new { id = item.Id })" class="btn btn-secondary" title="Move Item">
-                                                    @* Solid Button & Standard Size - Changed from info to secondary *@
-                                                    <i class="fa fa-exchange"></i>
+                                                <a href="@Url.Action("Move", "Items", new { id = item.Id })" class="btn btn-outline-info" title="Move Item">
+                                                    <i class="fa fa-exchange"></i> @* FA 4 icon *@
                                                 </a>
                                             }
                                             @if (Model.CanPrint)
                                             {
-                                                <a href="@Url.Action("PrintLabel", "Items", new { id = item.Id })" class="btn btn-light border" title="Print Label">
-                                                    @* Solid Button (light) & Standard Size, added border for contrast *@
+                                                <a href="@Url.Action("PrintLabel", "Items", new { id = item.Id })" class="btn btn-outline-secondary" title="Print Label">
                                                     <i class="fa fa-print"></i>
                                                 </a>
                                             }
                                         </div>
-                                        
-</tr>
+                                    </td>
+                                </tr>
                             }
                         </tbody>
                     </table>
