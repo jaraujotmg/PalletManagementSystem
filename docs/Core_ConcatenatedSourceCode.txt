@@ -1,6 +1,6 @@
 ﻿Source Code Concatenation Report
 Project Root: D:\source\PalletManagementSystem\src\PalletManagementSystem.Core
-Generated On: 03/29/2025 17:29:53
+Generated On: 04/01/2025 17:17:05
 Included Extensions: .cs, .vb, .fs, .cpp, .c, .hpp, .h, .js, .ts, .jsx, .tsx, .html, .htm, .css, .scss, .less, .xaml, .razor, .cshtml, .sql, .py, .sh, .ps1, .xml, .json, .yaml, .yml, .config, .settings, .props, .targets
 Excluded Directories: bin, obj, .vs, .git, .svn, node_modules, packages, TestResults, GeneratedFiles
 
@@ -469,13 +469,14 @@ namespace PalletManagementSystem.Core.DTOs
 ===============================================================================
 File: DTOs\PalletDetailDto.cs
 ===============================================================================
+// src/PalletManagementSystem.Core/DTOs/PalletDetailDto.cs
 using System;
 using System.Collections.Generic;
 
 namespace PalletManagementSystem.Core.DTOs
 {
     /// <summary>
-    /// DTO for pallet detail view (with items)
+    /// DTO for pallet detail view (with detailed item information)
     /// </summary>
     public class PalletDetailDto
     {
@@ -544,10 +545,12 @@ namespace PalletManagementSystem.Core.DTOs
         /// </summary>
         public string CreatedBy { get; set; }
 
+        // --- MODIFIED PROPERTY TYPE ---
         /// <summary>
-        /// Gets or sets the items on this pallet
+        /// Gets or sets the detailed items on this pallet
         /// </summary>
-        public ICollection<ItemListDto> Items { get; set; } = new List<ItemListDto>();
+        public ICollection<ItemDetailDto> Items { get; set; } = new List<ItemDetailDto>();
+        // ------------------------------
     }
 }
 
@@ -1270,6 +1273,38 @@ namespace PalletManagementSystem.Core.Extensions
 }
 
 ===============================================================================
+File: Interfaces\IUserSessionContext.cs
+===============================================================================
+// src/PalletManagementSystem.Core/Interfaces/IUserSessionContext.cs
+using PalletManagementSystem.Core.Models.Enums;
+
+namespace PalletManagementSystem.Core.Interfaces
+{
+    /// <summary>
+    /// Defines an interface for accessing user-specific session context,
+    /// such as selected Division and Platform.
+    /// This abstracts the underlying storage mechanism (e.g., web session).
+    /// </summary>
+    public interface IUserSessionContext
+    {
+        /// <summary>
+        /// Gets the currently selected Division for the user's session.
+        /// </summary>
+        /// <returns>The current Division.</returns>
+        Division GetCurrentDivision();
+
+        /// <summary>
+        /// Gets the currently selected Platform for the user's session.
+        /// </summary>
+        /// <returns>The current Platform.</returns>
+        Platform GetCurrentPlatform();
+
+        // Add other session-related methods here if needed in the future
+        // For example: bool IsTouchModeEnabled();
+    }
+}
+
+===============================================================================
 File: Interfaces\Repositories\IItemRepository.cs
 ===============================================================================
 using System.Collections.Generic;
@@ -1454,7 +1489,9 @@ namespace PalletManagementSystem.Core.Interfaces.Repositories
         /// <param name="id">The pallet ID</param>
         /// <param name="cancellationToken">A token to cancel the operation</param>
         /// <returns>The pallet detail DTO, or null if not found</returns>
-        Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default); 
+
+       
 
         /// <summary>
         /// Gets a pallet by its pallet number as a list DTO (without items)
@@ -2913,11 +2950,12 @@ namespace PalletManagementSystem.Core.Mappers
 ===============================================================================
 File: Mappers\PalletMapper.cs
 ===============================================================================
+// src/PalletManagementSystem.Core/Mappers/PalletMapper.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore; // Keep for Include/ThenInclude usage
 using PalletManagementSystem.Core.DTOs;
 using PalletManagementSystem.Core.Models;
 
@@ -2928,9 +2966,7 @@ namespace PalletManagementSystem.Core.Mappers
     /// </summary>
     public static class PalletMapper
     {
-        /// <summary>
-        /// Creates a projection expression to map Pallet entities to PalletDto objects
-        /// </summary>
+        // --- ProjectToDto remains the same ---
         public static Expression<Func<Pallet, PalletDto>> ProjectToDto()
         {
             return p => new PalletDto
@@ -2943,7 +2979,8 @@ namespace PalletManagementSystem.Core.Mappers
                 Platform = p.Platform.ToString(),
                 UnitOfMeasure = p.UnitOfMeasure.ToString(),
                 Quantity = p.Quantity,
-                ItemCount = p.Items.Count,
+                // Performance Note: Be mindful if using p.Items.Count here without Include
+                ItemCount = p.Items.Count, // Requires Items to be loaded or counted efficiently by EF
                 IsClosed = p.IsClosed,
                 CreatedDate = p.CreatedDate,
                 ClosedDate = p.ClosedDate,
@@ -2951,9 +2988,7 @@ namespace PalletManagementSystem.Core.Mappers
             };
         }
 
-        /// <summary>
-        /// Creates a projection expression to map Pallet entities to PalletListDto objects
-        /// </summary>
+        // --- ProjectToListDto remains the same ---
         public static Expression<Func<Pallet, PalletListDto>> ProjectToListDto()
         {
             return p => new PalletListDto
@@ -2966,7 +3001,8 @@ namespace PalletManagementSystem.Core.Mappers
                 Platform = p.Platform.ToString(),
                 UnitOfMeasure = p.UnitOfMeasure.ToString(),
                 Quantity = p.Quantity,
-                ItemCount = p.Items.Count,
+                // Performance Note: Be mindful if using p.Items.Count here without Include
+                ItemCount = p.Items.Count, // Requires Items to be loaded or counted efficiently by EF
                 IsClosed = p.IsClosed,
                 CreatedDate = p.CreatedDate,
                 ClosedDate = p.ClosedDate,
@@ -2974,8 +3010,10 @@ namespace PalletManagementSystem.Core.Mappers
             };
         }
 
+        // --- MODIFIED ProjectToDetailDto ---
         /// <summary>
-        /// Creates a projection expression to map Pallet entities to PalletDetailDto objects
+        /// Creates a projection expression to map Pallet entities to PalletDetailDto objects,
+        /// including detailed item information.
         /// </summary>
         public static Expression<Func<Pallet, PalletDetailDto>> ProjectToDetailDto()
         {
@@ -2989,59 +3027,87 @@ namespace PalletManagementSystem.Core.Mappers
                 Platform = p.Platform.ToString(),
                 UnitOfMeasure = p.UnitOfMeasure.ToString(),
                 Quantity = p.Quantity,
-                ItemCount = p.Items.Count,
+                ItemCount = p.Items.Count, // Okay here as Items are explicitly included
                 IsClosed = p.IsClosed,
                 CreatedDate = p.CreatedDate,
                 ClosedDate = p.ClosedDate,
                 CreatedBy = p.CreatedBy,
-                Items = p.Items.Select(i => new ItemListDto
+                // --- Project Items to ItemDetailDto ---
+                Items = p.Items.Select(i => new ItemDetailDto
                 {
+                    // Map ALL fields from Item entity 'i' to ItemDetailDto
                     Id = i.Id,
                     ItemNumber = i.ItemNumber,
                     PalletId = i.PalletId,
                     ManufacturingOrder = i.ManufacturingOrder,
+                    ManufacturingOrderLine = i.ManufacturingOrderLine,
+                    ServiceOrder = i.ServiceOrder,
+                    ServiceOrderLine = i.ServiceOrderLine,
+                    FinalOrder = i.FinalOrder,
+                    FinalOrderLine = i.FinalOrderLine,
                     ClientCode = i.ClientCode,
                     ClientName = i.ClientName,
+                    Reference = i.Reference, // Include Reference
+                    Finish = i.Finish,
+                    Color = i.Color,
                     Quantity = i.Quantity,
                     QuantityUnit = i.QuantityUnit,
                     Weight = i.Weight,
                     WeightUnit = i.WeightUnit,
                     Width = i.Width,
                     WidthUnit = i.WidthUnit,
-                    CreatedDate = i.CreatedDate
-                }).ToList()
+                    Quality = i.Quality,
+                    Batch = i.Batch,
+                    CreatedDate = i.CreatedDate,
+                    CreatedBy = i.CreatedBy, // Include CreatedBy
+                    // Pallet info within ItemDetailDto: provide basic info
+                    // Avoid circular reference or deep nesting
+                    Pallet = new PalletInfo { Id = p.Id, PalletNumber = p.PalletNumber.Value, IsClosed = p.IsClosed }
+                }).ToList() // Materialize the list of ItemDetailDto
+                // --------------------------------------
             };
         }
+        // --- END MODIFIED ProjectToDetailDto ---
+
+
+        // --- Extension methods ---
 
         /// <summary>
-        /// Applies the DTO projection to a queryable of Pallet entities
+        /// Applies the DTO projection to a queryable of Pallet entities.
         /// </summary>
         public static IQueryable<PalletDto> ProjectToDto(this IQueryable<Pallet> query)
         {
-            return query.Select(ProjectToDto());
+            // Include Items if ItemCount calculation relies on it loading here
+            // return query.Include(p => p.Items).Select(ProjectToDto());
+            return query.Select(ProjectToDto()); // Assuming ItemCount can be calculated efficiently
         }
 
         /// <summary>
-        /// Applies the list projection to a queryable of Pallet entities
+        /// Applies the list projection to a queryable of Pallet entities.
         /// </summary>
         public static IQueryable<PalletListDto> ProjectToListDto(this IQueryable<Pallet> query)
         {
-            return query.Select(ProjectToListDto());
+            // Include Items if ItemCount calculation relies on it loading here
+            // return query.Include(p => p.Items).Select(ProjectToListDto());
+            return query.Select(ProjectToListDto()); // Assuming ItemCount can be calculated efficiently
         }
 
         /// <summary>
-        /// Applies the detail projection to a queryable of Pallet entities
+        /// Applies the detail projection (including detailed items) to a queryable of Pallet entities.
+        /// Ensures Items navigation property is loaded before projecting.
         /// </summary>
         public static IQueryable<PalletDetailDto> ProjectToDetailDto(this IQueryable<Pallet> query)
         {
+            // *** ENSURE Include(p => p.Items) is called here ***
+            // This loads the related Item entities so the Select projection can access them.
             return query.Include(p => p.Items).Select(ProjectToDetailDto());
         }
 
-        /// <summary>
-        /// Converts a list of Pallet list DTOs to an enumerable of PalletDto
-        /// </summary>
+
+        // --- ToDto extension methods (remain the same conceptually) ---
         public static IEnumerable<PalletDto> ToDto(this IReadOnlyList<PalletListDto> palletListDtos)
         {
+            // Implement the mapping from PalletListDto to PalletDto if needed
             return palletListDtos.Select(p => new PalletDto
             {
                 Id = p.Id,
@@ -3057,15 +3123,12 @@ namespace PalletManagementSystem.Core.Mappers
                 CreatedDate = p.CreatedDate,
                 ClosedDate = p.ClosedDate,
                 CreatedBy = p.CreatedBy
+                // PalletDto does not have Items collection
             });
         }
-
-        /// <summary>
-        /// Converts a queryable of Pallet entities to an IEnumerable of PalletDto
-        /// </summary>
         public static IEnumerable<PalletDto> ToDto(this IQueryable<Pallet> query)
         {
-            return query.Select(ProjectToDto());
+            return query.ProjectToDto().ToList(); // Materialize the query
         }
     }
 }
@@ -4022,9 +4085,9 @@ namespace PalletManagementSystem.Core.Models.ValueObjects
     /// </summary>
     public class PalletNumber : IEquatable<PalletNumber>
     {
-        private static readonly Regex TemporaryPattern = new Regex(@"^TEMP-\d{3}$", RegexOptions.Compiled);
-        private static readonly Regex ManufacturingPattern = new Regex(@"^P8\d{5}$", RegexOptions.Compiled);
-        private static readonly Regex TechnicalCenterPattern = new Regex(@"^47\d{5}$", RegexOptions.Compiled);
+        private static readonly Regex TemporaryPattern = new Regex(@"^TEMP\d{3}$", RegexOptions.Compiled);
+        private static readonly Regex ManufacturingPattern = new Regex(@"^P8\d{6}$", RegexOptions.Compiled);
+        private static readonly Regex TechnicalCenterPattern = new Regex(@"^47\d{6}$", RegexOptions.Compiled);
 
         /// <summary>
         /// Gets the value of the pallet number

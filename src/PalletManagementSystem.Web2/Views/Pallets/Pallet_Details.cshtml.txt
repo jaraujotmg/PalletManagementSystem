@@ -1,0 +1,278 @@
+@model PalletManagementSystem.Web2.ViewModels.Pallets.PalletDetailViewModel
+@{
+    ViewBag.Title = "Pallet Details - " + Model.Pallet.PalletNumber;
+}
+
+<!-- Main Content -->
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")"><i class="fa fa-home"></i> Home</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Pallets")"><i class="fa fa-pallet"></i> Pallets</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.Pallet.PalletNumber</li>
+        </ol>
+    </nav>
+
+    <!-- Pallet Header -->
+    <div class="pallet-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4><i class="fa fa-pallet mr-2"></i>Pallet: @Model.Pallet.PalletNumber</h4>
+            </div>
+            <div class="col-md-4 text-md-right mt-3 mt-md-0">
+                @if (Model.CanPrint)
+                {
+                    <a href="@Url.Action("Print", "Pallets", new { id = Model.Pallet.Id })" class="btn btn-primary mr-2">
+                        <i class="fa fa-print mr-1"></i>Print List
+                    </a>
+                }
+
+                @if (!Model.Pallet.IsClosed && Model.CanClose)
+                {
+                    <a href="@Url.Action("Close", "Pallets", new { id = Model.Pallet.Id })" class="btn btn-success mr-2">
+                        <i class="fa fa-lock mr-1"></i>Close Pallet
+                    </a>
+                }
+
+                <a href="@Url.Action("Index", "Pallets")" class="btn btn-secondary">
+                    <i class="fa fa-arrow-left mr-1"></i>Back
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pallet Information -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fa fa-info-circle mr-2"></i>Pallet Information
+                </div>
+                <div class="card-body">
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Pallet Number:</div>
+                        <div class="pallet-info-value">
+                            @Model.Pallet.PalletNumber
+                            @if (Model.Pallet.IsTemporary)
+                            {
+                                <span class="text-muted">(Temporary)</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Manufacturing Order:</div>
+                        <div class="pallet-info-value">@Model.Pallet.ManufacturingOrder</div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Division:</div>
+                        <div class="pallet-info-value">@Model.Pallet.Division</div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Platform:</div>
+                        <div class="pallet-info-value">@Model.Pallet.Platform</div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Unit of Measure:</div>
+                        <div class="pallet-info-value">@Model.Pallet.UnitOfMeasure</div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Quantity:</div>
+                        <div class="pallet-info-value">@Model.Pallet.Quantity</div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Items Count:</div>
+                        <div class="pallet-info-value">@Model.Pallet.ItemCount</div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Status:</div>
+                        <div class="pallet-info-value">
+                            @if (Model.Pallet.IsClosed)
+                            {
+                                <span class="badge badge-success">Closed</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-orange">Open</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Created Date:</div>
+                        <div class="pallet-info-value">@Model.Pallet.CreatedDate.ToString("MM/dd/yyyy HH:mm")</div>
+                    </div>
+                    <div class="pallet-info-item">
+                        <div class="pallet-info-label">Created By:</div>
+                        <div class="pallet-info-value">@Model.Pallet.CreatedBy</div>
+                    </div>
+                    @if (Model.Pallet.IsClosed && Model.Pallet.ClosedDate.HasValue)
+                    {
+                        <div class="pallet-info-item">
+                            <div class="pallet-info-label">Closed Date:</div>
+                            <div class="pallet-info-value">@Model.Pallet.ClosedDate.Value.ToString("MM/dd/yyyy HH:mm")</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><i class="fa fa-boxes mr-2"></i>Items Summary</div>
+                        <div>
+                            @if (!Model.Pallet.IsClosed && Model.CanEdit)
+                            {
+                                <a href="@Url.Action("Create", "Items", new { palletId = Model.Pallet.Id })" class="btn btn-sm btn-outline-primary">
+                                    <i class="fa fa-plus mr-1"></i>Add Item
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (Model.ClientSummary != null && Model.ClientSummary.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Client</th>
+                                        <th>Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var client in Model.ClientSummary)
+                                    {
+                                        <tr>
+                                            <td>@client.Key</td>
+                                            <td>@client.Value</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else if (!Model.Pallet.Items.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="fa fa-info-circle mr-2"></i>No items on this pallet.
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="fa fa-history mr-2"></i>Activity Log
+                </div>
+                <div class="card-body">
+                    @if (Model.ActivityLogs != null && Model.ActivityLogs.Any())
+                    {
+                        foreach (var activity in Model.ActivityLogs)
+                        {
+                            <div class="activity-item">
+                                <div class="activity-icon">
+                                    <span class="badge badge-pill @activity.BadgeClass">
+                                        <i class="@activity.IconClass"></i>
+                                    </span>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">@activity.ActivityType</div>
+                                    <div class="activity-subtitle">@activity.Description</div>
+                                    <small class="text-muted">@activity.Timestamp.ToString("MM/dd/yyyy HH:mm") - @activity.Username</small>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <span class="badge badge-pill badge-primary">
+                                    <i class="fa fa-pallet"></i>
+                                </span>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">Pallet created</div>
+                                <div class="activity-subtitle">Pallet @Model.Pallet.PalletNumber created</div>
+                                <small class="text-muted">@Model.Pallet.CreatedDate.ToString("MM/dd/yyyy HH:mm") - @Model.Pallet.CreatedBy</small>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items List -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <i class="fa fa-boxes mr-2"></i>Items in Pallet
+        </div>
+        <div class="card-body">
+            @if (!Model.Pallet.Items.Any())
+            {
+                <div class="alert alert-info">
+                    <i class="fa fa-info-circle mr-2"></i>No items on this pallet.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Item Number</th>
+                                <th>Client</th>
+                                <th>Reference</th>
+                                <th>Manufacturing Order</th>
+                                <th>Quantity</th>
+                                <th>Weight</th>
+                                <th>Width</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Pallet.Items)
+                            {
+                                <tr>
+                                    <td>@item.ItemNumber</td>
+                                    <td>@item.ClientName</td>
+                                    <td>@item.Reference</td>
+                                    <td>@item.ManufacturingOrder</td>
+                                    <td>@item.Quantity @item.QuantityUnit</td>
+                                    <td>@item.Weight @item.WeightUnit</td>
+                                    <td>@item.Width @item.WidthUnit</td>
+                                    <td>@item.CreatedDate.ToString("MM/dd/yyyy")</td>
+                                    <td>
+                                        <a href="@Url.Action("Details", "Items", new { id = item.Id })" class="btn btn-sm btn-outline-primary" title="View Details">
+                                            <i class="fa fa-eye"></i>
+                                        </a>
+
+                                        @if (!Model.Pallet.IsClosed && Model.CanEdit)
+                                        {
+                                            <a href="@Url.Action("Edit", "Items", new { id = item.Id })" class="btn btn-sm btn-outline-warning" title="Edit Item">
+                                                <i class="fa fa-edit"></i>
+                                            </a>
+                                            <a href="@Url.Action("Move", "Items", new { id = item.Id })" class="btn btn-sm btn-outline-info" title="Move Item">
+                                                <i class="fa fa-exchange-alt"></i>
+                                            </a>
+                                        }
+
+                                        @if (Model.CanPrint)
+                                        {
+                                            <a href="@Url.Action("PrintLabel", "Items", new { id = item.Id })" class="btn btn-sm btn-outline-secondary" title="Print Label">
+                                                <i class="fa fa-print"></i>
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

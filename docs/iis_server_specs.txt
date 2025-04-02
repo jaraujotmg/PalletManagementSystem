@@ -1,0 +1,9 @@
+IIS Server specs.txt
+
+windows server 2012 R2
+IIS 8.5.9600
+this app can run in its own app pool
+.NET CLR v4.0 managed pipeline mode classic
+windows auth is enabled
+32bit system
+ASP.NET Core Hosting Bundle not available

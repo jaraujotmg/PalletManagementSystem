@@ -1,0 +1,8 @@
+CRITICAL IMPORTANCE: Core and infrastructure projects run in .net standard 2.0, Web project runs in .net framework 4.8.
+CRITICAL IMPORTANCE: All pages should be able to run in "Edge IE11 compatibility mode"
+
+always write complete code without skips or abbreviations
+no partial classes
+1 file per class
+always show me the name of the file and where it should be placed on the project. 
+always tell me if a file should be deleted

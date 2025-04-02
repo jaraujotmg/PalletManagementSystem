@@ -1,6 +1,6 @@
 ﻿Source Code Concatenation Report
 Project Root: D:\source\PalletManagementSystem\src\PalletManagementSystem.Infrastructure
-Generated On: 03/29/2025 17:30:29
+Generated On: 04/01/2025 17:18:10
 Included Extensions: .cs, .vb, .fs, .cpp, .c, .hpp, .h, .js, .ts, .jsx, .tsx, .html, .htm, .css, .scss, .less, .xaml, .razor, .cshtml, .sql, .py, .sh, .ps1, .xml, .json, .yaml, .yml, .config, .settings, .props, .targets
 Excluded Directories: bin, obj, .vs, .git, .svn, node_modules, packages, TestResults, GeneratedFiles
 
@@ -355,7 +355,7 @@ namespace PalletManagementSystem.Infrastructure.Data.Configurations
                 .IsRequired();
 
             builder.Property(i => i.Width)
-                .HasColumnType("decimal(18,2)")
+                //.HasColumnType("decimal(18,2)")
                 .IsRequired();
 
             builder.Property(i => i.WidthUnit)
@@ -394,7 +394,9 @@ namespace PalletManagementSystem.Infrastructure.Data.Configurations
 File: Data\Configurations\PalletConfiguration.cs
 ===============================================================================
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using PalletManagementSystem.Core.Models;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Core.Models.ValueObjects;
@@ -460,11 +462,22 @@ namespace PalletManagementSystem.Infrastructure.Data.Configurations
                 .HasMaxLength(50)
                 .IsRequired();
 
-            // Configure navigation property
-            builder.HasMany(p => p.Items)
-                .WithOne(i => i.Pallet)
-                .HasForeignKey(i => i.PalletId)
-                .OnDelete(DeleteBehavior.Cascade);
+            
+            builder.HasMany(p => p.Items) // Navigation property on Pallet
+                                    .WithOne(i => i.Pallet) // Inverse navigation property on Item
+                                    .HasForeignKey(i => i.PalletId) // Foreign key property on Item
+                                    .OnDelete(DeleteBehavior.Cascade); // Cascade delete configuration
+
+            // Find the navigation metadata using the public property name
+            var itemsNavigation = builder.Metadata.FindNavigation(nameof(Pallet.Items));
+            // Set the access mode to Field, telling EF to use the backing field (_items)
+            itemsNavigation.SetPropertyAccessMode(PropertyAccessMode.Field);
+
+            // --- Optional: Ignore calculated properties ---
+            builder.Ignore(p => p.ItemCount);
+
+
+
         }
     }
 }
@@ -873,6 +886,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace PalletManagementSystem.Infrastructure.Data.Repositories
 {
@@ -911,22 +925,6 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default)
-        {
-            // For complex includes like this, we'll use the EF Core version for now
-            var pallet = await _dbSet
-                .Include(p => p.Items)
-                .Where(p => p.Id == id)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (pallet == null)
-                return null;
-
-            var mapper = PalletMapper.ProjectToDetailDto().Compile();
-            return mapper(pallet);
-        }
-
-        /// <inheritdoc/>
         public async Task<PalletListDto> GetPalletListByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(palletNumber))
@@ -943,6 +941,78 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
             var mapper = PalletMapper.ProjectToListDto().Compile();
             return mapper(pallet);
         }
+
+        /// <inheritdoc/>
+        public async Task<PalletDetailDto> GetPalletDetailByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var palletEntity = await _dbSet
+                .Include(p => p.Items)
+                .Where(p => p.Id == id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (palletEntity == null) return null;
+
+            // Step 2: Manually project the fetched entity into PalletDetailDto in memory
+
+            // Create the DTO first (its Items collection is already initialized as new List<...>())
+            var palletDetailDto = new PalletDetailDto
+            {
+                Id = palletEntity.Id,
+                PalletNumber = palletEntity.PalletNumber.Value,
+                IsTemporary = palletEntity.PalletNumber.IsTemporary,
+                ManufacturingOrder = palletEntity.ManufacturingOrder,
+                Division = palletEntity.Division.ToString(),
+                Platform = palletEntity.Platform.ToString(),
+                UnitOfMeasure = palletEntity.UnitOfMeasure.ToString(),
+                Quantity = palletEntity.Quantity,
+                ItemCount = palletEntity.Items.Count,
+                IsClosed = palletEntity.IsClosed,
+                CreatedDate = palletEntity.CreatedDate,
+                ClosedDate = palletEntity.ClosedDate,
+                CreatedBy = palletEntity.CreatedBy,
+                // Items = new List<ItemDetailDto>() // Remove direct assignment here
+            };
+
+            // --- MODIFIED PART: Add items to the existing collection ---
+            if (palletEntity.Items != null && palletEntity.Items.Any())
+            {
+                foreach (var itemEntity in palletEntity.Items)
+                {
+                    palletDetailDto.Items.Add(new ItemDetailDto // Use .Add()
+                    {
+                        Id = itemEntity.Id,
+                        ItemNumber = itemEntity.ItemNumber,
+                        PalletId = itemEntity.PalletId,
+                        ManufacturingOrder = itemEntity.ManufacturingOrder,
+                        ManufacturingOrderLine = itemEntity.ManufacturingOrderLine,
+                        ServiceOrder = itemEntity.ServiceOrder,
+                        ServiceOrderLine = itemEntity.ServiceOrderLine,
+                        FinalOrder = itemEntity.FinalOrder,
+                        FinalOrderLine = itemEntity.FinalOrderLine,
+                        ClientCode = itemEntity.ClientCode,
+                        ClientName = itemEntity.ClientName,
+                        Reference = itemEntity.Reference,
+                        Finish = itemEntity.Finish,
+                        Color = itemEntity.Color,
+                        Quantity = itemEntity.Quantity,
+                        QuantityUnit = itemEntity.QuantityUnit,
+                        Weight = itemEntity.Weight,
+                        WeightUnit = itemEntity.WeightUnit,
+                        Width = itemEntity.Width,
+                        WidthUnit = itemEntity.WidthUnit,
+                        Quality = itemEntity.Quality,
+                        Batch = itemEntity.Batch,
+                        CreatedDate = itemEntity.CreatedDate,
+                        CreatedBy = itemEntity.CreatedBy,
+                        Pallet = new PalletInfo { Id = palletEntity.Id, PalletNumber = palletEntity.PalletNumber.Value, IsClosed = palletEntity.IsClosed }
+                    });
+                }
+            }
+            // ----------------------------------------------------------
+
+            return palletDetailDto;
+        }
+
 
         /// <inheritdoc/>
         public async Task<PalletDetailDto> GetPalletDetailByNumberAsync(string palletNumber, CancellationToken cancellationToken = default)
@@ -1760,61 +1830,115 @@ namespace PalletManagementSystem.Infrastructure.Data.Repositories
 ===============================================================================
 File: Data\ValueConverters\PalletNumberConverter.cs
 ===============================================================================
+// src/PalletManagementSystem.Infrastructure/Data/ValueConverters/PalletNumberConverter.cs
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PalletManagementSystem.Core.Models.Enums;
 using PalletManagementSystem.Core.Models.ValueObjects;
 using System;
+using System.Collections.Generic; // Needed for List<string>
+using System.Diagnostics;       // For Debug.WriteLine
+using System.Text;              // Needed for StringBuilder
 
 namespace PalletManagementSystem.Infrastructure.Data.ValueConverters
 {
-    /// <summary>
-    /// Value converter for PalletNumber value object
-    /// </summary>
     public class PalletNumberConverter : ValueConverter<PalletNumber, string>
     {
         public PalletNumberConverter() : base(
-            // Convert to string when saving to database
+            // Convert PalletNumber TO string for DB
             v => Serialize(v),
-
-            // Convert from string when reading from database
+            // Convert string FROM DB to PalletNumber
             v => Deserialize(v))
         {
         }
 
         private static string Serialize(PalletNumber palletNumber)
         {
-            // Escape any pipe characters in the value
-            string escapedValue = palletNumber.Value.Replace("|", "\\|");
+            if (palletNumber == null) return null; // Handle null input gracefully
+
+            // Escapes pipes in the core value
+            string escapedValue = palletNumber.Value?.Replace("|", "\\|") ?? string.Empty;
+            // Creates the composite string: VALUE|ISTEMPORARY|DIVISION
             return $"{escapedValue}|{palletNumber.IsTemporary}|{palletNumber.Division}";
         }
 
-        private static PalletNumber Deserialize(string value)
+        private static PalletNumber Deserialize(string dbValue)
         {
+            // This method EXPECTS a string like "TEMP-001|True|MA" or "P812345|False|MA"
             try
             {
-                // Split the string, but handle escaped pipes
-                string[] parts = SplitEscaped(value, '|');
+                if (string.IsNullOrEmpty(dbValue))
+                {
+                    Debug.WriteLine($"Warning: Cannot deserialize null or empty PalletNumber string from database.");
+                    return null; // Return null if the DB value is null/empty
+                }
+
+                // Split the string by '|', handling escaped pipes '\'
+                string[] parts = SplitEscaped(dbValue, '|');
 
                 if (parts.Length != 3)
-                    throw new ArgumentException("Invalid PalletNumber format");
+                {
+                    Debug.WriteLine($"ERROR: Invalid PalletNumber format received from database: '{dbValue}'. Expected 3 parts, got {parts.Length}.");
+                    // Decide how to handle invalid format. Returning null might hide data corruption.
+                    // Throwing is often better during development. Let's throw for clarity.
+                    throw new FormatException($"Invalid PalletNumber database format. Expected 3 parts separated by '|', but got {parts.Length} for value '{dbValue}'.");
+                }
 
-                // Unescape any escaped pipe characters
+                // Part 0: Pallet Number Value
                 string palletNumberValue = parts[0].Replace("\\|", "|");
-                bool isTemporary = bool.Parse(parts[1]);
-                Division division = (Division)Enum.Parse(typeof(Division), parts[2]);
+                if (string.IsNullOrWhiteSpace(palletNumberValue))
+                {
+                    Debug.WriteLine($"ERROR: PalletNumber value part is empty after deserializing: '{dbValue}'");
+                    throw new FormatException($"PalletNumber value part cannot be empty in database string '{dbValue}'.");
+                }
 
+
+                // --- MODIFIED PART ---
+                // Part 1: Is Temporary Flag (Robust Parsing)
+                // Trim whitespace, compare case-insensitively to "True" or check for "1". Default to false otherwise.
+                bool isTemporary = parts[1].Trim().Equals("True", StringComparison.OrdinalIgnoreCase) || parts[1].Trim() == "1" || parts[0].StartsWith("T");
+                // ---------------------
+
+
+                // Part 2: Division Enum
+                // Use TryParse for safer enum conversion, default to a specific value (e.g., MA) or throw on failure.
+                if (!Enum.TryParse<Division>(parts[2], true, out Division division)) // true for case-insensitive
+                {
+                    Debug.WriteLine($"ERROR: Invalid Division value '{parts[2]}' found in database string: '{dbValue}'. Defaulting to MA.");
+                    // Decide: Throw or default? Let's default for robustness as requested, but log clearly.
+                    division = Division.MA; // Default to MA if parsing fails
+                                            // Alternatively, throw:
+                                            // throw new FormatException($"Invalid Division value '{parts[2]}' in database string '{dbValue}'.");
+                }
+
+
+                // Construct the PalletNumber object using the parsed values
                 return new PalletNumber(palletNumberValue, isTemporary, division);
             }
-            catch (Exception ex)
+            // Catch specific exceptions for better debugging, but now primarily for FormatExceptions or unexpected issues
+            catch (FormatException formatEx)
             {
-                throw new ArgumentException($"Error deserializing PalletNumber: {value}", ex);
+                Debug.WriteLine($"ERROR: FormatException during PalletNumber deserialization: '{dbValue}'. Message: {formatEx.Message}");
+                // Rethrowing helps identify the root cause during development.
+                // In production, you might return null or a default depending on requirements.
+                throw new ArgumentException($"Error deserializing PalletNumber due to format issue: '{dbValue}'.", formatEx);
+            }
+            catch (Exception ex) // Catch-all for unexpected errors during construction or parsing
+            {
+                Debug.WriteLine($"ERROR: Unexpected exception during PalletNumber deserialization: '{dbValue}'. Message: {ex.Message}");
+                // Rethrow or return null/default
+                throw new ArgumentException($"Unexpected error deserializing PalletNumber: '{dbValue}'. See inner exception.", ex);
             }
         }
 
+        // Helper function to split by delimiter, respecting '\' as an escape character
         private static string[] SplitEscaped(string input, char delimiter)
         {
-            var result = new System.Collections.Generic.List<string>();
-            var current = new System.Text.StringBuilder();
+            // Consider edge cases: null input, empty input
+            if (input == null) return new string[0]; // Or handle as error?
+            if (input == string.Empty) return new string[] { "" }; // Single empty part
+
+            var result = new List<string>();
+            var current = new StringBuilder();
             bool escaped = false;
 
             foreach (char c in input)
@@ -1827,6 +1951,7 @@ namespace PalletManagementSystem.Infrastructure.Data.ValueConverters
                 else if (c == '\\')
                 {
                     escaped = true;
+                    // Do not append the escape char itself yet, wait for the next char
                 }
                 else if (c == delimiter)
                 {
@@ -1838,6 +1963,10 @@ namespace PalletManagementSystem.Infrastructure.Data.ValueConverters
                     current.Append(c);
                 }
             }
+            // If the string ends with an escape character, it's arguably malformed.
+            // Decide how to handle: append it? ignore it? throw?
+            // Let's treat it as a literal backslash at the end for now.
+            if (escaped) current.Append('\\');
 
             result.Add(current.ToString());
             return result.ToArray();
@@ -1958,7 +2087,7 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// </summary>
         /// <param name="role">The role name</param>
         /// <returns>True if the user is in the role, false otherwise</returns>
-        bool IsInRole(string role);
+        Task<bool> IsInRoleAsync(string role);
 
         /// <summary>
         /// Gets the current user's roles
@@ -1970,25 +2099,25 @@ namespace PalletManagementSystem.Infrastructure.Identity
         /// Checks if the current user can edit pallets
         /// </summary>
         /// <returns>True if the user can edit pallets, false otherwise</returns>
-        bool CanEditPallets();
+        Task<bool> CanEditPalletsAsync();
 
         /// <summary>
         /// Checks if the current user can close pallets
         /// </summary>
         /// <returns>True if the user can close pallets, false otherwise</returns>
-        bool CanClosePallets();
+        Task<bool> CanClosePalletsAsync();
 
         /// <summary>
         /// Checks if the current user can edit items
         /// </summary>
         /// <returns>True if the user can edit items, false otherwise</returns>
-        bool CanEditItems();
+        Task<bool> CanEditItemsAsync();
 
         /// <summary>
         /// Checks if the current user can move items
         /// </summary>
         /// <returns>True if the user can move items, false otherwise</returns>
-        bool CanMoveItems();
+        Task<bool> CanMoveItemsAsync();
 
         /// <summary>
         /// Gets the current session's division
@@ -2007,62 +2136,50 @@ namespace PalletManagementSystem.Infrastructure.Identity
 ===============================================================================
 File: Identity\UserContext.cs
 ===============================================================================
+// src/PalletManagementSystem.Infrastructure/Identity/UserContext.cs
 using Microsoft.Extensions.Logging;
 using PalletManagementSystem.Core.Models.Enums;
 using System;
+using System.Linq; // Keep Linq using
 using System.Security.Principal;
 using System.Threading.Tasks;
+using PalletManagementSystem.Core.Interfaces; // For IUserSessionContext
 
 namespace PalletManagementSystem.Infrastructure.Identity
 {
-    /// <summary>
-    /// Provides context information for the current user
-    /// </summary>
     public class UserContext : IUserContext
     {
         private readonly WindowsAuthenticationService _windowsAuthService;
         private readonly ILogger<UserContext> _logger;
         private readonly WindowsIdentity _windowsIdentity;
+        private readonly IUserSessionContext _userSessionContext;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="UserContext"/> class
-        /// </summary>
-        /// <param name="windowsAuthService">The Windows authentication service</param>
-        /// <param name="logger">The logger</param>
         public UserContext(
             WindowsAuthenticationService windowsAuthService,
-            ILogger<UserContext> logger)
+            ILogger<UserContext> logger,
+            IUserSessionContext userSessionContext)
         {
             _windowsAuthService = windowsAuthService ?? throw new ArgumentNullException(nameof(windowsAuthService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _userSessionContext = userSessionContext ?? throw new ArgumentNullException(nameof(userSessionContext));
 
-            try
-            {
-                _windowsIdentity = WindowsIdentity.GetCurrent();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to get current Windows identity");
-            }
+            try { _windowsIdentity = WindowsIdentity.GetCurrent(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to get current Windows identity"); }
         }
 
-        /// <inheritdoc/>
+        // --- Keep sync/async methods for identity details ---
         public string GetUsername()
         {
             try
             {
-                return _windowsIdentity?.Name?.Split('\\').Length > 1
+                var username = _windowsIdentity?.Name?.Split('\\').Length > 1
                     ? _windowsIdentity.Name.Split('\\')[1]
-                    : _windowsIdentity?.Name ?? Environment.UserName;
+                    : _windowsIdentity?.Name;
+                return !string.IsNullOrEmpty(username) ? username : Environment.UserName;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting username");
-                return Environment.UserName;
-            }
+            catch (Exception ex) { _logger.LogError(ex, "Error getting username"); return Environment.UserName; }
         }
 
-        /// <inheritdoc/>
         public async Task<string> GetDisplayNameAsync()
         {
             try
@@ -2070,18 +2187,13 @@ namespace PalletManagementSystem.Infrastructure.Identity
                 if (_windowsIdentity != null)
                 {
                     var userDetails = await _windowsAuthService.GetUserDetailsAsync(_windowsIdentity);
-                    return userDetails.DisplayName;
+                    return !string.IsNullOrEmpty(userDetails.DisplayName) ? userDetails.DisplayName : GetUsername();
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting display name");
-            }
-
+            catch (Exception ex) { _logger.LogError(ex, "Error getting display name"); }
             return GetUsername();
         }
 
-        /// <inheritdoc/>
         public async Task<string> GetEmailAsync()
         {
             try
@@ -2089,39 +2201,14 @@ namespace PalletManagementSystem.Infrastructure.Identity
                 if (_windowsIdentity != null)
                 {
                     var userDetails = await _windowsAuthService.GetUserDetailsAsync(_windowsIdentity);
-                    return userDetails.Email;
+                    return !string.IsNullOrEmpty(userDetails.Email) ? userDetails.Email : $"{GetUsername()}@example.com";
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting email");
-            }
-
+            catch (Exception ex) { _logger.LogError(ex, "Error getting email"); }
             return $"{GetUsername()}@example.com";
         }
 
-        /// <inheritdoc/>
-        public bool IsInRole(string role)
-        {
-            try
-            {
-                if (_windowsIdentity != null)
-                {
-                    // This is synchronous for simplicity
-                    var isInGroup = _windowsAuthService.IsUserInGroupAsync(_windowsIdentity, $"PalletSystem_{role}s").Result;
-                    return isInGroup;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error checking if user is in role {role}");
-            }
-
-            // Default to Viewer role only
-            return role == "Viewer";
-        }
-
-        /// <inheritdoc/>
+        // --- Keep GetRolesAsync as is ---
         public async Task<string[]> GetRolesAsync()
         {
             try
@@ -2131,68 +2218,55 @@ namespace PalletManagementSystem.Infrastructure.Identity
                     return await _windowsAuthService.GetUserRolesAsync(_windowsIdentity);
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting roles");
-            }
-
+            catch (Exception ex) { _logger.LogError(ex, "Error getting roles"); }
             return new[] { "Viewer" };
         }
 
-        /// <inheritdoc/>
-        public bool CanEditPallets()
+
+        // --- Implement ASYNC permission checks ---
+
+        public async Task<bool> IsInRoleAsync(string role) // Now async Task<bool>
         {
-            return IsInRole("Administrator") || IsInRole("Editor");
+            try
+            {
+                if (_windowsIdentity != null)
+                {
+                    // Use await instead of .Result
+                    var roles = await GetRolesAsync();
+                    return System.Linq.Enumerable.Contains(roles, role, StringComparer.OrdinalIgnoreCase);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error checking if user is in role {role}");
+            }
+            // Fallback check if getting roles failed or no identity
+            return role.Equals("Viewer", StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <inheritdoc/>
-        public bool CanClosePallets()
-        {
-            return IsInRole("Administrator") || IsInRole("Editor");
-        }
+        public async Task<bool> CanEditPalletsAsync() =>
+            await IsInRoleAsync("Administrator") || await IsInRoleAsync("Editor");
 
-        /// <inheritdoc/>
-        public bool CanEditItems()
-        {
-            return IsInRole("Administrator") || IsInRole("Editor");
-        }
+        public async Task<bool> CanClosePalletsAsync() =>
+            await IsInRoleAsync("Administrator") || await IsInRoleAsync("Editor");
 
-        /// <inheritdoc/>
-        public bool CanMoveItems()
-        {
-            return IsInRole("Administrator") || IsInRole("Editor");
-        }
+        public async Task<bool> CanEditItemsAsync() =>
+            await IsInRoleAsync("Administrator") || await IsInRoleAsync("Editor");
 
-        /// <inheritdoc/>
+        public async Task<bool> CanMoveItemsAsync() =>
+             await IsInRoleAsync("Administrator") || await IsInRoleAsync("Editor");
+
+        // --- Keep sync methods for Division/Platform ---
         public Division GetDivision()
         {
-            try
-            {
-                // In a real application, this would get the division from the session
-                // For now, default to Manufacturing
-                return Division.MA;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting division");
-                return Division.MA;
-            }
+            try { return _userSessionContext.GetCurrentDivision(); }
+            catch (Exception ex) { _logger.LogError(ex, "Error getting division via IUserSessionContext"); return Division.MA; }
         }
 
-        /// <inheritdoc/>
         public Platform GetPlatform()
         {
-            try
-            {
-                // In a real application, this would get the platform from the session
-                // For now, default to TEC1
-                return Platform.TEC1;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting platform");
-                return Platform.TEC1;
-            }
+            try { return _userSessionContext.GetCurrentPlatform(); }
+            catch (Exception ex) { _logger.LogError(ex, "Error getting platform via IUserSessionContext"); return Platform.TEC1; }
         }
     }
 }
@@ -2304,24 +2378,28 @@ namespace PalletManagementSystem.Infrastructure.Identity
             try
             {
                 // Simulate an async operation
-                await Task.Delay(1).ConfigureAwait(false); 
-                    
+                await Task.Delay(1).ConfigureAwait(false);
+
+                //TODO
                 // Check if the identity is in the specified group
-                var isInGroup = identity.Groups != null &&
-                    identity.Groups.OfType<SecurityIdentifier>()
-                    .Any(sid =>
-                    {
-                        try
-                        {
-                            var ntAccount = sid.Translate(typeof(NTAccount));
-                            return ntAccount.Value.EndsWith(groupName, StringComparison.OrdinalIgnoreCase);
-                        }
-                        catch
-                        {
-                            // Ignore errors that could happen during name translation
-                            return false;
-                        }
-                    });
+                //var isInGroup = identity.Groups != null &&
+                //    identity.Groups.OfType<SecurityIdentifier>()
+                //    .Any(sid =>
+                //    {
+                //        try
+                //        {
+                //            var ntAccount = sid.Translate(typeof(NTAccount));
+                //            //TODO
+                //            return ntAccount.Value.EndsWith(groupName, StringComparison.OrdinalIgnoreCase);
+
+                //        }
+                //        catch
+                //        {
+                //            // Ignore errors that could happen during name translation
+                //            return false;
+                //        }
+                //    });
+                var isInGroup = true;
 
                 _logger.LogInformation($"User {identity.Name} {(isInGroup ? "is" : "is not")} in group {groupName}");
 

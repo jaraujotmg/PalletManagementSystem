@@ -1,0 +1,242 @@
+# Comprehensive Prompt for Building a Modern Pallet Management System
+
+## Project Overview
+Create a full-stack pallet management system for a manufacturing company. The system will track pallets and their contents (items) across different divisions and platforms within the organization. The application should allow users to search for pallets, view detailed information, edit item properties, move items between pallets, and print labels and reports.
+
+## Technical Requirements
+
+### Architecture
+- Implement a clean architecture with:
+  - Core domain layer for business logic and models
+  - Infrastructure layer for data access
+  - Web presentation layer for UI
+- Use Entity Framework Core for data access with SQL Server
+- Implement the repository pattern for data operations
+- Ensure proper separation of concerns throughout the application
+- Core and Infrastructure projects as .NET Standard 2.0
+- Web project as traditional ASP.NET MVC 5 on .NET Framework 4.8:
+  - Compatible with IIS 8.5
+- Test projects:
+  - Use .NET Framework 4.8 with MSTest or NUnit instead
+- ABSOLUTLY CRITICAL: Must be compatible with "Edge IE11 Compatibility Mode"
+
+
+### Database Structure
+- **Pallets table**:
+  - Id (PK)
+  - PalletNumber (unique identifier, may be null for temporary pallets)
+  - ManufacturingOrder
+  - Division (e.g., "MA" for Manufacturing, "TC" for Technical Center)
+  - Platform (e.g., "TEC1", "TEC2", "TEC4I")
+  - UnitOfMeasure
+  - Quantity
+  - ItemCount
+  - IsClosed (boolean flag)
+  - CreatedDate
+  - ClosedDate (nullable)
+  - CreatedBy (username)
+
+- **Items table**:
+  - Id (PK)
+  - ItemNumber (unique identifier)
+  - PalletId (FK to Pallets)
+  - ManufacturingOrder
+  - ManufacturingOrderLine
+  - ServiceOrder
+  - ServiceOrderLine
+  - FinalOrder
+  - FinalOrderLine
+  - ClientCode
+  - ClientName
+  - Reference
+  - Finish
+  - Color
+  - Quantity
+  - QuantityUnit
+  - Weight
+  - WeightUnit
+  - Width
+  - WidthUnit
+  - Quality
+  - Batch
+  - CreatedDate
+  - CreatedBy
+
+### User Interface
+- Responsive design using Bootstrap 5
+- Clean, professional interface with corporate styling
+- Touch-screen compatibility for warehouse use
+- Consistent color scheme using blue as the primary color
+- Icon integration using Font Awesome
+
+### Core Functionality
+
+#### Pallet Management
+- List all pallets with filtering by division and platform
+- Search functionality with autocomplete for pallet numbers and orders
+- Detailed view of pallet information
+- Close pallet functionality (marking as complete and assigning final number)
+- Print pallet list reports
+
+#### Item Management
+- View all items within a pallet
+- Detailed item information display
+- Edit item properties (only Weight, Width, Quality, and Batch should be editable)
+- Move items between pallets
+- Print item labels
+- Business rule: Items in closed pallets cannot be edited or moved
+
+#### Settings and Configuration
+- Allow users to switch between divisions and platforms
+- Store user preferences in session
+- Division-specific platform options (different divisions have different available platforms)
+
+#### Printing Integration
+- Integration with printing services using SSRS (SQL Server Reporting Services)
+- Different printer selection based on division, platform, and special rules
+- Special handling for certain client codes (e.g., "280898" for client "Special Client HB")
+
+### Business Rules
+1. Only open pallets can be edited
+2. When a pallet is closed, it gets assigned a permanent pallet number if it doesn't have one already
+3. Closed pallets trigger automatic printing of pallet lists
+4. Different divisions use different pallet number formats (e.g., "P8" prefix for MA division, "47" prefix for TC division)
+5. Special clients may have specific printer requirements
+6. Item editing is restricted to certain fields only (Weight, Width, Quality, and Batch)
+
+## User Experience Details
+
+### Pallet Listing Screen
+- Sortable table with columns: Pallet Number, Manufacturing Order, Quantity, Items Count, Status, Actions
+- Status should be visually distinct (Green "Closed" badge, Orange "Open" badge)
+- Search box at the top with autocomplete functionality
+- Division/Platform selector in the navigation bar
+
+### Pallet Details Screen
+- Header with pallet information (Number, Order, Division, Platform, Status)
+- List of all items in the pallet with key information
+- Buttons for:
+  - Print Pallet List
+  - Close Pallet (only for open pallets)
+  - Back to List
+- Confirmation dialog when closing a pallet
+
+### Item Details Screen
+- Organized sections for:
+  - Orders information (Manufacturing, Service, Final)
+  - Client information
+  - Product details (Reference, Finish, Color)
+  - Physical properties (Weight, Width, Quality, Batch)
+- Action buttons:
+  - Edit (only for items in open pallets)
+  - Move to Another Pallet (only for items in open pallets)
+  - Print Label
+  - Back to Pallet
+
+### Item Edit Screen
+- Focus only on editable fields (Weight, Width, Quality, Batch)
+- Validation for numeric fields (positive values only)
+- Non-empty validation for Batch field
+- Cancel and Save buttons
+- Confirmation prompt if leaving with unsaved changes
+
+### Settings Screen
+- Division selector (dropdown)
+- Platform selector (dropdown that updates based on selected division)
+- Save and Cancel buttons
+- Explanation text about the effect of changing settings
+
+## Technical Specifications
+
+### Authentication & Authorization
+- Windows Authentication (integrated with Active Directory)
+- Role-based access control for editing capabilities
+- User identification for audit trails
+
+### Data Validation
+- Client-side validation using jQuery Validate
+- Server-side validation using ModelState
+- Custom validation for business rules
+
+### Error Handling
+- Comprehensive try/catch blocks
+- Detailed logging using ILogger
+- User-friendly error messages
+- Custom error pages
+
+### Touch Screen Support
+- Larger buttons and inputs when touch mode is enabled
+- On-screen keyboard for numeric input
+- Touch-friendly interface elements
+- Configurable in settings
+
+### Search Functionality
+- Real-time suggestions as the user types
+- Categorized results (Pallets vs. Orders)
+- Visual differentiation of result types
+- Immediate redirection on selection
+
+### Session Management
+- Store user preferences (Division, Platform)
+- Timeout settings for security
+- Secure cookie handling
+
+### Printing Services
+- Printer selection logic based on multiple factors
+- Support for different report formats
+- Error handling for print job failures
+- Success/failure feedback to users
+
+## Non-Functional Requirements
+1. Performance: Page load times under 1 second
+2. Responsiveness: UI should adapt to different screen sizes
+3. Browser compatibility: Support for modern browsers (Chrome, Edge, Firefox)
+4. Accessibility: WCAG 2.1 AA compliance
+5. Security: Input validation, CSRF protection, authentication
+6. Logging: Comprehensive logging for auditing and troubleshooting
+
+## Sample Data
+- Include seed data for testing
+- Create at least 8 pallets with various statuses
+- Include at least 15 items distributed across pallets
+- Use realistic manufacturing order numbers, client information, etc.
+- Cover multiple divisions and platforms in the sample data
+
+## UI Design Guidelines
+- Primary color: #003366 (deep blue)
+- Secondary color: #5e87b0 (medium blue)
+- Accent color: #e6eef5 (light blue)
+- Success color: #2e7d32 (green)
+- Warning color: #f57c00 (orange)
+- Danger color: #c62828 (red)
+- Font: Segoe UI or similar sans-serif font
+- Card-based layout for information grouping
+- Consistent spacing and padding
+- Clear visual hierarchy
+- Mobile-first responsive design
+
+## Specific Implementation Details
+1. Use asynchronous operations throughout for better performance
+2. Implement proper caching strategies
+3. Use view models instead of passing domain models directly to views
+4. Create a base controller for common functionality
+5. Implement service interfaces for better testability
+6. Use dependency injection for all services and repositories
+7. Create migration scripts for database setup
+8. Implement proper indexing on database tables
+9. Use partial views for reusable UI components
+10. Add JavaScript enhancements for better UX
+11. Implement client-side state management for form changes
+12. Add confirmation dialogs for destructive actions
+13. Create utility classes for common operations
+14. Implement robust exception handling and logging
+15. Enable HTTPS for all connections
+
+## Deliverables
+1. Complete source code with proper organization
+2. Database migration scripts
+3. Sample data SQL script
+4. Setup and configuration documentation
+5. User guide
+6. Architecture overview document
+7. Deployment instructions
